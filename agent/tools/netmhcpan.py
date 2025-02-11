@@ -15,7 +15,7 @@ async def run_netmhcpan(
     :param allele: MHC等位基因类型
     :param netmhcpan_dir: netMHCpan安装目录
     """
-    output_path = "/mnt/ljs_output_dir/netmhcpan_results.txt"  # 输出文件路径
+    output_path = "/mnt/tmp/result/netmhcpan_results.txt"  # 输出文件路径
     # 确保输出目录存在
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     
@@ -60,6 +60,7 @@ async def run_netmhcpan(
         error_msg = stderr.decode()
         raise RuntimeError(f"netMHCpan执行失败，错误信息：{error_msg}")
 
+    #return "\n".join(filtered)
     return output_path
 
 @tool

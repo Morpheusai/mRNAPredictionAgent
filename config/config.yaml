@@ -8,4 +8,4 @@ LLM:
     temperature: 0.1
 
 TOOL:
-    upload_dir: "./logs/"
+    upload_dir: "/mnt/tmp/files/"
