@@ -1,6 +1,6 @@
 LOGGER:
     level: "DEBUG"
-    dir: "./logs/"
+    dir: "/mnt/workspace/stg/ljs/new/mRNAPredictionAgent/logs/"
     file: "log.txt"
 
 LLM:
