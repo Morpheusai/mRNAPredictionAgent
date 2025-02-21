@@ -1,4 +1,4 @@
-from typing import Any, Literal, NotRequired
+from typing import Any, Literal,List, NotRequired
 
 from pydantic import BaseModel, Field, SerializeAsAny
 from typing_extensions import TypedDict
@@ -36,20 +36,52 @@ class ServiceMetadata(BaseModel):
         description="Default model used when none is specified.",
     )
 
+class FileInfo(BaseModel):
+    file_name: str = Field(description="文件名")
+    file_content: str = Field(description="文件内容")
+
+class FileGroup(BaseModel):
+    conversation_id: str = Field(description="会话 ID，UUID 格式，长度 36", max_length=36, min_length=36)
+    files: List[FileInfo] = Field(description="文件列表")
 
 class UserInput(BaseModel):
     """Basic user input for the agent."""
-
     prompt: str = Field(
         description="User input to the agent.",
         examples=["What is the weather in Tokyo?"],
     )
-    system_token: str =Field(
+    system_token: str = Field(
         description="传入系统token，验证有效性",
     )
-    conversation_id: str =Field(
+    conversation_id: str = Field(
         description="传入会话id，存入数据库",
-    )    
+    )
+    file_list: List[FileGroup] = Field(
+        description="传入文件列表",
+        default=[],
+    )
+    agent_config: dict[str, Any] = Field(
+        description="Additional configuration to pass through to the agent",
+        default={},
+        examples=[{"spicy_level": 0.8}],
+    )
+    stream_tokens: bool = Field(
+        description="Whether to stream LLM tokens to the client.",
+        default=True,
+    )
+# class UserInput(BaseModel):
+#     """Basic user input for the agent."""
+
+#     prompt: str = Field(
+#         description="User input to the agent.",
+#         examples=["What is the weather in Tokyo?"],
+#     )
+#     system_token: str =Field(
+#         description="传入系统token，验证有效性",
+#     )
+#     conversation_id: str =Field(
+#         description="传入会话id，存入数据库",
+#     )    
     # model: SerializeAsAny[AllModelEnum] | None = Field(
     #     title="Model",
     #     description="LLM Model to use for the agent.",
@@ -61,11 +93,7 @@ class UserInput(BaseModel):
     #     default=None,
     #     examples=["847c6285-8fc9-4560-a83f-4e6285809254"],
     # )
-    # agent_config: dict[str, Any] = Field(
-    #     description="Additional configuration to pass through to the agent",
-    #     default={},
-    #     examples=[{"spicy_level": 0.8}],
-    # )
+
 
 
 # class StreamInput(UserInput):

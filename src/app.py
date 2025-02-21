@@ -50,9 +50,10 @@ load_dotenv()
 def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], UUID]:
     run_id = uuid4()
     # thread_id = user_input.thread_id or str(uuid4())
-    thread_id = str(uuid4())
+    thread_id = user_input.conversation_id
+    file_list = user_input.file_list
     # configurable = {"thread_id": thread_id, "model": user_input.model}
-    configurable = {"thread_id": thread_id, "model": OpenAIModelName.GPT_4O}
+    configurable = {"thread_id": thread_id, "model": OpenAIModelName.GPT_4O,"file_list":file_list}
     # if user_input.agent_config:
     #     if overlap := configurable.keys() & user_input.agent_config.keys():
     #         raise HTTPException(
@@ -108,20 +109,19 @@ async def message_generator(
                 chat_message = langchain_to_chat_message(message)
                 chat_message.run_id = str(run_id)
             except Exception as e:
-                # logger.error(f"Error parsing message: {e}")
+                logger.error(f"Error parsing message: {e}")
                 yield f"data: {json.dumps({'type': 'error', 'content': 'Unexpected error'})}\n\n"
                 continue
             # LangGraph re-sends the input message, which feels weird, so drop it
             if chat_message.type == "human" and chat_message.content == user_input.prompt:
                 continue
-            # print("111111")
             
             yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
 
         # Yield tokens streamed from LLMs.
         if (
             event["event"] == "on_chat_model_stream"
-            # and user_input.stream_tokens
+            and user_input.stream_tokens
             and "llama_guard" not in event.get("tags", [])
         ):
             content = remove_tool_calls(event["data"]["chunk"].content)

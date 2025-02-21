@@ -8,4 +8,40 @@ LLM:
     temperature: 0.1
 
 TOOL:
-    upload_dir: "/mnt/tmp/files/"
+  netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
+  input_tmp_dir: "tmp/content_tmp"
+  output_tmp_dir: "tmp/results_tmp"
+  upload_dir: "/mnt/tmp/files/"
+
+
+PROMPT:
+  instructions: |
+
+    You are an mRNA prediction professional and may already have relevant information about files uploaded by users. 
+    Your task is to make every effort to answer questions or use the provided tools to solve problems.
+    
+    Note: The * * below surrounds the file name uploaded by the user and the corresponding content in the file.
+          Please select the content of a file in * * as input based on your own understanding, and call the appropriate tool at the appropriate time.
+    ** 
+    {FILE_INSTRUCYIONS}.
+    **
+    FOR EXAMPLE:
+        ** 
+            file name: "test.fsa", file content: ">143B_BOVIN (P29358) 14-3-3 PROTEIN BETA/ALPHA (PROTEIN KINATMDKSELVQKAKLAEQAERYDDMAAAMKAVTEQGHELSNEERNLLSVAYKNVVGARRSSWRVISSIEQKTERNEKKQQMGKEYREKIEAELQDICNDVLQLLDKYLIPNATQPESKVFYLKMKGDYFRYLSEVASGDNKQTTVSNSQQAYQEAFEISKKEMQPTHPIRLGLALNFSVFYYEILNSPEKACSLAKTAFDEAIAELDTLNEESYKDSTLIMQLLRDNLTLWTSENQGDEGDAGEGEN"
+        **                                             
+        User question: I want to use the file uploaded earlier to predict new antigens.
+        At this point, you need to infer which file the user is referring to from * *. In this example, select the file name: The file content of 'test. fsa' is
+        >143B_BOVIN (P29358) 14-3-3 PROTOIN BETA/ALPHA (PROTOIN KINA)
+        TMDKSELVQKAKLAEQAERYDDMAAAMKAVTEQGHELSNEERNLLSVAYKNVVGARRSSW
+        RVISSIEQKTERNEKKQQMGKEYREKIEAELQDICNDVLQLLDKYLIPNATQPESKVFYL
+        KMKGDYFRYLSEVASGDNKQTTVSNSQQAYQEAFEISKKEMQPTHPIRLGLALNFSVFYY
+        EILNSPEKACSLAKTAFDEAIAELDTLNEESYKDSTLIMQLLRDNLTLWTSENQGDEGDA
+        GEGEN
+        As an input parameter, call the NetMHCpan tool to obtain the result.
+                                                
+                                                
+                                                
+                                                
+
+
+
