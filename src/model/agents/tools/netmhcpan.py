@@ -87,7 +87,7 @@ async def run_netmhcpan(
         raise RuntimeError(f"netMHCpan执行失败: {error_msg}")
 
     result = {
-        "type": "file_path",
+        "type": "link",
         "content": DOWNLOADER_PREFIX + str(output_filename)
     }
     return result
