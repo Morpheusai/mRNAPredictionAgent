@@ -61,4 +61,9 @@ mRNA疫苗的开发和生产流程可以分为以下几个主要步骤：
     """
     
     # 返回保存流程步骤的变量
-    return process_steps
+    result = {
+        "type": "text",
+        "content": process_steps
+    }
+
+    return result
