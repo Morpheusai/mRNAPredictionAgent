@@ -13,7 +13,7 @@ from langgraph.prebuilt import ToolNode
 from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
 from utils.log import logger
 
-from src.model.agents.tools import mRNA
+from src.model.agents.tools import mRNAResearchAndProduction
 from src.model.agents.tools import NetMHCpan
 from .core import get_model  # 相对导入
 import sys
@@ -33,7 +33,7 @@ class AgentState(MessagesState, total=False):
     """
 
 
-tools = [mRNA,NetMHCpan]
+tools = [mRNAResearchAndProduction,NetMHCpan]
 
 raw_instructions = CONFIG_YAML["PROMPT"]["instructions"]
 
@@ -97,8 +97,8 @@ async def _parser(state: AgentState, config: RunnableConfig):
                 )
                 messages.append(tool_msg)
                 
-            elif tool_name == "mRNA":
-                func_result = await mRNA.ainvoke(
+            elif tool_name == "mRNAResearchAndProduction":
+                func_result = await mRNAResearchAndProduction.ainvoke(
                     {
                         "input": "mRNA疫苗的研究生产过程"
                     }
