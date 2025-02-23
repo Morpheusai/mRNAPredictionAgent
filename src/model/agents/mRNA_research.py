@@ -85,7 +85,11 @@ async def _parser(state: AgentState, config: RunnableConfig):
                 continue  # 如果已经存在，跳过添加
             if tool_name == "NetMHCpan":
                 input_filename = tool_call_input
-                func_result = await NetMHCpan.ainvoke({"input_filecontent": input_filename})
+                func_result = await NetMHCpan.ainvoke(
+                    {
+                        "input_filecontent": input_filename
+                    }
+                )
                 logger.info(f"NetMHCpan result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
@@ -94,7 +98,11 @@ async def _parser(state: AgentState, config: RunnableConfig):
                 messages.append(tool_msg)
                 
             elif tool_name == "mRNA":
-                func_result = await mRNA.ainvoke({"input": "mRNA"})
+                func_result = await mRNA.ainvoke(
+                    {
+                        "input": "mRNA疫苗的研究生产过程"
+                    }
+                )
                 logger.info(f"Neoantigen result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,

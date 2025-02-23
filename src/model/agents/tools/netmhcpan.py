@@ -12,24 +12,20 @@ project_root = current_file.parents[4]  # 向上回溯 4 层目录：src/model/a
 sys.path.append(str(project_root))
 from config import CONFIG_YAML
 
-
-
 # llm 
-netmhcpan_dir = CONFIG_YAML["TOOL"]["netmhcpan_dir"]
-input_tmp_dir = CONFIG_YAML["TOOL"]["input_tmp_dir"]
-output_tmp_dir = CONFIG_YAML["TOOL"]["output_tmp_dir"]
-
-
+NETMHCPAN_DIR = CONFIG_YAML["TOOL"]["netmhcpan_dir"]
+INPUT_TMP_DIR = CONFIG_YAML["TOOL"]["input_tmp_dir"]
+DOWNLOADER_PREFIX = CONFIG_YAML["TOOL"]["ouput_download_url_prefix"]
+OUTPUT_TMP_DIR = CONFIG_YAML["TOOL"]["output_tmp_dir"]
 
 async def run_netmhcpan(
     input_filecontent: str, 
     #    allele: str = "HLA-A02:01",
-    netmhcpan_dir: str= netmhcpan_dir
+    netmhcpan_dir: str = NETMHCPAN_DIR
     ) -> None:
     """
     异步运行netMHCpan并保存处理后的结果
-    :param input_path: 输入文件路径
-    :param output_path: 输出文件路径
+    :param input_filecontent: 输入文件内容
     :param allele: MHC等位基因类型
     :param netmhcpan_dir: netMHCpan安装目录
     """
@@ -37,8 +33,8 @@ async def run_netmhcpan(
     # 生成随机ID和文件路径
     random_id = uuid.uuid4().hex
     base_path = Path(__file__).resolve().parents[3]  # 根据文件位置调整层级
-    input_dir = base_path / input_tmp_dir
-    output_dir = base_path / output_tmp_dir
+    input_dir = base_path / INPUT_TMP_DIR
+    output_dir = OUTPUT_TMP_DIR
     
     # 创建目录
     input_dir.mkdir(parents=True, exist_ok=True)
@@ -50,7 +46,8 @@ async def run_netmhcpan(
         f.write(input_filecontent)
 
     # 构建输出路径
-    output_path = output_dir / f"netmhcpan_result_{random_id}.txt"
+    output_filename = f"netmhcpan_result_{random_id}.txt"
+    output_path = output_dir / f"{output_filename}"
 
     # 构建命令
     cmd = [
@@ -90,8 +87,8 @@ async def run_netmhcpan(
         raise RuntimeError(f"netMHCpan执行失败: {error_msg}")
 
     result = {
-    "type": "file_path",
-    "content": str(output_path)
+        "type": "file_path",
+        "content": DOWNLOADER_PREFIX + str(output_filename)
     }
     return result
 
