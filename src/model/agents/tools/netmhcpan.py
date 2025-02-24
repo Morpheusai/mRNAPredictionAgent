@@ -34,11 +34,12 @@ async def run_netmhcpan(
     random_id = uuid.uuid4().hex
     base_path = Path(__file__).resolve().parents[3]  # 根据文件位置调整层级
     input_dir = base_path / INPUT_TMP_DIR
-    output_dir = OUTPUT_TMP_DIR
+    output_dir =Path(OUTPUT_TMP_DIR)
     
     # 创建目录
     input_dir.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
+    
 
     # 写入输入文件
     input_path = input_dir / f"{random_id}.fsa"
@@ -87,8 +88,8 @@ async def run_netmhcpan(
         raise RuntimeError(f"netMHCpan执行失败: {error_msg}")
 
     result = {
-        "type": "link",
-        "content": DOWNLOADER_PREFIX + str(output_filename)
+        'type': 'link',
+        'content': DOWNLOADER_PREFIX + str(output_filename)
     }
     return result
 
