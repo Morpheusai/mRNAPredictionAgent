@@ -1,6 +1,6 @@
 import asyncio
 import sys
-import os
+import json
 from langchain.tools import tool
 from pathlib import Path
 import uuid
@@ -88,19 +88,20 @@ async def run_netmhcpan(
         raise RuntimeError(f"netMHCpan执行失败: {error_msg}")
 
     result = {
-        'type': 'link',
-        'content': DOWNLOADER_PREFIX + str(output_filename)
+        "type": "link",
+        "content": DOWNLOADER_PREFIX + str(output_filename)
     }
-    return result
+
+    return json.dumps(result, ensure_ascii=False)
 
 @tool
-def NetMHCpan(input_filecontent: str) -> dict:
+def NetMHCpan(input_filecontent: str) -> str:
     """
     Use the NetMHCpan model to predict new antigens based on the input file content.
     Args:
         input_filecontent: Input the content of the file
     Return:
-        result: Return the result in dictionary format    
+        result: Return the result in string format    
     """
     try:
         return asyncio.run(run_netmhcpan(input_filecontent))

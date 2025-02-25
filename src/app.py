@@ -134,8 +134,8 @@ async def message_generator(
             #     except (SyntaxError, ValueError, json.JSONDecodeError) as e:
             #         logger.error(f"解析 tool content 失败: {e}")
             #         chat_message.content = {"type": "error", "content": "Invalid tool content format"}
-            print(f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n")        
-            yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
+            print(f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()}, ensure_ascii=False)}\n\n")        
+            yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()}, ensure_ascii=False)}\n\n"
 
         # Yield tokens streamed from LLMs.
         if (

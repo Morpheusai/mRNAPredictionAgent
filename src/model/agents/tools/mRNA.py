@@ -1,13 +1,14 @@
+import json
 from langchain.tools import tool
 
 @tool
-def mRNAResearchAndProduction(input: str = None) -> dict:
+def mRNAResearchAndProduction(input: str = None) -> str:
     """
     Research and production process of mRNA vaccine
     Args:
         input: Any string input.
     Return:
-        result: Return the result in dictionary format
+        result: Return the result in string format
    """
     
     # 将预测流程写入变量
@@ -69,4 +70,4 @@ mRNA疫苗的开发和生产流程可以分为以下几个主要步骤：
         "content": process_steps
     }
 
-    return result
+    return json.dumps(result, ensure_ascii=False)
