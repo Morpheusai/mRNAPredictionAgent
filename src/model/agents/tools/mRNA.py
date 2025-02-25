@@ -1,12 +1,15 @@
 from langchain.tools import tool
 
 @tool
-def mRNAResearchAndProduction(input: str = None):
+def mRNAResearchAndProduction(input: str = None) -> dict:
     """
     Research and production process of mRNA vaccine
     Args:
         input: Any string input.
-    """
+    Return:
+        result: Return the result in dictionary format
+   """
+    
     # 将预测流程写入变量
     process_steps = """
 mRNA疫苗的开发和生产流程可以分为以下几个主要步骤：

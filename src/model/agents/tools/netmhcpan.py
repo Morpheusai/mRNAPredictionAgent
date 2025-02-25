@@ -94,11 +94,13 @@ async def run_netmhcpan(
     return result
 
 @tool
-def NetMHCpan(input_filecontent: str):
+def NetMHCpan(input_filecontent: str) -> dict:
     """
     Use the NetMHCpan model to predict new antigens based on the input file content.
     Args:
         input_filecontent: Input the content of the file
+    Return:
+        result: Return the result in dictionary format    
     """
     try:
         return asyncio.run(run_netmhcpan(input_filecontent))

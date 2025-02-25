@@ -118,15 +118,15 @@ async def message_generator(
                 continue
 
             # # 处理 tool 类型的消息
-            if chat_message.type == "tool":
-                try:
-                    # 解析 content 字段中的字符串为字典
-                    content_dict = ast.literal_eval(chat_message.content)
-                    # 直接将字典赋值给 content，而不是转换为字符串
-                    chat_message.content = content_dict
-                except (SyntaxError, ValueError, json.JSONDecodeError) as e:
-                    logger.error(f"解析 tool content 失败: {e}")
-                    chat_message.content = {"type": "error", "content": "Invalid tool content format"}
+            # if chat_message.type == "tool":
+            #     try:
+            #         # 解析 content 字段中的字符串为字典
+            #         content_dict = ast.literal_eval(chat_message.content)
+            #         # 直接将字典赋值给 content，而不是转换为字符串
+            #         chat_message.content = content_dict
+            #     except (SyntaxError, ValueError, json.JSONDecodeError) as e:
+            #         logger.error(f"解析 tool content 失败: {e}")
+            #         chat_message.content = {"type": "error", "content": "Invalid tool content format"}
             # if chat_message.type == "tool":
             #     try:
             #         content_dict=json.loads(chat_message.content)
