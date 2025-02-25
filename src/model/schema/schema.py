@@ -1,4 +1,4 @@
-from typing import Any, Literal,List, NotRequired
+from typing import Any, Literal,List, NotRequired,Union
 
 from pydantic import BaseModel, Field, SerializeAsAny
 from typing_extensions import TypedDict
@@ -130,9 +130,9 @@ class ChatMessage(BaseModel):
         description="Role of the message.",
         examples=["human", "ai", "tool", "custom"],
     )
-    content: str = Field(
+    content: Union[str, dict] = Field(  # 支持字符串或字典
         description="Content of the message.",
-        examples=["Hello, world!"],
+        examples=["Hello, world!", {"type": "text", "content": "Some text"}],
     )
     tool_calls: list[ToolCall] = Field(
         description="Tool calls in the message.",

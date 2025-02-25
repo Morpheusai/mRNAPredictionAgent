@@ -25,7 +25,7 @@ from src.model.utils import (
     langchain_to_chat_message,
     remove_tool_calls,
 )
-
+import ast
 
 
 
@@ -103,7 +103,7 @@ async def message_generator(
         # Also yield intermediate messages from agents.utils.CustomData.adispatch().
         if event["event"] == "on_custom_event" and "custom_data_dispatch" in event.get("tags", []):
             new_messages = [event["data"]]
-        
+                
         for message in new_messages:
             try:
                 chat_message = langchain_to_chat_message(message)
@@ -112,10 +112,29 @@ async def message_generator(
                 logger.error(f"Error parsing message: {e}")
                 yield f"data: {json.dumps({'type': 'error', 'content': 'Unexpected error'})}\n\n"
                 continue
-            # LangGraph re-sends the input message, which feels weird, so drop it
+
+            # 过滤掉 LangGraph 重新发送的输入消息
             if chat_message.type == "human" and chat_message.content == user_input.prompt:
                 continue
-            
+
+            # # 处理 tool 类型的消息
+            if chat_message.type == "tool":
+                try:
+                    # 解析 content 字段中的字符串为字典
+                    content_dict = ast.literal_eval(chat_message.content)
+                    # 直接将字典赋值给 content，而不是转换为字符串
+                    chat_message.content = content_dict
+                except (SyntaxError, ValueError, json.JSONDecodeError) as e:
+                    logger.error(f"解析 tool content 失败: {e}")
+                    chat_message.content = {"type": "error", "content": "Invalid tool content format"}
+            # if chat_message.type == "tool":
+            #     try:
+            #         content_dict=json.loads(chat_message.content)
+            #         chat_message.content = content_dict
+            #     except (SyntaxError, ValueError, json.JSONDecodeError) as e:
+            #         logger.error(f"解析 tool content 失败: {e}")
+            #         chat_message.content = {"type": "error", "content": "Invalid tool content format"}
+            print(f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n")        
             yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
 
         # Yield tokens streamed from LLMs.
