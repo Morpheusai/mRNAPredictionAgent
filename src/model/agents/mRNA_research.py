@@ -116,7 +116,7 @@ agent.add_node("model", acall_model)
 agent.add_node("parserNode", _parser)
 agent.set_entry_point("model")
 
-agent.add_edge("parserNode", "model")
+agent.add_edge("parserNode", END)
 
 def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     last_message = state["messages"][-1]
