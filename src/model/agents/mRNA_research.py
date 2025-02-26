@@ -1,3 +1,4 @@
+import aiosqlite
 from datetime import datetime
 from typing import Literal
 
@@ -6,7 +7,7 @@ from langchain_community.utilities import OpenWeatherMapAPIWrapper
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, MessagesState, StateGraph
 from langgraph.managed import RemainingSteps
 from langgraph.prebuilt import ToolNode
@@ -130,4 +131,7 @@ def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
 agent.add_conditional_edges("model", pending_tool_calls, {"tools": "parserNode", "done": END})
 
 
-mRNA_research = agent.compile(checkpointer=MemorySaver())
+async def compile_mRNA_research():
+    conn = await aiosqlite.connect("checkpoints.sqlite")
+    mRNA_research = agent.compile(checkpointer=AsyncSqliteSaver(conn))
+    return mRNA_research, conn

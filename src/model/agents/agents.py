@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from langgraph.graph.state import CompiledStateGraph
-from src.model.agents.mRNA_research import mRNA_research
+# from src.model.agents.mRNA_research import mRNA_research
 from src.model.schema import AgentInfo
 
 DEFAULT_AGENT = "mRNA_research"
@@ -12,12 +12,15 @@ class Agent:
     graph: CompiledStateGraph
 
 
-agents: dict[str, Agent] = {
-    "mRNA_research": Agent(
-        description="A mRNA_research with web search and calculator.", graph=mRNA_research
-    ),
-}
-
+agents: dict[str, Agent] = {}
+async def initialize_agents():
+    from src.model.agents.mRNA_research import compile_mRNA_research
+    mRNA_research, conn = await compile_mRNA_research()
+    agents["mRNA_research"] = Agent(
+        description="A mRNA_research with web search and calculator.",
+        graph=mRNA_research
+    )
+    return conn
 
 def get_agent(agent_id: str) -> CompiledStateGraph:
     return agents[agent_id].graph

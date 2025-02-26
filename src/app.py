@@ -19,19 +19,29 @@ from langchain_core.messages import AnyMessage, HumanMessage
 from src.model.agents.agents import DEFAULT_AGENT, get_agent
 from typing import Any
 from src.model.schema.models import OpenAIModelName
-from src.model.agents.agents import DEFAULT_AGENT, get_agent
+from src.model.agents.agents import DEFAULT_AGENT, get_agent, initialize_agents
 from src.model.utils import (
     convert_message_content_to_string,
     langchain_to_chat_message,
     remove_tool_calls,
 )
+from contextlib import asynccontextmanager
 import ast
 
 
 
 logger.info(f"========================start molly_langgraph backend==============================")
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    conn = await initialize_agents()
+    app.state.conn = conn
+    try:
+        yield
+    finally:
+        if hasattr(app.state, "conn"):
+            await app.state.conn.close()
+app = FastAPI(lifespan=lifespan)
 
 origins = [
     "*",  # 允许的来源，可以添加多个
