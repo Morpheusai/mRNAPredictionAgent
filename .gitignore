@@ -1,0 +1,14 @@
+# 忽略 __pycache__ 目录
+__pycache__/
+
+# 忽略 .env 文件
+.env
+
+# 忽略其他 Python 编译文件
+*.pyc
+*.pyo
+*.pyd
+
+# 忽略 err 和 log 目录
+err
+log
