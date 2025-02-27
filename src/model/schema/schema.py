@@ -208,3 +208,13 @@ class ChatHistoryInput(BaseModel):
 
 class ChatHistory(BaseModel):
     messages: list[ChatMessage]
+
+
+# 定义请求体模型
+class MinioRequest(BaseModel):
+    file_name: str
+    file_content: str
+
+# 定义响应体模型
+class MinioResponse(BaseModel):
+    file_description: str

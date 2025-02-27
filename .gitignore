@@ -12,3 +12,9 @@ __pycache__/
 # 忽略 err 和 log 目录
 err
 log
+logs/
+
+
+#忽略断点
+checkpoints.sqlite
+

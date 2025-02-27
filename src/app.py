@@ -26,9 +26,8 @@ from src.model.utils import (
     remove_tool_calls,
 )
 from contextlib import asynccontextmanager
-import ast
-
-
+from src.model.schema import MinioRequest,MinioResponse
+from src.model.agents.minio_llm import chain
 
 logger.info(f"========================start molly_langgraph backend==============================")
 
@@ -183,3 +182,15 @@ async def chat(user_input: UserInput, agent_id: str = DEFAULT_AGENT) -> Streamin
         message_generator(user_input, agent_id),
         media_type="text/event-stream",
     )
+
+#对minio传来的文件进行描述
+@app.post("/description", response_model=MinioResponse)
+async def describe_text(request: MinioRequest):
+    try:
+        # 调用 LangChain 处理链
+        result = chain.invoke({"file_name": request.file_name,"file_content":request.file_content})
+        # 返回分析结果
+        return MinioResponse(file_description=result.content)
+    except Exception as e:
+        # 捕获异常并返回错误信息
+        raise HTTPException(status_code=500, detail=str(e))

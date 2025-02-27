@@ -9,6 +9,8 @@ from .schema import (
     ServiceMetadata,
     # StreamInput,
     UserInput,
+    MinioRequest,
+    MinioResponse
 )
 
 __all__ = [
@@ -22,4 +24,6 @@ __all__ = [
     "FeedbackResponse",
     "ChatHistoryInput",
     "ChatHistory",
+    "MinioRequest",
+    "MinioResponse"
 ]
