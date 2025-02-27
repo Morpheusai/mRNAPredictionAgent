@@ -9,11 +9,18 @@ LLM:
 
 TOOL:
   netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
-  input_tmp_dir: "tmp/content_tmp"
-  ouput_download_url_prefix: "https://mollyseek.com/downloads/"
-  output_tmp_dir: "/mnt/data/downloads"
+  input_tmp_dir: "/mnt/tmp/upload"
+  output_download_url_prefix: "https://mollyseek.com/downloads/"
+  #output_tmp_dir: "/mnt/data/downloads"
+  output_tmp_dir: "/mnt/tmp/netmhcpan"
   upload_dir: "/mnt/tmp/files/"
 
+MINIO:
+  endpoint: "localhost:18080"
+  access_key: "molly_admin"
+  secret_key: "molly_admin"
+  bucket: "netmhcpan-results"
+  secure: false
 
 PROMPT:
   instructions: |
@@ -39,8 +46,7 @@ PROMPT:
         EILNSPEKACSLAKTAFDEAIAELDTLNEESYKDSTLIMQLLRDNLTLWTSENQGDEGDA
         GEGEN
         As an input parameter, call the NetMHCpan tool to obtain the result.
-
-
+                                                
   minio_system_prompt: |
       #任务描述
         我将为您提供文件名及其内容。现在，我需要从文件内容中总结并提取您认为适合当前场景的信息，以协助后续过程。如果尽可能完整地提取文件中的蛋白质序列信息。
@@ -69,9 +75,7 @@ PROMPT:
           GEGEN
           摘要： This paragraph emphasizes the core position of protein sequences in biological research and demonstrates their importance and application through a specific protein sequence example (14-3-3 protein). 
                     Protein sequence is not only the foundation for understanding protein function, but also a key tool in fields such as drug design and evolutionary research.
-
-                                                    
-                                                
+                                              
                                                 
                                                 
 
