@@ -48,7 +48,7 @@ class UserInput(BaseModel):
     """Basic user input for the agent."""
     prompt: str = Field(
         description="User input to the agent.",
-        examples=["What is the weather in Tokyo?"],
+        examples=["_______________________________DQATSLRILNNGHAFNVEFDDSQDKAVLK"or"What is the weather in Tokyo?"],
     )
     system_token: str = Field(
         description="传入系统token，验证有效性",

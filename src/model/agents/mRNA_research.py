@@ -16,6 +16,7 @@ from utils.log import logger
 
 from src.model.agents.tools import mRNAResearchAndProduction
 from src.model.agents.tools import NetMHCpan
+from src.model.agents.tools import ESM3
 from .core import get_model  # 相对导入
 import sys
 from pathlib import Path
@@ -34,7 +35,7 @@ class AgentState(MessagesState, total=False):
     """
 
 
-tools = [mRNAResearchAndProduction,NetMHCpan]
+tools = [mRNAResearchAndProduction, NetMHCpan, ESM3]
 
 raw_instructions = CONFIG_YAML["PROMPT"]["instructions"]
 
@@ -79,13 +80,14 @@ async def _parser(state: AgentState, config: RunnableConfig):
         for tool_call in last_message.tool_calls:
             tool_name = tool_call["name"]
             tool_call_id = tool_call["id"]
-            tool_call_input=tool_call["args"].get("input_filecontent")
+            tool_call_netmhcpan_input=tool_call["args"].get("input_filecontent")
+            tool_call_esm3_input=tool_call["args"].get("protein_sequence")
 
             # 检查是否已经存在相同 tool_call_id 的 ToolMessage
             if any(isinstance(msg, ToolMessage) and msg.tool_call_id == tool_call_id for msg in messages):
                 continue  # 如果已经存在，跳过添加
             if tool_name == "NetMHCpan":
-                input_filename = tool_call_input
+                input_filename = tool_call_netmhcpan_input
                 func_result = await NetMHCpan.ainvoke(
                     {
                         "input_filecontent": input_filename
@@ -109,6 +111,18 @@ async def _parser(state: AgentState, config: RunnableConfig):
                     content=func_result,
                     tool_call_id=tool_call_id,
                 )
+            elif tool_name == "ESM3":
+                func_result = await ESM3.ainvoke(
+                    {
+                        "protein_sequence" : tool_call_esm3_input
+                    }
+                )
+                logger.info(f"ESM3 result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=func_result,
+                    tool_call_id=tool_call_id,
+                )
+                messages.append(tool_msg)
     return {"messages": [tool_msg]}
 
 # Define the graph

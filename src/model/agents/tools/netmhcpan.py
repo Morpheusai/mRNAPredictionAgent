@@ -24,9 +24,9 @@ MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 # netMHCpan 配置 
 NETMHCPAN_DIR = CONFIG_YAML["TOOL"]["netmhcpan_dir"]
-INPUT_TMP_DIR = CONFIG_YAML["TOOL"]["input_tmp_dir"]
+INPUT_TMP_DIR = CONFIG_YAML["TOOL"]["input_tmp_upload_dir"]
 DOWNLOADER_PREFIX = CONFIG_YAML["TOOL"]["output_download_url_prefix"]
-OUTPUT_TMP_DIR = CONFIG_YAML["TOOL"]["output_tmp_dir"]
+OUTPUT_TMP_DIR = CONFIG_YAML["TOOL"]["output_tmp_netmhcpan_dir"]
 
 # 初始化 MinIO 客户端
 minio_client = Minio(
