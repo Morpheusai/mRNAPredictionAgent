@@ -9,10 +9,11 @@ LLM:
 
 TOOL:
   netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
-  input_tmp_dir: "/mnt/tmp/upload"
+  input_tmp_upload_dir: "/mnt/tmp/upload"
   output_download_url_prefix: "https://mollyseek.com/downloads/"
   #output_tmp_dir: "/mnt/data/downloads"
-  output_tmp_dir: "/mnt/tmp/netmhcpan"
+  output_tmp_netmhcpan_dir: "/mnt/tmp/netmhcpan"
+  output_tmp_mse3_dir: "/mnt/tmp/mse3"
   upload_dir: "/mnt/tmp/files/"
 
 MINIO:
@@ -53,7 +54,8 @@ PROMPT:
       #当前任务
         步骤1：从文件内容中提取有用信息。
         步骤2：分析文件中提供的蛋白质序列等mRNA疫苗信息，并根据基本信息、效果、潜在功能和进一步分析的建议进行解释。
-        注意：回答问题时，需要按照提取和摘要为两个大的主题，并在主题中逐点回答
+        注意：回答问题时，需要按照提取和摘要为两个大的主题，并在主题中逐点回答,简要概述
+        重点强调：要求输出长度10个字左右，或者能插入数据库中，只输出摘要部分（不要包含摘要两个字），提取是为了你的理解（根据文件内容进行分析）。
       #示例
         用户输入：
           要分析的文件名：'''test.txt'''，需要分析的文件内容：'''蛋白质序列是生物学研究的基础，决定蛋白质的结构和功能。
