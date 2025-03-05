@@ -1,5 +1,5 @@
 import json
-from langchain.tools import tool
+from langchain_core.tools import tool
 
 @tool
 def mRNAResearchAndProduction(input: str = None) -> str:

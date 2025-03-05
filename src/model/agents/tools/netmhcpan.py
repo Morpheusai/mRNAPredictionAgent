@@ -1,7 +1,7 @@
 import asyncio
 import sys
 import json
-from langchain.tools import tool
+from langchain_core.tools import tool
 from pathlib import Path
 import uuid
 from minio import Minio
@@ -19,7 +19,7 @@ MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
 MINIO_ACCESS_KEY = MINIO_CONFIG["access_key"]
 MINIO_SECRET_KEY = MINIO_CONFIG["secret_key"]
-MINIO_BUCKET = MINIO_CONFIG["bucket"]
+MINIO_BUCKET = MINIO_CONFIG["netmhcpan_bucket"]
 MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 # netMHCpan 配置 

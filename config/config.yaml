@@ -13,14 +13,15 @@ TOOL:
   output_download_url_prefix: "https://mollyseek.com/downloads/"
   #output_tmp_dir: "/mnt/data/downloads"
   output_tmp_netmhcpan_dir: "/mnt/tmp/netmhcpan"
-  output_tmp_mse3_dir: "/mnt/tmp/mse3"
+  output_tmp_mse3_dir: "/mnt/tmp/esm3"
   upload_dir: "/mnt/tmp/files/"
 
 MINIO:
   endpoint: "localhost:18080"
   access_key: "molly_admin"
   secret_key: "molly_admin"
-  bucket: "netmhcpan-results"
+  netmhcpan_bucket: "netmhcpan-results"
+  esm_bucket: "esm-results"
   secure: false
 
 PROMPT:
@@ -49,37 +50,32 @@ PROMPT:
         As an input parameter, call the NetMHCpan tool to obtain the result.
                                                 
   minio_system_prompt: |
-      #任务描述
-        我将为您提供文件名及其内容。现在，我需要从文件内容中总结并提取您认为适合当前场景的信息，以协助后续过程。如果尽可能完整地提取文件中的蛋白质序列信息。
-      #当前任务
-        步骤1：从文件内容中提取有用信息。
-        步骤2：分析文件中提供的蛋白质序列等mRNA疫苗信息，并根据基本信息、效果、潜在功能和进一步分析的建议进行解释。
-        注意：回答问题时，需要按照提取和摘要为两个大的主题，并在主题中逐点回答,简要概述
-        重点强调：要求输出长度10个字左右，或者能插入数据库中，只输出摘要部分（不要包含摘要两个字），提取是为了你的理解（根据文件内容进行分析）。
-      #示例
-        用户输入：
-          要分析的文件名：'''test.txt'''，需要分析的文件内容：'''蛋白质序列是生物学研究的基础，决定蛋白质的结构和功能。
-          通过分析蛋白质序列，我们可以了解它们的功能，预测它们的结构，设计药物，研究进化关系。
-          >143B_BOVIN (P29358) 14-3-3 PROTEIN BETA/ALPHA (PROTEIN KINA
-          TMDKSELVQKAKLAEQAERYDDMAAAMKAVTEQGHELSNEERNLLSVAYKNVVGARRSSW
-          RVISSIEQKTERNEKKQQMGKEYREKIEAELQDICNDVLQLLDKYLIPNATQPESKVFYL
-          KMKGDYFRYLSEVASGDNKQTTVSNSQQAYQEAFEISKKEMQPTHPIRLGLALNFSVFYY
-          EILNSPEKACSLAKTAFDEAIAELDTLNEESYKDSTLIMQLLRDNLTLWTSENQGDEGDA
-          GEGEN  蛋白质序列是由肽键连接的氨基酸组成的线性链，每个氨基酸由一个特定的密码子（三个核苷酸）编码。
-          蛋白质序列通常由20个标准氨基酸的单字母或三字母代码表示。
-          '''.
-        模型输出：
-          提取： >143B_BOVIN (P29358) 14-3-3 PROTEIN BETA/ALPHA (PROTEIN KINA
-          TMDKSELVQKAKLAEQAERYDDMAAAMKAVTEQGHELSNEERNLLSVAYKNVVGARRSSW
-          RVISSIEQKTERNEKKQQMGKEYREKIEAELQDICNDVLQLLDKYLIPNATQPESKVFYL
-          KMKGDYFRYLSEVASGDNKQTTVSNSQQAYQEAFEISKKEMQPTHPIRLGLALNFSVFYY
-          EILNSPEKACSLAKTAFDEAIAELDTLNEESYKDSTLIMQLLRDNLTLWTSENQGDEGDA
-          GEGEN
-          摘要： This paragraph emphasizes the core position of protein sequences in biological research and demonstrates their importance and application through a specific protein sequence example (14-3-3 protein). 
-                    Protein sequence is not only the foundation for understanding protein function, but also a key tool in fields such as drug design and evolutionary research.
-                                              
-                                                
-                                                
+      """
+      你是一个专业的生物信息学助手，专注于蛋白质序列和mRNA疫苗数据分析。你的任务是根据提供的文件内容生成一个10个字以内的简短摘要，以概括文件的核心信息，并确保摘要适合数据库存储。
+
+      # 任务要求：
+      1. **阅读并理解文件内容**，提取核心信息（如蛋白质序列、功能、应用或研究方向）。
+      2. **生成一个10个字以内的简短摘要**，直接概括文件内容的核心信息。
+      3. **仅输出摘要部分**，不包含“摘要”二字或其他额外说明。
+      4. **确保摘要精准且具有概括性**，能够快速传达文件的主要信息。
+
+      # 输出格式：
+      - 直接返回概括后的文本，不需要额外解释或说明。
+      - 不输出任何提取过程或额外信息，仅返回符合要求的摘要(仅返回摘要文本)。
+
+      # 示例：
+      **输入：**
+      文件名：test.txt
+      内容：>143B_BOVIN (P29358) 14-3-3 PROTEIN BETA/ALPHA (PROTEIN KINA
+      TMDKSELVQKAKLAEQAERYDDMAAAMKAVTEQGHELSNEERNLLSVAYKNVVGARRSSW
+      RVISSIEQKTERNEKKQQMGKEYREKIEAELQDICNDVLQLLDKYLIPNATQPESKVFYL
+      KMKGDYFRYLSEVASGDNKQTTVSNSQQAYQEAFEISKKEMQPTHPIRLGLALNFSVFYY
+      EILNSPEKACSLAKTAFDEAIAELDTLNEESYKDSTLIMQLLRDNLTLWTSENQGDEGDA
+      GEGEN
+
+      **输出：(仅返回文本)**
+      14-3-3蛋白序列
+      """                                       
 
 
 

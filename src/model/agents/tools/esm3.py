@@ -4,7 +4,7 @@ import os
 from esm.sdk import client
 from esm.sdk.api import ESMProtein, GenerationConfig
 import uuid
-from langchain.tools import tool
+from langchain_core.tools import tool
 from getpass import getpass
 import json
 from pathlib import Path
@@ -29,7 +29,7 @@ MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
 MINIO_ACCESS_KEY = MINIO_CONFIG["access_key"]
 MINIO_SECRET_KEY = MINIO_CONFIG["secret_key"]
-MINIO_BUCKET = MINIO_CONFIG["bucket"]
+MINIO_BUCKET = MINIO_CONFIG["esm_bucket"]
 MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 #临时mse3输出.pdb文件
@@ -103,7 +103,7 @@ async def run_esm3(
     protein = ESMProtein(sequence=protein_sequence)
     
     # 生成序列
-    protein = model.generate(protein, GenerationConfig(track="sequence", num_steps=num_steps, temperature=temperature))
+    # protein = model.generate(protein, GenerationConfig(track="sequence", num_steps=num_steps, temperature=temperature))
     
     # 生成结构
     protein = model.generate(protein, GenerationConfig(track="structure", num_steps=num_steps))
