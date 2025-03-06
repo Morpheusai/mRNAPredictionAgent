@@ -127,16 +127,16 @@ async def run_esm3(
         if minio_available and file_path.startswith("minio://"):
             output_path.unlink(missing_ok=True)
             
-    response = minio_client.get_object(MINIO_BUCKET, output_pdb)   
-    file_content = response.read()
-    response.close()
-    response.release_conn()    
-    text_content = file_content.decode("utf-8") 
+    # response = minio_client.get_object(MINIO_BUCKET, output_pdb)   
+    # file_content = response.read()
+    # response.close()
+    # response.release_conn()    
+    # text_content = file_content.decode("utf-8") 
+    text_content="已完成肽段序列的三维结构预测，并生成输出 PDB 文件。"
     result = {
         "type": "link",
         "url": file_path,
         "content": text_content,
-
     }
 
     return json.dumps(result, ensure_ascii=False)
