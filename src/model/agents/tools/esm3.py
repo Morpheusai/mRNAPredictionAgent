@@ -126,6 +126,7 @@ async def run_esm3(
     finally:
         if minio_available and file_path.startswith("minio://"):
             output_path.unlink(missing_ok=True)
+            
     response = minio_client.get_object(MINIO_BUCKET, output_pdb)   
     file_content = response.read()
     response.close()
@@ -142,14 +143,13 @@ async def run_esm3(
 
 @tool
 def ESM3(protein_sequence: str) -> str:
-    """
-    Use the ESM3 model to predict protein structures based on the given amino acid sequence.
-
+    """ 
+    ESM3用于预测输入肽段序例的三维结构，并生成pdb文件。
     Args:
-        protein_sequence (str): The amino acid sequence of the protein.
-
+        protein_sequence (str): 输入预测的肽段序例
+                                                                                                                                                                           
     Return:
-        result (str): A JSON string containing the predicted protein structure file link.
+        result (str): 返回生成的pdb文件信息
     """
     try:
         return asyncio.run(run_esm3(protein_sequence))
