@@ -9,7 +9,7 @@ LLM:
 
 TOOL:
   netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
-  input_tmp_upload_dir: "/mnt/ljs_tmp/upload"
+  input_tmp_upload_dir: "/mnt/tmp/upload"
   output_download_url_prefix: "https://mollyseek.com/downloads/"
   #output_tmp_dir: "/mnt/data/downloads"
   output_tmp_netmhcpan_dir: "/mnt/tmp/netmhcpan"
