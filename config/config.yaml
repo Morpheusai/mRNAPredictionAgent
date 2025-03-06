@@ -63,9 +63,37 @@ PROMPT:
     用户：好的，等待结果。
     ```
   FILE_LIST: |
-    # 用户已完成文件上传
+   """ 
+    # 用户上传文件列表
 
     {file_list}
+
+    """ 
+
+  NETMHCPAN_RESULT: |
+    """
+    # NetMHCpan生成结果
+
+    {netmhcpan_result}
+    """
+
+  ESM3_RESULT: |
+    """
+    # ESM-3生成结果
+            
+    {esm3_result}
+    
+    """
+
+# 输出要求说明，拼接在system message的最后
+  OUTPUT_INSTRUCTIONS: |
+    """
+    1. 结构清晰
+    - 使用markdown 标题、列表、表格或分段落等方式来呈现信息
+    - 避免将所有内容堆砌于同一段落，保证可读性
+    2. 一致的重点标记
+    - 全程使用同一种方式（通常为 **双星号加粗**）来突出重点词汇或字段，保持连贯
+    """
                                                 
   minio_system_prompt: |
       """

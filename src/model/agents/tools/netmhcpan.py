@@ -6,7 +6,7 @@ from pathlib import Path
 import uuid
 from minio import Minio
 from minio.error import S3Error
-
+from src.model.agents.utils import filter_netmhcpan_output
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[4]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
                                         
@@ -47,78 +47,22 @@ def check_minio_connection(bucket_name=MINIO_BUCKET):
         return False
 
 
-def filter_netmhcpan_output(output_lines: list) -> str:
-    """
-    过滤 netMHCpan 的输出，提取关键信息并生成 Markdown 表格
-    
-    Args:
-        output_lines (list): netMHCpan 的原始输出内容（按行分割的列表）
-        
-    Returns:
-        str: 生成的 Markdown 表格字符串
-    """
-    import re
-
-    # 初始化变量
-    filtered_data = []
-
-    # 遍历每一行输出
-    for line in output_lines:
-        line = line.strip()
-        
-
-        # 确保是有效数据行（列数 >= 14）并且行包含"WB"或"SB"
-        if ("WB" in line or "SB" in line):
-            # 处理数据行（关键修改部分）
-            parts = line.split()
-            try:
-                # 提取 HLA, Peptide, BindLevel 和 Affinity
-                hla = parts[1]  # HLA 在第二个位置
-                peptide = parts[2]   # 处理长肽段
-                bind_level = "WB" if "WB" in line else "SB" if "SB" in line else "N/A"  # 判断 BindLevel 是 WB 还是 SB
-                affinity = parts[-3]  # 亲和力是最后一个值
-                
-                # 将数据添加到 filtered_data
-                filtered_data.append({
-                    "Peptide": peptide,
-                    "HLA": hla,
-                    "BindLevel": bind_level,
-                    "Affinity": affinity
-                })
-            except IndexError:
-                continue
-    # 生成Markdown表格
-    markdown_content = [
-        "| Peptide Sequence | HLA Allele | Bind Level | Affinity (nM) |",
-        "|------------------|------------|------------|---------------|"
-    ]
-    
-    for item in filtered_data:
-        markdown_content.append(
-            f"| {item['Peptide']} | {item['HLA']} | {item['BindLevel']} | {item['Affinity']} |"
-        )
-    
-    # 添加统计信息
-    markdown_content.append(
-            f'| <td colspan="4">{output_lines[-3]}</td> |' 
-        )
-    return "\n".join(markdown_content)
-
 async def run_netmhcpan(
-    minio_file_path: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
-    allele: str = "HLA-A02:01",  # MHC 等位基因类型
-    rth: float = 0.5,  # 相对阈值上限
-    rlt: float = 2.0,  # 相对阈值下限
-    lengths: str = "8,9,10,11",  # 肽段长度，逗号分隔
+    input_fasta_filepath: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
+    mhc_allele: str = "HLA-A02:01",  # MHC 等位基因类型
+    high_threshold_of_bp: float = 0.5,  # 相对阈值上限
+    low_threshold_of_bp: float = 2.0,  # 相对阈值下限
+    peptide_length: str = "8,9,10,11",  # 肽段长度，逗号分隔
     netmhcpan_dir: str = NETMHCPAN_DIR
     ) -> str:
+
     """
     异步运行 netMHCpan 并将处理后的结果上传到 MinIO
-    :param minio_file_path: MinIO 文件路径，格式为 "bucket-name/file-path"
-    :param allele: MHC 等位基因类型
-    :param rth: 相对阈值上限
-    :param rlt: 相对阈值下限
-    :param lengths: 肽段长度，逗号分隔（如 "8,9"）
+    :param input_fasta_filepath: MinIO 文件路径，格式为 "bucket-name/file-path"
+    :param mhc_allele: MHC 等位基因类型
+    :param high_threshold_of_bp: 相对阈值上限
+    :param low_threshold_of_bp: 相对阈值下限
+    :param peptide_length: 肽段长度，逗号分隔（如 "8,9"）
     :param netmhcpan_dir: netMHCpan 安装目录
     :return: JSON 字符串，包含 MinIO 文件路径（或下载链接）
     """
@@ -127,7 +71,7 @@ async def run_netmhcpan(
     #提取桶名和文件
     try:
         # 去掉 minio:// 前缀
-        path_without_prefix = minio_file_path[len("minio://"):]
+        path_without_prefix = input_fasta_filepath[len("minio://"):]
         
         # 找到第一个斜杠的位置，用于分割 bucket_name 和 object_name
         first_slash_index = path_without_prefix.find("/")
@@ -178,10 +122,10 @@ async def run_netmhcpan(
     cmd = [
         f"{netmhcpan_dir}/bin/netMHCpan",
         "-BA",
-        "-rth", str(rth),  # 添加 -rth 参数
-        "-rlt", str(rlt),  # 添加 -rlt 参数
-        "-l", lengths,      # 添加 -l 参数
-        "-a", allele,       # 添加 -a 参数
+        "-rth", str(high_threshold_of_bp),  # 添加 -rth 参数
+        "-rlt", str(low_threshold_of_bp),  # 添加 -rlt 参数
+        "-l", peptide_length,      # 添加 -l 参数
+        "-a", mhc_allele,       # 添加 -a 参数
         str(input_path)     # 输入文件路径
     ]
 
@@ -242,23 +186,20 @@ async def run_netmhcpan(
     return json.dumps(result, ensure_ascii=False)
 
 @tool
-def NetMHCpan(minio_file_path: str,allele: str = "HLA-A02:01",rth: float = 0.5,rlt: float = 2.0,lengths: str = "8,9,10,11",) -> str:
-    """
-    Use the NetMHCpan model to predict neoantigens based on the input file content.
-
-    Args:
-        minio_file_path (str): Path to the tumor variant protein sequence file. This is a required input with no default value. 
-                               The uploaded data content must be validated for legitimacy. If invalid, the user must re-upload the data.
-        allele (str, optional): HLA typing data. This is optional, with a default value of "HLA-A02:01".
-        rth (float, optional): Strong binding threshold. This is optional, with a default value of 0.5.
-        rlt (float, optional): Weak binding threshold. This is optional, with a default value of 2.0.
-        lengths (str, optional): Peptide prediction lengths. This is optional, with a default value of "9".
-
-    Returns:
-        str: Returns the prediction results in string format. 
+def NetMHCpan(input_fasta_filepath: str,mhc_allele: str = "HLA-A02:01",high_threshold_of_bp: float = 0.5,low_threshold_of_bp: float = 2.0,peptide_length: str = "8,9,10,11",) -> str:
+    """                                    
+    NetMHCpan用于预测肽段序列和给定MHC分子的结合能力，可高效筛选高亲和力、稳定呈递的候选肽段，用于mRNA 疫苗及个性化免疫治疗。
+    Args:                                  
+        input_fasta_filepath (str): 输入的肽段序例fasta文件路径 
+        mhc_allele (str): MHC比对的等位基因
+        peptide_length (str): 预测时所使用的肽段长度            
+        high_threshold_of_bp (float): 肽段和MHC分子高结合能力的阈值
+        low_threshold_of_bp (float): 肽段和MHC分子弱结合能力的阈值
+    Returns:                               
+        str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """
     try:
-        return asyncio.run(run_netmhcpan(minio_file_path,allele,rth,rlt,lengths))
+        return asyncio.run(run_netmhcpan(input_fasta_filepath,mhc_allele,high_threshold_of_bp,low_threshold_of_bp,peptide_length))
     except RuntimeError as e:
         return f"调用NetMHCpan工具失败: {e}"
     except Exception as e:

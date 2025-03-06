@@ -1,6 +1,6 @@
 import aiosqlite
 from datetime import datetime
-from typing import Literal
+from typing import Literal,Optional
 
 from langchain_community.tools import DuckDuckGoSearchResults, OpenWeatherMapQueryRun
 from langchain_community.utilities import OpenWeatherMapAPIWrapper
@@ -19,6 +19,7 @@ from src.model.agents.tools import NetMHCpan
 from src.model.agents.tools import ESM3
 from src.model.agents.tools import Validate_Fas
 from src.model.agents.tools import Correct_Fas
+from src.model.agents.utils import extract_min_affinity_peptide
 from .core import get_model  # 相对导入
 import sys
 from pathlib import Path
@@ -32,16 +33,18 @@ from config import CONFIG_YAML
 
 class AgentState(MessagesState, total=False):
     """`total=False` is PEP589 specs.
-
     documentation: https://typing.readthedocs.io/en/latest/spec/typeddict.html#totality
     """
-
+    netmhcpan_result: Optional[str]=None
+    esm3_result: Optional[str]=None
 
 tools = [mRNAResearchAndProduction, NetMHCpan, ESM3, Validate_Fas, Correct_Fas]
 
 NETMHCPAN_PROMPT = CONFIG_YAML["PROMPT"]["NETMHCPAN_PROMPT"]
 FILE_LIST = CONFIG_YAML["PROMPT"]["FILE_LIST"]
-
+NETMHCPAN_RESULT=CONFIG_YAML["PROMPT"]["NETMHCPAN_RESULT"]
+ESM3_RESULT=CONFIG_YAML["PROMPT"]["ESM3_RESULT"]
+OUTPUT_INSTRUCTIONS=CONFIG_YAML["PROMPT"]["OUTPUT_INSTRUCTIONS"]
 # current_date = datetime.now().strftime("%B %d, %Y")
 
 
@@ -74,7 +77,13 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
                                     f"*上传的文件内容*: {file_content} \n" + \
                                     f"*上传的文件描述*: {file_desc} \n"
                 file_list_content = FILE_LIST.format(file_list=file_instructions)
+                netmhcpan_result = NETMHCPAN_RESULT.format(netmhcpan_result=state.get("netmhcpan_result"))
+                esm3_result = ESM3_RESULT.format(esm3_result=state.get("esm3_result"))
                 instructions += file_list_content
+                instructions += netmhcpan_result
+                instructions +=esm3_result
+                instructions +=OUTPUT_INSTRUCTIONS
+
     print(instructions)
     
     model_runnable = wrap_model(m,instructions)
@@ -85,16 +94,18 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     messages = state["messages"]
     last_message = messages[-1]
     tmp_tool_msg = []
+    netmhcpan_result=""
+    esm3_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
             tool_name = tool_call["name"]
             tool_call_id = tool_call["id"]
-            tool_call_minio_file_path=tool_call["args"].get("minio_file_path")
-            tool_call_netmhcpan_allele=tool_call["args"].get("allele","HLA-A02:01")
-            tool_call_netmhcpan_rth=tool_call["args"].get("rth",0.5)
-            tool_call_netmhcpan_rlt=tool_call["args"].get("rlt",2.0)
-            tool_call_netmhcpan_lengths=tool_call["args"].get("lengths","9")
+            tool_call_input_fasta_filepath=tool_call["args"].get("input_fasta_filepath")
+            tool_call_netmhcpan_mhc_allele=tool_call["args"].get("mhc_allele","HLA-A02:01")
+            tool_call_netmhcpan_high_threshold_of_bp=tool_call["args"].get("high_threshold_of_bp",0.5)
+            tool_call_netmhcpan_low_threshold_of_bp=tool_call["args"].get("low_threshold_of_bp",2.0)
+            tool_call_netmhcpan_peptide_length=tool_call["args"].get("peptide_length","9")
             tool_call_Validate_Correct_input=tool_call["args"].get("input_file")
             tool_call_esm3_input=tool_call["args"].get("protein_sequence")
 
@@ -102,21 +113,22 @@ async def should_continue(state: AgentState, config: RunnableConfig):
             if any(isinstance(msg, ToolMessage) and msg.tool_call_id == tool_call_id for msg in messages):
                 continue  # 如果已经存在，跳过添加
             if tool_name == "NetMHCpan":
-                minio_file_path = tool_call_minio_file_path
-                allele=tool_call_netmhcpan_allele
-                rth=tool_call_netmhcpan_rth
-                rlt=tool_call_netmhcpan_rlt
-                lengths=tool_call_netmhcpan_lengths
+                input_fasta_filepath = tool_call_input_fasta_filepath
+                mhc_allele=tool_call_netmhcpan_mhc_allele
+                high_threshold_of_bp=tool_call_netmhcpan_high_threshold_of_bp
+                low_threshold_of_bp=tool_call_netmhcpan_low_threshold_of_bp
+                peptide_length=tool_call_netmhcpan_peptide_length
                 func_result = await NetMHCpan.ainvoke(
                     {
-                        "minio_file_path": minio_file_path,
-                        "allele": allele,
-                        "rth": rth,
-                        "rlt": rlt,
-                        "lengths":lengths
+                        "input_fasta_filepath": input_fasta_filepath,
+                        "mhc_allele": mhc_allele,
+                        "high_threshold_of_bp": high_threshold_of_bp,
+                        "low_threshold_of_bp": low_threshold_of_bp,
+                        "peptide_length":peptide_length
 
                     }
                 )
+                netmhcpan_result=extract_min_affinity_peptide(func_result)
                 logger.info(f"NetMHCpan result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
@@ -131,6 +143,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                         "input_file": input_file
                     }
                 )
+                
                 logger.info(f"Validate_Fas result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
@@ -145,6 +158,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                         "input_file": input_file
                     }
                 )
+                
                 logger.info(f"Correct_Fas result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
@@ -173,12 +187,15 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     }
                 )
                 logger.info(f"ESM3 result: {func_result}")
+                esm3_result=func_result
+
                 tool_msg = ToolMessage(
                     content=func_result,
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
-    return {"messages": tmp_tool_msg}
+    return {"messages": tmp_tool_msg,"netmhcpan_result":netmhcpan_result,"esm3_result":esm3_result}
+
 
 # Define the graph
 agent = StateGraph(AgentState)

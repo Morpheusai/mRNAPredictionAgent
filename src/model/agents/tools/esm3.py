@@ -126,10 +126,16 @@ async def run_esm3(
     finally:
         if minio_available and file_path.startswith("minio://"):
             output_path.unlink(missing_ok=True)
-
+    response = minio_client.get_object(MINIO_BUCKET, output_pdb)   
+    file_content = response.read()
+    response.close()
+    response.release_conn()    
+    text_content = file_content.decode("utf-8") 
     result = {
         "type": "link",
-        "content": file_path
+        "url": file_path,
+        "content": text_content,
+
     }
 
     return json.dumps(result, ensure_ascii=False)
