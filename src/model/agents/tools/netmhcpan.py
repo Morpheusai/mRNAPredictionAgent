@@ -115,7 +115,7 @@ async def run_netmhcpan(
         f.write(file_content)
 
     # 构建输出文件名和临时路径
-    output_filename = f"netmhcpan_result_{random_id}.txt"
+    output_filename = f"{random_id}_netmhcpan_result.txt"
     output_path = output_dir / output_filename
 
     # 构建命令

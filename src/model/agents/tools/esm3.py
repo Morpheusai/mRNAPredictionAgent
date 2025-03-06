@@ -93,7 +93,7 @@ async def run_esm3(
 
     # 生成随机ID和文件路径
     random_id = uuid.uuid4().hex
-    output_pdb = f"esm3_result_{random_id}.pdb"
+    output_pdb = f"{random_id}_esm3_result.pdb"
     output_path = output_dir / output_pdb
 
     # 连接 ESM-3 模型
