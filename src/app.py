@@ -61,6 +61,7 @@ def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], UUID]:
     # thread_id = user_input.thread_id or str(uuid4())
     thread_id = user_input.conversation_id
     file_list = user_input.file_list
+
     # configurable = {"thread_id": thread_id, "model": user_input.model}
     configurable = {"thread_id": thread_id, "model": OpenAIModelName.GPT_4O,"file_list":file_list}
     # if user_input.agent_config:

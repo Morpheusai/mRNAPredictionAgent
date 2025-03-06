@@ -30,5 +30,5 @@ def get_model(model_name: AllModelEnum, /) -> ModelT:
         raise ValueError(f"Unsupported model: {model_name}")
 
     if model_name in OpenAIModelName:
-        return ChatOpenAI(model=api_model_name, temperature=0.5, streaming=True)
+        return ChatOpenAI(model=api_model_name, temperature=0.1, streaming=True)
     

@@ -17,6 +17,8 @@ from utils.log import logger
 from src.model.agents.tools import mRNAResearchAndProduction
 from src.model.agents.tools import NetMHCpan
 from src.model.agents.tools import ESM3
+from src.model.agents.tools import Validate_Fas
+from src.model.agents.tools import Correct_Fas
 from .core import get_model  # 相对导入
 import sys
 from pathlib import Path
@@ -35,11 +37,10 @@ class AgentState(MessagesState, total=False):
     """
 
 
-tools = [mRNAResearchAndProduction, NetMHCpan, ESM3]
+tools = [mRNAResearchAndProduction, NetMHCpan, ESM3, Validate_Fas, Correct_Fas]
 
-raw_instructions = CONFIG_YAML["PROMPT"]["instructions"]
-
-
+NETMHCPAN_PROMPT = CONFIG_YAML["PROMPT"]["NETMHCPAN_PROMPT"]
+FILE_LIST = CONFIG_YAML["PROMPT"]["FILE_LIST"]
 
 # current_date = datetime.now().strftime("%B %d, %Y")
 
@@ -48,49 +49,72 @@ raw_instructions = CONFIG_YAML["PROMPT"]["instructions"]
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
     model = model.bind_tools(tools)
     #导入prompt
-    instructions = raw_instructions.format(FILE_INSTRUCYIONS=file_instructions)
-    print(instructions)
     preprocessor = RunnableLambda(
-        lambda state: [SystemMessage(content=instructions)] + state["messages"],
+        lambda state: [SystemMessage(content=file_instructions)] + state["messages"],
         name="StateModifier",
     )
     return preprocessor | model
 
 
-async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
+async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
     m = get_model(config["configurable"].get("model", None))
     #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
     # 处理文件列表
-    file_instructions = ""
+    instructions = NETMHCPAN_PROMPT
     if file_list:
-        for conversation in file_list:
-            for file in conversation.files:
-                file_instructions += f'file name: "{file.file_name}", file content: "{file.file_content}";\n'
-
-    model_runnable = wrap_model(m,file_instructions)
+        for conversation_file in file_list:
+            for file in conversation_file.files:
+                file_name = file.file_name
+                file_path = file.file_path
+                file_content = file.file_content
+                file_desc = file.file_desc
+                file_instructions = f"*上传文件名*: {file_name} \n" + \
+                                    f"*上传的文件路径*: {file_path} \n" + \
+                                    f"*上传的文件内容*: {file_content} \n" + \
+                                    f"*上传的文件描述*: {file_desc} \n"
+                file_list_content = FILE_LIST.format(file_list=file_instructions)
+                instructions += file_list_content
+    print(instructions)
+    
+    model_runnable = wrap_model(m,instructions)
     response = await model_runnable.ainvoke(state, config)
     return {"messages": [response]}
 
-async def _parser(state: AgentState, config: RunnableConfig):
+async def should_continue(state: AgentState, config: RunnableConfig):
     messages = state["messages"]
     last_message = messages[-1]
+    tmp_tool_msg = []
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
             tool_name = tool_call["name"]
             tool_call_id = tool_call["id"]
-            tool_call_netmhcpan_input=tool_call["args"].get("input_filecontent")
+            tool_call_minio_file_path=tool_call["args"].get("minio_file_path")
+            tool_call_netmhcpan_allele=tool_call["args"].get("allele","HLA-A02:01")
+            tool_call_netmhcpan_rth=tool_call["args"].get("rth",0.5)
+            tool_call_netmhcpan_rlt=tool_call["args"].get("rlt",2.0)
+            tool_call_netmhcpan_lengths=tool_call["args"].get("lengths","9")
+            tool_call_Validate_Correct_input=tool_call["args"].get("input_file")
             tool_call_esm3_input=tool_call["args"].get("protein_sequence")
 
             # 检查是否已经存在相同 tool_call_id 的 ToolMessage
             if any(isinstance(msg, ToolMessage) and msg.tool_call_id == tool_call_id for msg in messages):
                 continue  # 如果已经存在，跳过添加
             if tool_name == "NetMHCpan":
-                input_filename = tool_call_netmhcpan_input
+                minio_file_path = tool_call_minio_file_path
+                allele=tool_call_netmhcpan_allele
+                rth=tool_call_netmhcpan_rth
+                rlt=tool_call_netmhcpan_rlt
+                lengths=tool_call_netmhcpan_lengths
                 func_result = await NetMHCpan.ainvoke(
                     {
-                        "input_filecontent": input_filename
+                        "minio_file_path": minio_file_path,
+                        "allele": allele,
+                        "rth": rth,
+                        "rlt": rlt,
+                        "lengths":lengths
+
                     }
                 )
                 logger.info(f"NetMHCpan result: {func_result}")
@@ -98,8 +122,36 @@ async def _parser(state: AgentState, config: RunnableConfig):
                     content=func_result,
                     tool_call_id=tool_call_id,
                 )
-                messages.append(tool_msg)
+                tmp_tool_msg.append(tool_msg)
+
+            elif tool_name == "Validate_Fas":
+                input_file=tool_call_Validate_Correct_input
+                func_result = await Validate_Fas.ainvoke(
+                    {
+                        "input_file": input_file
+                    }
+                )
+                logger.info(f"Validate_Fas result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=func_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)            
                 
+            elif tool_name == "Correct_Fas":
+                input_file=tool_call_Validate_Correct_input
+                func_result = await Correct_Fas.ainvoke(
+                    {
+                        "input_file": input_file
+                    }
+                )
+                logger.info(f"Correct_Fas result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=func_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
+
             elif tool_name == "mRNAResearchAndProduction":
                 func_result = await mRNAResearchAndProduction.ainvoke(
                     {
@@ -111,6 +163,9 @@ async def _parser(state: AgentState, config: RunnableConfig):
                     content=func_result,
                     tool_call_id=tool_call_id,
                 )
+                tmp_tool_msg.append(tool_msg)
+
+
             elif tool_name == "ESM3":
                 func_result = await ESM3.ainvoke(
                     {
@@ -122,16 +177,16 @@ async def _parser(state: AgentState, config: RunnableConfig):
                     content=func_result,
                     tool_call_id=tool_call_id,
                 )
-                messages.append(tool_msg)
-    return {"messages": [tool_msg]}
+                tmp_tool_msg.append(tool_msg)
+    return {"messages": tmp_tool_msg}
 
 # Define the graph
 agent = StateGraph(AgentState)
-agent.add_node("model", acall_model)
-agent.add_node("parserNode", _parser)
-agent.set_entry_point("model")
+agent.add_node("modelNode", modelNode)
+agent.add_node("should_continue", should_continue)
+agent.set_entry_point("modelNode")
 
-agent.add_edge("parserNode", END)
+agent.add_edge("should_continue", END)
 
 def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     last_message = state["messages"][-1]
@@ -142,7 +197,7 @@ def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     return "done"
 
 
-agent.add_conditional_edges("model", pending_tool_calls, {"tools": "parserNode", "done": END})
+agent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
 
 
 async def compile_mRNA_research():
