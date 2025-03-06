@@ -33,9 +33,9 @@ valid_amino_acids = set('ACDEFGHIKLMNPQRSTVWYX')
 
 
 @tool
-def Validate_Fas(input_file):
+def ValidateFastaFile(input_file):
     """
-    Use the Validate_fas tool to verify if the input format to the NetMHCpan model is correct
+    Use the ValidateFastaFile tool to verify if the input format to the NetMHCpan model is correct
     Args:
         input_file: input the path address of the file
     Return:
@@ -56,7 +56,11 @@ def Validate_Fas(input_file):
         first_slash_index = path_without_prefix.find("/")
         
         if first_slash_index == -1:
-            raise ValueError("Invalid file path format: missing bucket name or object name")
+            return json.dumps({
+            "type": "error",
+            "ok": 1,
+            "content": f"请上传需要验证的FASTA文件"
+            }, ensure_ascii=False) 
         
         # 提取 bucket_name 和 object_name
         bucket_name = path_without_prefix[:first_slash_index]
@@ -67,7 +71,11 @@ def Validate_Fas(input_file):
         
     except Exception as e:
         # logger.error(f"Failed to parse file_path: {file_path}, error: {str(e)}")
-        raise str(status_code=400, detail=f"Failed to parse file path: {str(e)}")     
+        return json.dumps({
+            "type": "error",
+            "ok": 1,
+            "content": f"无法从 MinIO 读取文件: {str(e)}"
+        }, ensure_ascii=False)    
 
     try:
         response = minio_client.get_object(bucket_name, object_name)
@@ -75,6 +83,7 @@ def Validate_Fas(input_file):
     except S3Error as e:
         return json.dumps({
             "type": "error",
+            "ok": 1,
             "content": f"无法从 MinIO 读取文件: {str(e)}"
         }, ensure_ascii=False)    
 
@@ -133,13 +142,13 @@ def Validate_Fas(input_file):
         result =  {
             "type": "validity",
             "ok": 0,
-            "msg": "文件格式完全符合标准，无需矫正！"
+            "content": "文件格式完全符合标准，无需矫正！"
         }
     else:
         result =  {
             "type": "validity",
             "ok": 1,
-            "msg": errors
+            "content": errors
         }
     return json.dumps(result, ensure_ascii=False)
 
@@ -147,7 +156,7 @@ def Validate_Fas(input_file):
 
 if __name__ == "__main__":
     input_file = r"src\model\agents\tools\test.fsa"
-    result = Validate_Fas(input_file)
+    result = ValidateFastaFile(input_file)
     print(result)
     # if result["ok"] == 1:
     #     print("检验发现以下问题：")
