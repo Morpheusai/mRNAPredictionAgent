@@ -17,8 +17,8 @@ from utils.log import logger
 from src.model.agents.tools import mRNAResearchAndProduction
 from src.model.agents.tools import NetMHCpan
 from src.model.agents.tools import ESM3
-from src.model.agents.tools import Validate_Fas
-from src.model.agents.tools import Correct_Fas
+from src.model.agents.tools import ValidateFastaFile
+from src.model.agents.tools import CorrectFastaFile
 from src.model.agents.utils import extract_min_affinity_peptide
 from .core import get_model  # 相对导入
 import sys
@@ -38,7 +38,7 @@ class AgentState(MessagesState, total=False):
     netmhcpan_result: Optional[str]=None
     esm3_result: Optional[str]=None
 
-tools = [mRNAResearchAndProduction, NetMHCpan, ESM3, Validate_Fas, Correct_Fas]
+tools = [mRNAResearchAndProduction, NetMHCpan, ESM3, ValidateFastaFile, CorrectFastaFile]
 
 NETMHCPAN_PROMPT = CONFIG_YAML["PROMPT"]["NETMHCPAN_PROMPT"]
 FILE_LIST = CONFIG_YAML["PROMPT"]["FILE_LIST"]
@@ -136,30 +136,30 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 )
                 tmp_tool_msg.append(tool_msg)
 
-            elif tool_name == "Validate_Fas":
+            elif tool_name == "ValidateFastaFile":
                 input_file=tool_call_Validate_Correct_input
-                func_result = await Validate_Fas.ainvoke(
+                func_result = await ValidateFastaFile.ainvoke(
                     {
                         "input_file": input_file
                     }
                 )
                 
-                logger.info(f"Validate_Fas result: {func_result}")
+                logger.info(f"ValidateFastaFile result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)            
                 
-            elif tool_name == "Correct_Fas":
+            elif tool_name == "CorrectFastaFile":
                 input_file=tool_call_Validate_Correct_input
-                func_result = await Correct_Fas.ainvoke(
+                func_result = await CorrectFastaFile.ainvoke(
                     {
                         "input_file": input_file
                     }
                 )
                 
-                logger.info(f"Correct_Fas result: {func_result}")
+                logger.info(f"CorrectFastaFile result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
                     tool_call_id=tool_call_id,
