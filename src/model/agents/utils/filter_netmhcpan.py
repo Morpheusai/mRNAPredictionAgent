@@ -27,7 +27,7 @@ def filter_netmhcpan_output(output_lines: list) -> str:
                 hla = parts[1]  # HLA 在第二个位置
                 peptide = parts[2]   # 处理长肽段
                 bind_level = "WB" if "WB" in line else "SB" if "SB" in line else "N/A"  # 判断 BindLevel 是 WB 还是 SB
-                affinity = parts[-3]  # 亲和力是最后一个值
+                affinity = float(parts[-3]) # 亲和力是最后一个值
                 
                 # 将数据添加到 filtered_data
                 filtered_data.append({
@@ -43,14 +43,20 @@ def filter_netmhcpan_output(output_lines: list) -> str:
         "| Peptide Sequence | HLA Allele | Bind Level | Affinity (nM) |",
         "|------------------|------------|------------|---------------|"
     ]
+
+
+    # 添加统计信息
+    markdown_content.insert(0, f"**{output_lines[-3]}**\n")
+    
+    # 按照 Affinity 的值从大到小排序
+    filtered_data.sort(key=lambda x: x['Affinity'], reverse=True)
     
     for item in filtered_data:
         markdown_content.append(
             f"| {item['Peptide']} | {item['HLA']} | {item['BindLevel']} | {item['Affinity']} |"
         )
-    
-    # 添加统计信息
-    markdown_content.append(
-            f'| <td colspan="4">{output_lines[-3]}</td> |' 
-        )
+
+    markdown_content.append(f"\n**当前结果**: 已完成亲和力强的肽段的筛选，我可以对{filtered_data[0]['Peptide']}进行结构的预测，请问是否继续？")
+
     return "\n".join(markdown_content)
+

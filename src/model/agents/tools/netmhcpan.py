@@ -175,7 +175,7 @@ async def run_netmhcpan(
             output_path.unlink(missing_ok=True)
         else:
             input_path.unlink(missing_ok=True)  # 只删除输入文件，保留输出文件
-    filtered_content += "\n\n已完成亲和力强的肽段的筛选，请问是否继续该肽段的结构预测？"
+
     # 返回结果
     result = {
         "type": "link",
