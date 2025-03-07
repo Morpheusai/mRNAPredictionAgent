@@ -57,8 +57,7 @@ def ValidateFastaFile(input_file):
         
         if first_slash_index == -1:
             return json.dumps({
-            "type": "error",
-            "ok": 1,
+            "type": "text",
             "content": f"请上传需要验证的FASTA文件"
             }, ensure_ascii=False) 
         
@@ -72,8 +71,7 @@ def ValidateFastaFile(input_file):
     except Exception as e:
         # logger.error(f"Failed to parse file_path: {file_path}, error: {str(e)}")
         return json.dumps({
-            "type": "error",
-            "ok": 1,
+            "type": "text",
             "content": f"无法从 MinIO 读取文件: {str(e)}"
         }, ensure_ascii=False)    
 
@@ -82,8 +80,7 @@ def ValidateFastaFile(input_file):
         file_content = response.read().decode("utf-8")
     except S3Error as e:
         return json.dumps({
-            "type": "error",
-            "ok": 1,
+            "type": "text",
             "content": f"无法从 MinIO 读取文件: {str(e)}"
         }, ensure_ascii=False)    
 
@@ -140,14 +137,12 @@ def ValidateFastaFile(input_file):
     # 返回结构化结果
     if not errors:
         result =  {
-            "type": "validity",
-            "ok": 0,
+            "type": "text",
             "content": "文件格式完全符合标准，无需矫正！"
         }
     else:
         result =  {
-            "type": "validity",
-            "ok": 1,
+            "type": "text",
             "content": errors
         }
     return json.dumps(result, ensure_ascii=False)

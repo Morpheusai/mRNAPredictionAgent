@@ -83,9 +83,7 @@ def CorrectFastaFile(input_file):
             
             if first_slash_index == -1:
                 return json.dumps({
-                    "type": "error",
-                    "ok": 1,
-                    "url":"",
+                    "type": "text",
                     "content": f"请上传需要矫正的FASTA文件"
                 }, ensure_ascii=False)
             
@@ -99,9 +97,7 @@ def CorrectFastaFile(input_file):
         except Exception as e:
             # logger.error(f"Failed to parse file_path: {file_path}, error: {str(e)}")
             return json.dumps({
-                "type": "error",
-                "ok": 1,
-                "url":"",
+                "type": "text",
                 "content": f"无法从 MinIO 读取文件: {str(e)}"
             }, ensure_ascii=False)    
 
@@ -110,9 +106,7 @@ def CorrectFastaFile(input_file):
             file_content = response.read().decode("utf-8")
         except S3Error as e:
             return json.dumps({
-                "type": "error",
-                "ok": 1,
-                "url":"",
+                "type": "text",
                 "content": f"无法从 MinIO 读取文件: {str(e)}"
             }, ensure_ascii=False)    
 
@@ -172,24 +166,18 @@ def CorrectFastaFile(input_file):
                 process_record(current_header, current_sequence, records)
         except FileNotFoundError:
             result =  {
-                "type": "validity",
-                "ok": 1,
-                "url":"",
-                "msg": f"错误：文件 '{input_file}' 未找到"
+                "type": "text",
+                "content": f"错误：文件 '{input_file}' 未找到"
             }
         except PermissionError:
             result =  {
-                "type": "validity",
-                "ok": 1,
-                "url":"",
-                "msg": f"错误：没有权限读取文件 '{input_file}'"
+                "type": "text",
+                "content": f"错误：没有权限读取文件 '{input_file}'"
             }
         except UnicodeDecodeError:
             result =  {
-                "type": "validity",
-                "ok": 1,
-                "url":"",
-                "msg": f"错误：文件 '{input_file}' 编码格式不支持"
+                "type": "text",
+                "content": f"错误：文件 '{input_file}' 编码格式不支持"
             }
 
         # 生成校正后的FASTA内容
@@ -206,25 +194,20 @@ def CorrectFastaFile(input_file):
                 len(corrected_bytes)
             )
             result = {
-                "type": "validity",
-                "ok": 0,
+                "type": "link",
                 "url": input_file,  # 返回原始 MinIO 路径
-                "msg": "已经完成校验，若有严重错误需要手动修改"
+                "content": "已经完成校验，若有严重错误需要手动修改"
             }
         except S3Error as e:
             result = {
-                "type": "validity",
-                "ok": 1,
-                "url": "",
+                "type": "text",
                 "msg": f"无法将校正后的文件上传到 MinIO: {str(e)}"
             }
     except Exception as e:
         # 捕获其他未预见的异常
         result = {
-            "type": "validity",
-            "ok": 1,
-            "url":"",
-            "msg": f"未知错误：{str(e)}"
+            "type": "text",
+            "content": f"未知错误：{str(e)}"
         }
     return json.dumps(result, ensure_ascii=False)
 

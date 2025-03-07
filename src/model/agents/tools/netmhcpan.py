@@ -95,7 +95,7 @@ async def run_netmhcpan(
         file_content = response.read().decode("utf-8")
     except S3Error as e:
         return json.dumps({
-            "type": "error",
+            "type": "text",
             "content": f"无法从 MinIO 读取文件: {str(e)}"
         }, ensure_ascii=False)    
 

@@ -109,7 +109,10 @@ async def run_esm3(
     protein = model.generate(protein, GenerationConfig(track="structure", num_steps=num_steps))
     
     if not isinstance(protein, ESMProtein):
-        raise RuntimeError(f"ESM-3 预测失败: {protein}")
+        return json.dumps({
+            "type": "text",
+            "content": f"ESM-3 预测失败: {str(protein)}"
+            }, ensure_ascii=False) 
     # 保存 PDB 文件
     protein.to_pdb(str(output_path))
     

@@ -28,7 +28,7 @@ project_root = current_file.parents[3]  # 向上回溯 4 层目录：src/model/a
                                         
 # 将项目根目录添加到 sys.path
 sys.path.append(str(project_root))
-from config import CONFIG_YAML
+from config import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, OUTPUT_INSTRUCTIONS
 
 
 class AgentState(MessagesState, total=False):
@@ -39,14 +39,6 @@ class AgentState(MessagesState, total=False):
     esm3_result: Optional[str]=None
 
 tools = [mRNAResearchAndProduction, NetMHCpan, ESM3, ValidateFastaFile, CorrectFastaFile]
-
-NETMHCPAN_PROMPT = CONFIG_YAML["PROMPT"]["NETMHCPAN_PROMPT"]
-FILE_LIST = CONFIG_YAML["PROMPT"]["FILE_LIST"]
-NETMHCPAN_RESULT=CONFIG_YAML["PROMPT"]["NETMHCPAN_RESULT"]
-ESM3_RESULT=CONFIG_YAML["PROMPT"]["ESM3_RESULT"]
-OUTPUT_INSTRUCTIONS=CONFIG_YAML["PROMPT"]["OUTPUT_INSTRUCTIONS"]
-# current_date = datetime.now().strftime("%B %d, %Y")
-
 
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -64,7 +56,7 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
     #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
     # 处理文件列表
-    instructions = NETMHCPAN_PROMPT
+    instructions = MRNA_AGENT_PROMPT
     if file_list:
         for conversation_file in file_list:
             for file in conversation_file.files:
