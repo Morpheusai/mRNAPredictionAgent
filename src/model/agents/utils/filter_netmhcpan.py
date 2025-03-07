@@ -56,7 +56,7 @@ def filter_netmhcpan_output(output_lines: list) -> str:
             f"| {item['Peptide']} | {item['HLA']} | {item['BindLevel']} | {item['Affinity']} |"
         )
 
-    markdown_content.append(f"\n**当前结果**: 已完成亲和力强的肽段的筛选，我可以对{filtered_data[0]['Peptide']}进行结构的预测，请问是否继续？")
+    markdown_content.append(f"\n**当前结果**: 已完成亲和力强的肽段的筛选，我可以对{filtered_data[-1]['Peptide']}进行结构的预测，请问是否继续？")
 
     return "\n".join(markdown_content)
 
