@@ -48,7 +48,7 @@ def check_minio_connection(bucket_name=MINIO_BUCKET):
 
 
 async def run_netmhcpan(
-    input_fasta_filepath: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
+    input_file: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
     mhc_allele: str = "HLA-A02:01",  # MHC 等位基因类型
     high_threshold_of_bp: float = 0.5,  # 相对阈值上限
     low_threshold_of_bp: float = 2.0,  # 相对阈值下限
@@ -58,7 +58,7 @@ async def run_netmhcpan(
 
     """
     异步运行 netMHCpan 并将处理后的结果上传到 MinIO
-    :param input_fasta_filepath: MinIO 文件路径，格式为 "bucket-name/file-path"
+    :param input_file: MinIO 文件路径，格式为 "bucket-name/file-path"
     :param mhc_allele: MHC 等位基因类型
     :param high_threshold_of_bp: 相对阈值上限
     :param low_threshold_of_bp: 相对阈值下限
@@ -71,7 +71,7 @@ async def run_netmhcpan(
     #提取桶名和文件
     try:
         # 去掉 minio:// 前缀
-        path_without_prefix = input_fasta_filepath[len("minio://"):]
+        path_without_prefix = input_file[len("minio://"):]
         
         # 找到第一个斜杠的位置，用于分割 bucket_name 和 object_name
         first_slash_index = path_without_prefix.find("/")
@@ -175,7 +175,7 @@ async def run_netmhcpan(
             output_path.unlink(missing_ok=True)
         else:
             input_path.unlink(missing_ok=True)  # 只删除输入文件，保留输出文件
-
+    filtered_content += "\n\n已完成亲和力强的肽段的筛选，请问是否继续该肽段的结构预测？"
     # 返回结果
     result = {
         "type": "link",
@@ -186,11 +186,11 @@ async def run_netmhcpan(
     return json.dumps(result, ensure_ascii=False)
 
 @tool
-def NetMHCpan(input_fasta_filepath: str,mhc_allele: str = "HLA-A02:01",high_threshold_of_bp: float = 0.5,low_threshold_of_bp: float = 2.0,peptide_length: str = "8,9,10,11",) -> str:
+def NetMHCpan(input_file: str,mhc_allele: str = "HLA-A02:01",high_threshold_of_bp: float = 0.5,low_threshold_of_bp: float = 2.0,peptide_length: str = "8,9,10,11",) -> str:
     """                                    
     NetMHCpan用于预测肽段序列和给定MHC分子的结合能力，可高效筛选高亲和力、稳定呈递的候选肽段，用于mRNA 疫苗及个性化免疫治疗。
     Args:                                  
-        input_fasta_filepath (str): 输入的肽段序例fasta文件路径 
+        input_file (str): 输入的肽段序例fasta文件路径 
         mhc_allele (str): MHC比对的等位基因
         peptide_length (str): 预测时所使用的肽段长度            
         high_threshold_of_bp (float): 肽段和MHC分子高结合能力的阈值
@@ -199,7 +199,7 @@ def NetMHCpan(input_fasta_filepath: str,mhc_allele: str = "HLA-A02:01",high_thre
         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """
     try:
-        return asyncio.run(run_netmhcpan(input_fasta_filepath,mhc_allele,high_threshold_of_bp,low_threshold_of_bp,peptide_length))
+        return asyncio.run(run_netmhcpan(input_file,mhc_allele,high_threshold_of_bp,low_threshold_of_bp,peptide_length))
     except RuntimeError as e:
         return f"调用NetMHCpan工具失败: {e}"
     except Exception as e:

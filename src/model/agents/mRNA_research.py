@@ -93,26 +93,20 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         for tool_call in last_message.tool_calls:
             tool_name = tool_call["name"]
             tool_call_id = tool_call["id"]
-            tool_call_input_fasta_filepath=tool_call["args"].get("input_fasta_filepath")
-            tool_call_netmhcpan_mhc_allele=tool_call["args"].get("mhc_allele","HLA-A02:01")
-            tool_call_netmhcpan_high_threshold_of_bp=tool_call["args"].get("high_threshold_of_bp",0.5)
-            tool_call_netmhcpan_low_threshold_of_bp=tool_call["args"].get("low_threshold_of_bp",2.0)
-            tool_call_netmhcpan_peptide_length=tool_call["args"].get("peptide_length","9")
-            tool_call_Validate_Correct_input=tool_call["args"].get("input_file")
-            tool_call_esm3_input=tool_call["args"].get("protein_sequence")
+            
 
             # 检查是否已经存在相同 tool_call_id 的 ToolMessage
             if any(isinstance(msg, ToolMessage) and msg.tool_call_id == tool_call_id for msg in messages):
                 continue  # 如果已经存在，跳过添加
             if tool_name == "NetMHCpan":
-                input_fasta_filepath = tool_call_input_fasta_filepath
-                mhc_allele=tool_call_netmhcpan_mhc_allele
-                high_threshold_of_bp=tool_call_netmhcpan_high_threshold_of_bp
-                low_threshold_of_bp=tool_call_netmhcpan_low_threshold_of_bp
-                peptide_length=tool_call_netmhcpan_peptide_length
+                input_file = tool_call["args"].get("input_file")
+                mhc_allele=tool_call["args"].get("mhc_allele","HLA-A02:01")
+                high_threshold_of_bp=tool_call["args"].get("high_threshold_of_bp",0.5)
+                low_threshold_of_bp=tool_call["args"].get("low_threshold_of_bp",2.0)
+                peptide_length=tool_call["args"].get("peptide_length","9")
                 func_result = await NetMHCpan.ainvoke(
                     {
-                        "input_fasta_filepath": input_fasta_filepath,
+                        "input_file": input_file,
                         "mhc_allele": mhc_allele,
                         "high_threshold_of_bp": high_threshold_of_bp,
                         "low_threshold_of_bp": low_threshold_of_bp,
@@ -129,7 +123,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 tmp_tool_msg.append(tool_msg)
 
             elif tool_name == "ValidateFastaFile":
-                input_file=tool_call_Validate_Correct_input
+                input_file=tool_call["args"].get("input_file")
                 func_result = await ValidateFastaFile.ainvoke(
                     {
                         "input_file": input_file
@@ -144,7 +138,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 tmp_tool_msg.append(tool_msg)            
                 
             elif tool_name == "CorrectFastaFile":
-                input_file=tool_call_Validate_Correct_input
+                input_file=tool_call["args"].get("input_file")
                 func_result = await CorrectFastaFile.ainvoke(
                     {
                         "input_file": input_file
@@ -173,6 +167,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
 
 
             elif tool_name == "ESM3":
+                tool_call_esm3_input=tool_call["args"].get("protein_sequence")
                 func_result = await ESM3.ainvoke(
                     {
                         "protein_sequence" : tool_call_esm3_input

@@ -138,7 +138,7 @@ def ValidateFastaFile(input_file):
     if not errors:
         result =  {
             "type": "text",
-            "content": "文件格式完全符合标准，无需矫正！"
+            "content": "文件格式已完成验证，符合标准格式，请问是否继续？"
         }
     else:
         result =  {
