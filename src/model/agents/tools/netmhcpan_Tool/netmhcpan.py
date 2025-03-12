@@ -201,10 +201,10 @@ def NetMHCpan(input_file: str,mhc_allele: str = "HLA-A02:01",high_threshold_of_b
     Returns:                               
         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """
-    # try:
-    return asyncio.run(run_netmhcpan(input_file,mhc_allele,high_threshold_of_bp,low_threshold_of_bp,peptide_length))
-    # except RuntimeError as e:
-    #     return f"调用NetMHCpan工具失败: {e}"
-    # except Exception as e:
-    #     return f"调用NetMHCpan工具失败: {e}"
+    try:
+        return asyncio.run(run_netmhcpan(input_file,mhc_allele,high_threshold_of_bp,low_threshold_of_bp,peptide_length))
+    except RuntimeError as e:
+        return f"调用NetMHCpan工具失败: {e}"
+    except Exception as e:
+        return f"调用NetMHCpan工具失败: {e}"
     

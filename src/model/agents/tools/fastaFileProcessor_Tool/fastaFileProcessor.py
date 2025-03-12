@@ -39,11 +39,17 @@ def process_record(header, sequence_lines, records, errors, line_num):
     """处理单个FASTA记录"""
     sequence = ''.join(sequence_lines).upper()
     valid_chars = []
+    invalid_chars = []
+    Flag = False
     for char in sequence:
         if char in valid_amino_acids:
             valid_chars.append(char)
         else:
-            errors.append(f"严重错误 行 {line_num}: 发现无效氨基酸符号 '{char}'")    
+            Flag = True
+            invalid_chars.append(char)
+              
+        if Flag:
+            errors.append(f"严重错误 行 {line_num}: 发现无效氨基酸符号 '{invalid_chars}'") 
     cleaned_sequence = ''.join(valid_chars)
 
     # 长度检查
@@ -207,8 +213,11 @@ def FastaFileProcessor(input_file):
                 )
                 result = {
                     "type": "link",
-                    "url": input_file,  # 返回原始 MinIO 路径
-                    "content": f"已经完成矫正，若有严重错误需要手动修改{errors}"
+                    "url": input_file,
+                    "content": (
+                        "已经完成矫正，若有严重错误需要手动修改\n" + 
+                        "\n".join(f"    {error}" for error in errors)  # 每个错误前添加缩进
+                    )
                 }
             except S3Error as e:
                 result = {
