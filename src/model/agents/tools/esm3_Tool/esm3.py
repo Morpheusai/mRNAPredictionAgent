@@ -1,40 +1,38 @@
 import asyncio
-import sys
+import json
 import os
+import sys
+import uuid
+
+from dotenv import load_dotenv
 from esm.sdk import client
 from esm.sdk.api import ESMProtein, GenerationConfig
-import uuid
 from langchain_core.tools import tool
-from getpass import getpass
-import json
 from pathlib import Path
 from minio import Minio
 from minio.error import S3Error
-from dotenv import load_dotenv
 
+
+current_file = Path(__file__).resolve()
+project_root = current_file.parents[5]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
+sys.path.append(str(project_root))    # 将项目根目录添加到 sys.path
+from config import CONFIG_YAML
 
 load_dotenv()
 
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[4]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
-                                        
-# 将项目根目录添加到 sys.path
-sys.path.append(str(project_root))
-from config import CONFIG_YAML
-
-token = os.getenv("ESM_API_KEY")
+TOKEN = os.getenv("ESM_API_KEY")
+MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
 
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = MINIO_CONFIG["access_key"]
-MINIO_SECRET_KEY = MINIO_CONFIG["secret_key"]
 MINIO_BUCKET = MINIO_CONFIG["esm_bucket"]
 MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 #临时mse3输出.pdb文件
-OUTPUT_TMP_DIR = CONFIG_YAML["TOOL"]["output_tmp_mse3_dir"]
-DOWNLOADER_PREFIX = CONFIG_YAML["TOOL"]["output_download_url_prefix"]
+OUTPUT_TMP_DIR = CONFIG_YAML["TOOL"]["ESM"]["output_tmp_mse3_dir"]
+DOWNLOADER_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["output_download_url_prefix"]
 
 # 初始化 MinIO 客户端
 minio_client = Minio(
@@ -97,7 +95,7 @@ async def run_esm3(
     output_path = output_dir / output_pdb
 
     # 连接 ESM-3 模型
-    model = client(model=model_name, url=url, token=token)
+    model = client(model=model_name, url=url, token=TOKEN)
     
     # 创建蛋白质对象
     protein = ESMProtein(sequence=protein_sequence)

@@ -18,7 +18,31 @@ class OpenAIModelName(StrEnum):
     """https://platform.openai.com/docs/models/gpt-4o"""
 
     GPT_4O_MINI = "gpt-4o-mini"
+
     GPT_4O = "gpt-4o"
+
+    TEMPERATURE = "0.1"  #温度
+
+    MAX_TOKENS = "None"  #最大生成tokens数
+
+    BASE_URL = "https://api.openai.com/v1"    #API 请求路径
+
+    FREQUENCY_PENALTY = "0"  #频率惩罚重复的标记
+
+
+class FileDescriptionName(StrEnum):
+    GPT_4O = "gpt-4o"
+    
+    TEMPERATURE = "0.1"  #温度
+    
+    MAX_TOKENS = "None"  #最大生成tokens数
+
+    BASE_URL = "https://api.openai.com/v1"    #API 请求路径
+    #frequency_penalty
+    FREQUENCY_PENALTY = "0"  #频率惩罚重复的标记
+
+
+
 
 
 # class AzureOpenAIModelName(StrEnum):
@@ -77,6 +101,7 @@ class OpenAIModelName(StrEnum):
 
 AllModelEnum: TypeAlias = (
     OpenAIModelName
+    | FileDescriptionName
     # | AzureOpenAIModelName
     # | DeepseekModelName
     # | AnthropicModelName

@@ -1,5 +1,6 @@
 import os
 import logging
+
 from config import CONFIG_YAML
 
 log_level = CONFIG_YAML["LOGGER"]["level"]

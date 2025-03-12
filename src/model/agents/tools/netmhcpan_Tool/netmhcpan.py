@@ -1,12 +1,15 @@
 import asyncio
-import sys
 import json
-from langchain_core.tools import tool
-from pathlib import Path
+import sys
 import uuid
+
 from minio import Minio
 from minio.error import S3Error
-from src.model.agents.utils import filter_netmhcpan_output
+from langchain_core.tools import tool
+from pathlib import Path
+
+from src.model.agents.tools.netmhcpan_Tool.filter_netmhcpan import filter_netmhcpan_output
+
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[4]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
                                         
@@ -23,10 +26,10 @@ MINIO_BUCKET = MINIO_CONFIG["netmhcpan_bucket"]
 MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 # netMHCpan 配置 
-NETMHCPAN_DIR = CONFIG_YAML["TOOL"]["netmhcpan_dir"]
-INPUT_TMP_DIR = CONFIG_YAML["TOOL"]["input_tmp_upload_dir"]
-DOWNLOADER_PREFIX = CONFIG_YAML["TOOL"]["output_download_url_prefix"]
-OUTPUT_TMP_DIR = CONFIG_YAML["TOOL"]["output_tmp_netmhcpan_dir"]
+NETMHCPAN_DIR = CONFIG_YAML["TOOL"]["NETMHCPAN"]["netmhcpan_dir"]
+INPUT_TMP_DIR = CONFIG_YAML["TOOL"]["NETMHCPAN"]["input_tmp_netmhcpan_dir"]
+DOWNLOADER_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["output_download_url_prefix"]
+OUTPUT_TMP_DIR = CONFIG_YAML["TOOL"]["NETMHCPAN"]["output_tmp_netmhcpan_dir"]
 
 # 初始化 MinIO 客户端
 minio_client = Minio(
@@ -198,10 +201,10 @@ def NetMHCpan(input_file: str,mhc_allele: str = "HLA-A02:01",high_threshold_of_b
     Returns:                               
         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """
-    try:
-        return asyncio.run(run_netmhcpan(input_file,mhc_allele,high_threshold_of_bp,low_threshold_of_bp,peptide_length))
-    except RuntimeError as e:
-        return f"调用NetMHCpan工具失败: {e}"
-    except Exception as e:
-        return f"调用NetMHCpan工具失败: {e}"
+    # try:
+    return asyncio.run(run_netmhcpan(input_file,mhc_allele,high_threshold_of_bp,low_threshold_of_bp,peptide_length))
+    # except RuntimeError as e:
+    #     return f"调用NetMHCpan工具失败: {e}"
+    # except Exception as e:
+    #     return f"调用NetMHCpan工具失败: {e}"
     

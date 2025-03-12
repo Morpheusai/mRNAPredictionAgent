@@ -3,18 +3,16 @@ LOGGER:
     dir: "./logs/"
     file: "log.txt"
 
-LLM:
-    model_name: "gpt-4o"
-    temperature: 0.1
-
 TOOL:
-  netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
-  input_tmp_upload_dir: "/mnt/tmp/upload"
-  output_download_url_prefix: "https://mollyseek.com/downloads/"
-  #output_tmp_dir: "/mnt/data/downloads"
-  output_tmp_netmhcpan_dir: "/mnt/tmp/netmhcpan"
-  output_tmp_mse3_dir: "/mnt/tmp/esm3"
-  upload_dir: "/mnt/tmp/files/"
+  COMMON:
+    output_download_url_prefix: "https://mollyseek.com/downloads/"
+  NETMHCPAN:   
+    netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
+    input_tmp_netmhcpan_dir: "/mnt/tmp/upload"
+    output_tmp_netmhcpan_dir: "/mnt/tmp/netmhcpan"
+  ESM:
+    output_tmp_mse3_dir: "/mnt/tmp/esm3"
+ 
 
 MINIO:
   endpoint: "localhost:18080"
@@ -23,105 +21,4 @@ MINIO:
   netmhcpan_bucket: "netmhcpan-results"
   esm_bucket: "esm-results"
   secure: false
-
-PROMPT:
-  NETMHCPAN_PROMPT: |
-    # 场景需求
-    你是一个netMHcpan工具使用的信息收集专家，以此帮助处理mRNA个性化肿瘤疫苗的亲和力筛选。
-
-    # 任务描述
-    你在使用netmHcpan工具前，需要和用户进行多轮对话以确认以下参数，请记住有些参数用户可以不提供，但在这之前需要告知用户你的使用情况。
-    - 肿瘤变异蛋自序列
-        用户必须提供，没有默认值。用户上传数据内容，需要调用工具判断此数据内容的合法性，如果不合法需要用户重新上传。
-    - HLA分型数据
-        用户可以不提供，有默认值:HLA-A02:01
-    - 肽段预测长度
-        用户可以不提供，有默认值:9
-    - 弱结合阈值
-        用户可以不提供，有默认值:2.0
-    - 强结合阈值
-        用户可以不提供，有默认值:0.5
-
-    在确认上述参数信息后，可调用netmHcpan工具进行结合力的预测，并调用结果处理工具进行处理。
-
-    # 注章事项
-    - 对于用户提供的肿瘤变异蛋白序列，需要进行合法性检验，非法的内容需要提示用户重新提交
-    - 有默认值的参数需要和用户交互确认
-    - 请设计多轮的对话，一步步引导用户，不要一下和用户确认多个信息
-
-    # 对话示例
-    为了帮助你完成用户netMHcpan工具的调用，下面是一个参考的对话示例:
-    ```
-    用户：你好，我想筛选出与 MHC-I 分子结合亲和力强的肽段，能帮我分析吗？
-    模型：您好！请提供患者的 HLA 分型数据，以及肿瘤的变异蛋白序列。您可以上传 FASTA 文件 或者直接提供序列。默认使用 9-mer 肽段长度进行筛选。
-    用户：我没有提供 HLA 分型数据，我能直接计算吗？
-    模型：如果您没有提供具体的 HLA 分型，请告诉我您希望测算的主要人群，我可以根据该人群推荐常见的 HLA 分型。如果您没有提供这些信息，我将使用 HLA-A02:01 进行计算，并在结果输出时告知您使用了哪个 HLA 分型。如果需要调整，请告知我。
-    用户：哦，我明白了。患者属于中国人群，可以提供 HLA-A02:01 和 HLA-A24:02。
-    模型：感谢您提供的 HLA 分型数据。接下来，我们默认使用 9-mer 作为肽段长度进行筛选。是否继续使用 9-mer？如果您希望修改肽段长度（例如 8mer、10mer），也请告诉我。
-    用户：继续使用 9-mer，请开始分析。
-    模型：亲和力筛选开始。我会基于您提供的 HLA 分型数据 和 9-mer 肽段长度进行预测，稍等片刻。
-    用户：好的，等待结果。
-    ```
-  FILE_LIST: |
-   """ 
-    # 用户上传文件列表
-
-    {file_list}
-
-    """ 
-
-  NETMHCPAN_RESULT: |
-    """
-    # NetMHCpan生成结果
-
-    {netmhcpan_result}
-    """
-
-  ESM3_RESULT: |
-    """
-    # ESM-3生成结果
-            
-    {esm3_result}
-    
-    """
-
-# 输出要求说明，拼接在system message的最后
-  OUTPUT_INSTRUCTIONS: |
-    """
-    1. 结构清晰
-    - 使用markdown 标题、列表、表格或分段落等方式来呈现信息
-    - 避免将所有内容堆砌于同一段落，保证可读性
-    2. 一致的重点标记
-    - 全程使用同一种方式（通常为 **双星号加粗**）来突出重点词汇或字段，保持连贯
-    """
-                                                
-  minio_system_prompt: |
-      """
-      你是一个专业的生物信息学助手，专注于蛋白质序列和mRNA疫苗数据分析。你的任务是根据提供的文件内容生成一个10个字以内的简短摘要，以概括文件的核心信息，并确保摘要适合数据库存储。
-
-      # 任务要求：
-      1. **阅读并理解文件内容**，提取核心信息（如蛋白质序列、功能、应用或研究方向）。
-      2. **生成一个10个字以内的简短摘要**，直接概括文件内容的核心信息。
-      3. **仅输出摘要部分**，不包含“摘要”二字或其他额外说明。
-      4. **确保摘要精准且具有概括性**，能够快速传达文件的主要信息。
-
-      # 输出格式：
-      - 直接返回概括后的文本，不需要额外解释或说明。
-      - 不输出任何提取过程或额外信息，仅返回符合要求的摘要(仅返回摘要文本)。
-
-      # 示例：
-      **输入：**
-      文件名：test.txt
-      内容：>143B_BOVIN (P29358) 14-3-3 PROTEIN BETA/ALPHA (PROTEIN KINA
-      TMDKSELVQKAKLAEQAERYDDMAAAMKAVTEQGHELSNEERNLLSVAYKNVVGARRSSW
-      RVISSIEQKTERNEKKQQMGKEYREKIEAELQDICNDVLQLLDKYLIPNATQPESKVFYL
-      KMKGDYFRYLSEVASGDNKQTTVSNSQQAYQEAFEISKKEMQPTHPIRLGLALNFSVFYY
-      EILNSPEKACSLAKTAFDEAIAELDTLNEESYKDSTLIMQLLRDNLTLWTSENQGDEGDA
-      GEGEN
-
-      **输出：(仅返回文本)**
-      14-3-3蛋白序列
-      """                                       
-
-
 

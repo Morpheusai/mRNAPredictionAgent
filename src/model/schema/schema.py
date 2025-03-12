@@ -1,9 +1,6 @@
-from typing import Any, Literal,List, NotRequired,Union
-
 from pydantic import BaseModel, Field, SerializeAsAny
+from typing import Any, Literal,List, NotRequired,Union
 from typing_extensions import TypedDict
-
-from src.model.schema.models import AllModelEnum, OpenAIModelName
 
 
 class AgentInfo(BaseModel):
@@ -19,22 +16,22 @@ class AgentInfo(BaseModel):
     )
 
 
-class ServiceMetadata(BaseModel):
-    """Metadata about the service including available agents and models."""
+# class ServiceMetadata(BaseModel):
+#     """Metadata about the service including available agents and models."""
 
-    agents: list[AgentInfo] = Field(
-        description="List of available agents.",
-    )
-    models: list[AllModelEnum] = Field(
-        description="List of available LLMs.",
-    )
-    default_agent: str = Field(
-        description="Default agent used when none is specified.",
-        examples=["research-assistant"],
-    )
-    default_model: AllModelEnum = Field(
-        description="Default model used when none is specified.",
-    )
+#     agents: list[AgentInfo] = Field(
+#         description="List of available agents.",
+#     )
+#     models: list[AllModelEnum] = Field(
+#         description="List of available LLMs.",
+#     )
+#     default_agent: str = Field(
+#         description="Default agent used when none is specified.",
+#         examples=["research-assistant"],
+#     )
+#     default_model: AllModelEnum = Field(
+#         description="Default model used when none is specified.",
+#     )
 
 class FileInfo(BaseModel):
     file_name: str = Field(description="文件名")

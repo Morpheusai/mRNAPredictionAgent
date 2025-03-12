@@ -1,34 +1,22 @@
 import aiosqlite
-from datetime import datetime
-from typing import Literal,Optional
 
-from langchain_community.tools import DuckDuckGoSearchResults, OpenWeatherMapQueryRun
-from langchain_community.utilities import OpenWeatherMapAPIWrapper
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, MessagesState, StateGraph
-# from langgraph.managed import RemainingSteps
-# from langgraph.prebuilt import ToolNode
 from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
-from utils.log import logger
+from typing import Literal,Optional
 
 from src.model.agents.tools import mRNAResearchAndProduction
 from src.model.agents.tools import NetMHCpan
 from src.model.agents.tools import ESM3
-from src.model.agents.tools import ValidateFastaFile
-from src.model.agents.tools import CorrectFastaFile
-from src.model.agents.utils import extract_min_affinity_peptide
+from src.model.agents.tools import FastaFileProcessor
+from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
+from src.utils.log import logger
+
 from .core import get_model  # 相对导入
-import sys
-from pathlib import Path
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[3]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
-                                        
-# 将项目根目录添加到 sys.path
-sys.path.append(str(project_root))
-from config import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, OUTPUT_INSTRUCTIONS
+from .core.prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, OUTPUT_INSTRUCTIONS
 
 
 class AgentState(MessagesState, total=False):
@@ -38,11 +26,11 @@ class AgentState(MessagesState, total=False):
     netmhcpan_result: Optional[str]=None
     esm3_result: Optional[str]=None
 
-tools = [mRNAResearchAndProduction, NetMHCpan, ESM3, ValidateFastaFile, CorrectFastaFile]
+TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor]       
 
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
-    model = model.bind_tools(tools)
+    model = model.bind_tools(TOOLS)
     #导入prompt
     preprocessor = RunnableLambda(
         lambda state: [SystemMessage(content=file_instructions)] + state["messages"],
@@ -52,7 +40,13 @@ def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializ
 
 
 async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
-    m = get_model(config["configurable"].get("model", None))
+    m = get_model(
+        config["configurable"].get("model", None),
+        config["configurable"].get("temperature", None),
+        config["configurable"].get("max_tokens", None),
+        config["configurable"].get("base_url", None),
+        config["configurable"].get("frequency_penalty", None),
+        )
     #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
     # 处理文件列表
@@ -76,10 +70,11 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
                 instructions +=esm3_result
                 instructions +=OUTPUT_INSTRUCTIONS
 
-    print(instructions)
+
     
     model_runnable = wrap_model(m,instructions)
     response = await model_runnable.ainvoke(state, config)
+    # print(state)
     return {"messages": [response]}
 
 async def should_continue(state: AgentState, config: RunnableConfig):
@@ -111,10 +106,10 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                         "high_threshold_of_bp": high_threshold_of_bp,
                         "low_threshold_of_bp": low_threshold_of_bp,
                         "peptide_length":peptide_length
-
                     }
                 )
                 netmhcpan_result=extract_min_affinity_peptide(func_result)
+
                 logger.info(f"NetMHCpan result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
@@ -122,35 +117,20 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 )
                 tmp_tool_msg.append(tool_msg)
 
-            elif tool_name == "ValidateFastaFile":
+            elif tool_name == "FastaFileProcessor":
                 input_file=tool_call["args"].get("input_file")
-                func_result = await ValidateFastaFile.ainvoke(
+                func_result = await FastaFileProcessor.ainvoke(
                     {
                         "input_file": input_file
                     }
                 )
-                
-                logger.info(f"ValidateFastaFile result: {func_result}")
+                logger.info(f"FastaFileProcessor result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)            
                 
-            elif tool_name == "CorrectFastaFile":
-                input_file=tool_call["args"].get("input_file")
-                func_result = await CorrectFastaFile.ainvoke(
-                    {
-                        "input_file": input_file
-                    }
-                )
-                
-                logger.info(f"CorrectFastaFile result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
 
             elif tool_name == "mRNAResearchAndProduction":
                 func_result = await mRNAResearchAndProduction.ainvoke(
@@ -185,12 +165,12 @@ async def should_continue(state: AgentState, config: RunnableConfig):
 
 
 # Define the graph
-agent = StateGraph(AgentState)
-agent.add_node("modelNode", modelNode)
-agent.add_node("should_continue", should_continue)
-agent.set_entry_point("modelNode")
+mrnaResearchAgent = StateGraph(AgentState)
+mrnaResearchAgent.add_node("modelNode", modelNode)
+mrnaResearchAgent.add_node("should_continue", should_continue)
+mrnaResearchAgent.set_entry_point("modelNode")
 
-agent.add_edge("should_continue", END)
+mrnaResearchAgent.add_edge("should_continue", END)
 
 def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     last_message = state["messages"][-1]
@@ -201,10 +181,10 @@ def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     return "done"
 
 
-agent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
+mrnaResearchAgent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
 
 
 async def compile_mRNA_research():
     conn = await aiosqlite.connect("checkpoints.sqlite")
-    mRNA_research = agent.compile(checkpointer=AsyncSqliteSaver(conn))
+    mRNA_research = mrnaResearchAgent.compile(checkpointer=AsyncSqliteSaver(conn))
     return mRNA_research, conn
