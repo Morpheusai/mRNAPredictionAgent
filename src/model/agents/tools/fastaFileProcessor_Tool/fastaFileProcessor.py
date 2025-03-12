@@ -48,8 +48,8 @@ def process_record(header, sequence_lines, records, errors, line_num):
             Flag = True
             invalid_chars.append(char)
               
-        if Flag:
-            errors.append(f"严重错误 行 {line_num}: 发现无效氨基酸符号 '{invalid_chars}'") 
+    if Flag:
+        errors.append(f"严重错误 行 {line_num}: 发现无效氨基酸符号 '{invalid_chars}'") 
     cleaned_sequence = ''.join(valid_chars)
 
     # 长度检查
