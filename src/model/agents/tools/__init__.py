@@ -2,4 +2,5 @@ from .mrnaVaccineResearchFlow_Tool.mrnaVaccineResearchFlow import mRNAResearchAn
 from .netmhcpan_Tool.netmhcpan import NetMHCpan
 from .esm3_Tool.esm3 import ESM3
 from .fastaFileProcessor_Tool.fastaFileProcessor import FastaFileProcessor
+from .netmhcstabpan_Tool.netmhcstabpan import NetMHCstabpan
 

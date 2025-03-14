@@ -11,12 +11,13 @@ from typing import Literal,Optional
 from src.model.agents.tools import mRNAResearchAndProduction
 from src.model.agents.tools import NetMHCpan
 from src.model.agents.tools import ESM3
+from src.model.agents.tools import NetMHCstabpan
 from src.model.agents.tools import FastaFileProcessor
 from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
-from .core.prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, OUTPUT_INSTRUCTIONS
+from .core.prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS
 
 
 class AgentState(MessagesState, total=False):
@@ -25,8 +26,9 @@ class AgentState(MessagesState, total=False):
     """
     netmhcpan_result: Optional[str]=None
     esm3_result: Optional[str]=None
+    netmhcstabpan_result: Optional[str]=None
 
-TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor]       
+TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan]       
 
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -65,9 +67,11 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
                 file_list_content = FILE_LIST.format(file_list=file_instructions)
                 netmhcpan_result = NETMHCPAN_RESULT.format(netmhcpan_result=state.get("netmhcpan_result"))
                 esm3_result = ESM3_RESULT.format(esm3_result=state.get("esm3_result"))
+                netmhcstabpan_result = NETMHCSTABPAN_RESULT.format(netmhcstabpan_result=state.get("netmhcstabpan_result"))
                 instructions += file_list_content
                 instructions += netmhcpan_result
                 instructions +=esm3_result
+                instructions +=netmhcstabpan_result
                 instructions +=OUTPUT_INSTRUCTIONS
 
 
@@ -83,6 +87,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     tmp_tool_msg = []
     netmhcpan_result=""
     esm3_result=""
+    netmhcstabpan_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -161,7 +166,36 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
-    return {"messages": tmp_tool_msg,"netmhcpan_result":netmhcpan_result,"esm3_result":esm3_result}
+
+            elif tool_name == "NetMHCstabpan":
+                input_file = tool_call["args"].get("input_file")
+                mhc_allele=tool_call["args"].get("mhc_allele","HLA-A02:01")
+                high_threshold_of_bp=tool_call["args"].get("high_threshold_of_bp",0.5)
+                low_threshold_of_bp=tool_call["args"].get("low_threshold_of_bp",2.0)
+                peptide_length=tool_call["args"].get("peptide_length","9")
+                func_result = await NetMHCstabpan.ainvoke(
+                    {
+                        "input_file": input_file,
+                        "mhc_allele": mhc_allele,
+                        "high_threshold_of_bp": high_threshold_of_bp,
+                        "low_threshold_of_bp": low_threshold_of_bp,
+                        "peptide_length":peptide_length
+                    }
+                )
+                netmhcstabpan_result=func_result
+
+                logger.info(f"NetMHCstabpan result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=func_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
+    return {
+        "messages": tmp_tool_msg,
+        "netmhcpan_result":netmhcpan_result,
+        "esm3_result":esm3_result,
+        "netmhcstabpan_result":netmhcstabpan_result,
+        }
 
 
 # Define the graph

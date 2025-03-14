@@ -8,10 +8,14 @@ TOOL:
     output_download_url_prefix: "https://mollyseek.com/downloads/"
   NETMHCPAN:   
     netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
-    input_tmp_netmhcpan_dir: "/mnt/tmp/upload"
-    output_tmp_netmhcpan_dir: "/mnt/tmp/netmhcpan"
+    input_tmp_netmhcpan_dir: "/mnt/tmp/netmhcpan/input"
+    output_tmp_netmhcpan_dir: "/mnt/tmp/netmhcpan/output"
   ESM:
     output_tmp_mse3_dir: "/mnt/tmp/esm3"
+  NETMHCSTABPAN:   
+    netmhcstabpan_dir: "/mnt/softwares/netMHCstabpan-1.0/Linux_x86_64"
+    input_tmp_netmhcstabpan_dir: "/mnt/tmp/netmhcstabpan/input"
+    output_tmp_netmhcstabpan_dir: "/mnt/tmp/netmhcstabpan/output"
  
 
 MINIO:
@@ -20,5 +24,6 @@ MINIO:
   secret_key: "molly_admin"
   netmhcpan_bucket: "netmhcpan-results"
   esm_bucket: "esm-results"
+  netmhcstabpan_bucket: "netmhcstabpan-results"
   secure: false
 

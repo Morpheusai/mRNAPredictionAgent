@@ -73,6 +73,13 @@ NETMHCPAN_RESULT = """
 
 """
 
+NETMHCSTABPAN_RESULT = """
+# NetMHCstabpan生成结果
+
+{netmhcstabpan_result}
+
+"""
+
 ESM3_RESULT = """
 # ESM-3生成结果
 
