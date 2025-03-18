@@ -157,34 +157,34 @@ async def run_netmhcpan(
             "type": "text",
             "content": "您的输入信息可能有误，请核对正确再试。"
         }
-
-    try:
-        if minio_available:
-            minio_client.fput_object(
-                MINIO_BUCKET,
-                output_filename,
-                str(output_path)
-            )
-            file_path = f"minio://{MINIO_BUCKET}/{output_filename}"
-        else:
-            # 如果 MinIO 不可用，返回下载链接
+    else:
+        try:
+            if minio_available:
+                minio_client.fput_object(
+                    MINIO_BUCKET,
+                    output_filename,
+                    str(output_path)
+                )
+                file_path = f"minio://{MINIO_BUCKET}/{output_filename}"
+            else:
+                # 如果 MinIO 不可用，返回下载链接
+                file_path = f"{DOWNLOADER_PREFIX}{output_filename}"
+        except S3Error as e:
             file_path = f"{DOWNLOADER_PREFIX}{output_filename}"
-    except S3Error as e:
-        file_path = f"{DOWNLOADER_PREFIX}{output_filename}"
-    finally:
-        # 如果 MinIO 成功上传，清理临时文件；否则保留
-        if minio_available:
-            input_path.unlink(missing_ok=True)
-            output_path.unlink(missing_ok=True)
-        else:
-            input_path.unlink(missing_ok=True)  # 只删除输入文件，保留输出文件
+        finally:
+            # 如果 MinIO 成功上传，清理临时文件；否则保留
+            if minio_available:
+                input_path.unlink(missing_ok=True)
+                output_path.unlink(missing_ok=True)
+            else:
+                input_path.unlink(missing_ok=True)  # 只删除输入文件，保留输出文件
 
-    # 返回结果
-    result = {
-        "type": "link",
-        "url": file_path,
-        "content": filtered_content  # 替换为生成的Markdown内容
-    }
+        # 返回结果
+        result = {
+            "type": "link",
+            "url": file_path,
+            "content": filtered_content  # 替换为生成的Markdown内容
+        }
 
     return json.dumps(result, ensure_ascii=False)
 
