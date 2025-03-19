@@ -13,31 +13,35 @@ from langgraph.graph.state import CompiledStateGraph
 from typing import Any
 from uuid import UUID, uuid4
 
+from src.model.agents.agents import DEFAULT_AGENT, DEMO_AGENT, get_agent, initialize_agents
+from src.model.agents.file_description import fileDescriptionAgent
 from src.model.schema.schema import UserInput
-from src.model.agents.agents import DEFAULT_AGENT, get_agent
+from src.model.schema import MinioRequest,MinioResponse
 from src.model.schema.models import OpenAIModelName
-from src.model.agents.agents import DEFAULT_AGENT, get_agent, initialize_agents
 from src.utils.message_handling import (
     convert_message_content_to_string,
     langchain_to_chat_message,
     remove_tool_calls,
     _sse_response_example
 )
-from src.model.schema import MinioRequest,MinioResponse
-from src.model.agents.file_description import fileDescriptionAgent
 from src.utils.log import logger
 
 logger.info(f"========================start molly_langgraph backend==============================")
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    conn = await initialize_agents()
-    app.state.conn = conn
+    # 初始化所有代理并获取连接对象
+    connections = await initialize_agents()
+    app.state.connections = connections  # 将连接对象存储在 app.state 中
+
     try:
         yield
     finally:
-        if hasattr(app.state, "conn"):
-            await app.state.conn.close()
+        # 关闭所有连接
+        if hasattr(app.state, "connections"):
+            for key, conn in app.state.connections.items():
+                if conn:  # 确保连接对象存在
+                    await conn.close()
+                    logger.info(f"Closed connection: {key}")
 app = FastAPI(lifespan=lifespan)
 
 origins = [
@@ -175,6 +179,25 @@ async def message_generator(
 
 @app.post("/stream", response_class=StreamingResponse, responses=_sse_response_example())
 async def chat(user_input: UserInput, agent_id: str = DEFAULT_AGENT) -> StreamingResponse:
+    """
+    Stream an agent's response to a user input, including intermediate messages and tokens.
+
+    If agent_id is not provided, the default agent will be used.
+    Use thread_id to persist and continue a multi-turn conversation. run_id kwarg
+    is also attached to all messages for recording feedback.
+
+    Set `stream_tokens=false` to return intermediate messages but not token-by-token.
+    """
+
+
+    return StreamingResponse(
+        message_generator(user_input, agent_id),
+        media_type="text/event-stream",
+    )
+
+#demo_mrna_research的接口
+@app.post("/demo_stream", response_class=StreamingResponse, responses=_sse_response_example())
+async def chat(user_input: UserInput, agent_id: str = DEMO_AGENT) -> StreamingResponse:
     """
     Stream an agent's response to a user input, including intermediate messages and tokens.
 

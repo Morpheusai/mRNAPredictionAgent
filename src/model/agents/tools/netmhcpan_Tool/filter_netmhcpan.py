@@ -23,7 +23,7 @@ def filter_netmhcpan_output(output_lines: list) -> str:
             continue
 
         # 捕获统计信息行（新增对行数的检查）
-        if "Number of binders" in line and len(output_lines) >= 3:
+        if "Allele" in line and len(output_lines) >= 3:
             markdown_content.append(f"**{output_lines[-3]}**\n")  # 保持原有逻辑，但建议检查索引有效性
 
         # 处理有效数据行
