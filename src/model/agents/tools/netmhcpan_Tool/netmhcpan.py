@@ -9,6 +9,7 @@ from langchain_core.tools import tool
 from pathlib import Path
 
 from src.model.agents.tools.netmhcpan_Tool.filter_netmhcpan import filter_netmhcpan_output
+from src.model.agents.tools.netmhcpan_Tool.netmhcpan_to_excel import save_excel
 
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[4]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
@@ -108,17 +109,18 @@ async def run_netmhcpan(
     input_dir = Path(INPUT_TMP_DIR)
     output_dir =Path(OUTPUT_TMP_DIR)
     
+
     # 创建目录
     input_dir.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # 写入输入文件
     input_path = input_dir / f"{random_id}.fsa"
     with open(input_path, "w") as f:
         f.write(file_content)
 
     # 构建输出文件名和临时路径
-    output_filename = f"{random_id}_netmhcpan_result.txt"
+    output_filename = f"{random_id}_netMHCpan_output.xlsx"
     output_path = output_dir / output_filename
 
     # 构建命令
@@ -127,9 +129,9 @@ async def run_netmhcpan(
         "-BA",
         "-rth", str(high_threshold_of_bp),  # 添加 -rth 参数
         "-rlt", str(low_threshold_of_bp),  # 添加 -rlt 参数
-        "-l", peptide_length,      # 添加 -l 参数
-        "-a", mhc_allele,       # 添加 -a 参数
-        str(input_path)     # 输入文件路径
+        "-l", peptide_length,  # 添加 -l 参数
+        "-a", mhc_allele,  # 添加 -a 参数
+        str(input_path)  # 输入文件路径
     ]
 
     # 启动异步进程
@@ -143,22 +145,30 @@ async def run_netmhcpan(
     # 处理输出
     stdout, stderr = await proc.communicate()
     output = stdout.decode()
-    # 直接将所有内容写入文件
-    with open(output_path, "w") as f:
-        f.write("\n".join(output.splitlines()))
+    # print(output)
+    save_excel(output,output_dir,output_filename)
+
+    # # 直接将所有内容写入文件
+    # with open(output_path, "w") as f:
+    #     f.write("\n".join(output.splitlines()))
+       
     # 调用过滤函数
     filtered_content = filter_netmhcpan_output(output.splitlines())
+    
     # 错误处理
     if proc.returncode != 0:
         error_msg = stderr.decode()
         input_path.unlink(missing_ok=True)
         output_path.unlink(missing_ok=True)
-        result ={
+        result = {
             "type": "text",
             "content": "您的输入信息可能有误，请核对正确再试。"
         }
     else:
         try:
+            print(minio_available)
+            print(output_filename)
+            print(output_path)
             if minio_available:
                 minio_client.fput_object(
                     MINIO_BUCKET,
@@ -183,7 +193,7 @@ async def run_netmhcpan(
         result = {
             "type": "link",
             "url": file_path,
-            "content": filtered_content  # 替换为生成的Markdown内容
+            "content": filtered_content  # 替换为生成的 Markdown 内容
         }
 
     return json.dumps(result, ensure_ascii=False)
