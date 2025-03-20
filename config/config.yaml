@@ -20,8 +20,7 @@ TOOL:
 
 MINIO:
   endpoint: "localhost:18080"
-  netmhcpan_bucket: "NetMHCpan-results"
-  esm_bucket: "ESM3-results"
-  netmhcstabpan_bucket: "NetMHCstabpan-results"
+  netmhcpan_bucket: "netmhcpan-results"
+  esm_bucket: "esm3-results"
+  netmhcstabpan_bucket: "netmhcstabpan-results"
   secure: false
-
