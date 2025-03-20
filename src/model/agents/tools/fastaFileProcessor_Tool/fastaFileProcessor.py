@@ -1,6 +1,8 @@
 import json
+import os
 import sys
 
+from dotenv import load_dotenv
 from io import StringIO
 from io import BytesIO
 from langchain.tools import tool
@@ -8,7 +10,7 @@ from minio import Minio
 from minio.error import S3Error
 from pathlib import Path
 
-
+load_dotenv()
 
 
 current_file = Path(__file__).resolve()
@@ -20,8 +22,8 @@ from config import CONFIG_YAML
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = MINIO_CONFIG["access_key"]
-MINIO_SECRET_KEY = MINIO_CONFIG["secret_key"]
+MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
 MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 # 初始化 MinIO 客户端

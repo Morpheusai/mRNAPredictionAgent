@@ -1,8 +1,10 @@
 import asyncio
 import json
+import os
 import sys
 import uuid
 
+from dotenv import load_dotenv
 from minio import Minio
 from minio.error import S3Error
 from langchain_core.tools import tool
@@ -11,6 +13,7 @@ from pathlib import Path
 from src.model.agents.tools.netmhcpan_Tool.filter_netmhcpan import filter_netmhcpan_output
 from src.model.agents.tools.netmhcpan_Tool.netmhcpan_to_excel import save_excel
 
+load_dotenv()
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[4]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
                                         
@@ -21,8 +24,8 @@ from config import CONFIG_YAML
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = MINIO_CONFIG["access_key"]
-MINIO_SECRET_KEY = MINIO_CONFIG["secret_key"]
+MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
 MINIO_BUCKET = MINIO_CONFIG["netmhcpan_bucket"]
 MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
@@ -120,7 +123,7 @@ async def run_netmhcpan(
         f.write(file_content)
 
     # 构建输出文件名和临时路径
-    output_filename = f"{random_id}_netMHCpan_output.xlsx"
+    output_filename = f"{random_id}_NetMHCpan_results.xlsx"
     output_path = output_dir / output_filename
 
     # 构建命令
