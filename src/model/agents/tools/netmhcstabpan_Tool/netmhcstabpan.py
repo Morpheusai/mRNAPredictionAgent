@@ -9,6 +9,7 @@ from minio.error import S3Error
 from pathlib import Path
 
 from src.model.agents.tools.netmhcstabpan_Tool.filter_netmhcstabpan import filter_netmhcstabpan_output
+from src.model.agents.tools.netmhcstabpan_Tool.netmhcstabpan_to_excel import save_excel
 
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[4]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
@@ -115,7 +116,7 @@ async def run_netmhcstabpan(
         f.write(file_content)
 
     # 构建输出文件名和临时路径
-    output_filename = f"{random_id}_netmhcstabpan_result.txt"
+    output_filename = f"{random_id}_netmhcstabpan_result.xlsx"
     output_path = output_dir / output_filename
 
     # 构建命令
@@ -146,8 +147,10 @@ async def run_netmhcstabpan(
     stdout, stderr = await proc.communicate()
     output = stdout.decode("utf-8", errors="replace")
 
-    with open(output_path, "w") as f:
-        f.write("\n".join(output.splitlines()))
+    save_excel(output,output_dir,output_filename)
+
+    # with open(output_path, "w") as f:
+    #     f.write("\n".join(output.splitlines()))
 
     filtered_content = filter_netmhcstabpan_output(output.splitlines())
     if proc.returncode != 0:

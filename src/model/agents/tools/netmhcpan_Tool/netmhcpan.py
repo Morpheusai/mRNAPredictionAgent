@@ -166,9 +166,6 @@ async def run_netmhcpan(
         }
     else:
         try:
-            print(minio_available)
-            print(output_filename)
-            print(output_path)
             if minio_available:
                 minio_client.fput_object(
                     MINIO_BUCKET,
