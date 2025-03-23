@@ -199,7 +199,7 @@ def FastaFileProcessor(input_file):
         if not errors:
             result =  {
                 "type": "text",
-                "content": "文件格式已完成验证，符合标准格式，请问是否继续？"
+                "content": "文件格式已完成验证，符合标准格式。"
             }
         else:   
             # 将校正后的文件上传回 MinIO
