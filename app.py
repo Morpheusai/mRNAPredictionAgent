@@ -102,7 +102,8 @@ async def message_generator(
     """
     agent: CompiledStateGraph = get_agent(agent_id)
     kwargs, run_id = _parse_input(user_input)
-
+    #上一次的yield类型
+    previous_yield_type = "" 
     # Process streamed events from the graph and yield messages over the SSE stream.
     async for event in agent.astream_events(**kwargs, version="v2"):
         if not event:
@@ -124,7 +125,7 @@ async def message_generator(
         # Also yield intermediate messages from agents.utils.CustomData.adispatch().
         if event["event"] == "on_custom_event" and "custom_data_dispatch" in event.get("tags", []):
             new_messages = [event["data"]]
-                
+       
         for message in new_messages:
             try:
                 chat_message = langchain_to_chat_message(message)
@@ -155,12 +156,14 @@ async def message_generator(
             #     except (SyntaxError, ValueError, json.JSONDecodeError) as e:
             #         logger.error(f"解析 tool content 失败: {e}")
             #         chat_message.content = {"type": "error", "content": "Invalid tool content format"}
-            # print(f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()}, ensure_ascii=False)}\n\n")     
-            if chat_message.type == "ai" and getattr(chat_message, "tool_calls", None):
+            # print(f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()}, ensure_ascii=False)}\n\n")
+   
+            if chat_message.type == "ai" and getattr(chat_message, "tool_calls", None) and previous_yield_type=="token":
                 # 先 yield 一个换行符消息
                 newline = "\n"
+                previous_yield_type="token" 
                 yield f"data: {json.dumps({'type': 'token', 'content': newline}, ensure_ascii=False)}\n\n"
-                
+            previous_yield_type="message"     
             # 然后 yield 原始消息
             yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()}, ensure_ascii=False)}\n\n"               
 
@@ -175,10 +178,11 @@ async def message_generator(
                 # Empty content in the context of OpenAI usually means
                 # that the model is asking for a tool to be invoked.
                 # So we only print non-empty content.
-                
+                previous_yield_type="token" 
+
                 yield f"data: {json.dumps({'type': 'token', 'content': convert_message_content_to_string(content)})}\n\n"
             continue
-
+    previous_yield_type="DONE" 
     yield "data: [DONE]\n\n"
 
 
