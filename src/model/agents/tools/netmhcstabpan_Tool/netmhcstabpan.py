@@ -217,8 +217,10 @@ def NetMHCstabpan(input_file: str,
                                              high_threshold_of_bp,
                                              low_threshold_of_bp,
                                              peptide_length))
-    except RuntimeError as e:
-        return f"调用NetMHCstabpan工具失败: {e}"
     except Exception as e:
-        return f"调用NetMHCstabpan工具失败: {e}"
+        result = {
+            "type": "text",
+            "content": f"调用NetMHCpan工具失败: {e}"
+        }
+        return json.dumps(result, ensure_ascii=False)
     

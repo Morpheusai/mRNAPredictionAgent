@@ -2,6 +2,7 @@ import json
 
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from collections import deque
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -104,6 +105,8 @@ async def message_generator(
     kwargs, run_id = _parse_input(user_input)
     #上一次的yield类型
     previous_yield_type = "" 
+    #定义队列
+    tool_call_queue = deque()
     # Process streamed events from the graph and yield messages over the SSE stream.
     async for event in agent.astream_events(**kwargs, version="v2"):
         if not event:
@@ -163,9 +166,39 @@ async def message_generator(
                 newline = "\n"
                 previous_yield_type="token" 
                 yield f"data: {json.dumps({'type': 'token', 'content': newline}, ensure_ascii=False)}\n\n"
-            previous_yield_type="message"     
-            # 然后 yield 原始消息
-            yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()}, ensure_ascii=False)}\n\n"               
+            previous_yield_type="message"  
+
+            #处理单轮，多个工具调用的前端渲染问题
+            if chat_message.type == "ai" and getattr(chat_message, "tool_calls", None):
+                # 处理工具调用
+                if len(chat_message.tool_calls) > 1:
+                    # 如果有多个工具调用，拆分成单独的消息存入队列
+                    print(chat_message)
+                    for tool_call in chat_message.tool_calls:
+                        # 创建单个工具调用的消息副本
+                        single_tool_message = chat_message.copy()
+                        single_tool_message.tool_calls = [tool_call]
+                        tool_call_queue.append(single_tool_message)
+                    
+                    # 不立即yield，等待tool消息时再处理
+                    continue
+                elif len(chat_message.tool_calls) == 1:
+                    # 如果只有一个工具调用，直接存入队列
+                    tool_call_queue.append(chat_message)
+                    continue
+            
+            elif chat_message.type == "tool":
+                # 当收到tool消息时，从队列中取出对应的调用消息
+                if tool_call_queue:
+                    queued_message = tool_call_queue.popleft()
+                    # 先yield工具调用消息
+                    yield f"data: {json.dumps({'type': 'message', 'content': queued_message.model_dump()}, ensure_ascii=False)}\n\n"
+                    # 然后yield工具响应消息
+                    yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()}, ensure_ascii=False)}\n\n"
+            else:
+            # 其他情况直接yield
+                yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()}, ensure_ascii=False)}\n\n"
+      
 
         # Yield tokens streamed from LLMs.
         if (

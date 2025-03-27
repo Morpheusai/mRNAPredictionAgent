@@ -154,7 +154,9 @@ def ESM3(protein_sequence: str) -> str:
     """
     try:
         return asyncio.run(run_esm3(protein_sequence))
-    except RuntimeError as e:
-        return f"调用 ESM-3 工具失败: {e}"
     except Exception as e:
-        return f"调用 ESM-3 工具失败: {e}"
+        result = {
+            "type": "text",
+            "content": f"调用NetMHCpan工具失败: {e}"
+        }
+        return json.dumps(result, ensure_ascii=False)

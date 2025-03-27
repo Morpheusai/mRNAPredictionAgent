@@ -213,8 +213,12 @@ def NetMHCpan(input_file: str,mhc_allele: str = "HLA-A02:01",high_threshold_of_b
     """
     try:
         return asyncio.run(run_netmhcpan(input_file,mhc_allele,high_threshold_of_bp,low_threshold_of_bp,peptide_length))
-    except RuntimeError as e:
-        return f"调用NetMHCpan工具失败: {e}"
+
     except Exception as e:
-        return f"调用NetMHCpan工具失败: {e}"
+        result = {
+            "type": "text",
+            "content": f"调用NetMHCpan工具失败: {e}"
+        }
+        return json.dumps(result, ensure_ascii=False)
+    
     
