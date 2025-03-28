@@ -13,11 +13,13 @@ from src.model.agents.tools import NetMHCpan
 from src.model.agents.tools import ESM3
 from src.model.agents.tools import NetMHCstabpan
 from src.model.agents.tools import FastaFileProcessor
+from src.model.agents.tools import ExtractPeptide
+from src.model.agents.tools import pMTnet
 from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
-from .core.prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS
+from .core.prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS , PMTNET_RESULT
 
 
 class AgentState(MessagesState, total=False):
@@ -27,8 +29,9 @@ class AgentState(MessagesState, total=False):
     netmhcpan_result: Optional[str]=None
     esm3_result: Optional[str]=None
     netmhcstabpan_result: Optional[str]=None
+    pmtnet_result: Optional[str]=None
 
-TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan]       
+TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan , ExtractPeptide ,pMTnet]       
 
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -68,10 +71,12 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
                 netmhcpan_result = NETMHCPAN_RESULT.format(netmhcpan_result=state.get("netmhcpan_result"))
                 esm3_result = ESM3_RESULT.format(esm3_result=state.get("esm3_result"))
                 netmhcstabpan_result = NETMHCSTABPAN_RESULT.format(netmhcstabpan_result=state.get("netmhcstabpan_result"))
+                pmtnet_result= PMTNET_RESULT.format(pmtnet_result=state.get("pmtnet_result"))
                 instructions += file_list_content
                 instructions += netmhcpan_result
-                instructions +=esm3_result
-                instructions +=netmhcstabpan_result
+                instructions += esm3_result
+                instructions += netmhcstabpan_result
+                instructions += pmtnet_result
                 instructions +=OUTPUT_INSTRUCTIONS
 
 
@@ -88,6 +93,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     netmhcpan_result=""
     esm3_result=""
     netmhcstabpan_result=""
+    pmtnet_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -135,7 +141,19 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)            
-                
+            elif tool_name == "ExtractPeptide":
+                input_content = tool_call["args"].get("peptide_sequence")
+                func_result = await ExtractPeptide.ainvoke(
+                    {
+                        "peptide_sequence": input_content
+                    }
+                )
+                logger.info(f"ExtractPeptide result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=func_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
 
             elif tool_name == "mRNAResearchAndProduction":
                 func_result = await mRNAResearchAndProduction.ainvoke(
@@ -149,7 +167,20 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
-
+            elif tool_name == "pMTnet":
+                input_file_dir = tool_call["args"].get("input_file_dir")
+                func_result = await pMTnet.ainvoke(
+                    {
+                        "input_file_dir": input_file_dir
+                    }
+                )
+                logger.info(f"pMTnet result: {func_result}")
+                pmtnet_result=func_result
+                tool_msg = ToolMessage(
+                    content=func_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
 
             elif tool_name == "ESM3":
                 tool_call_esm3_input=tool_call["args"].get("protein_sequence")
@@ -195,6 +226,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         "netmhcpan_result":netmhcpan_result,
         "esm3_result":esm3_result,
         "netmhcstabpan_result":netmhcstabpan_result,
+        "pmtnet_result":pmtnet_result
         }
 
 
