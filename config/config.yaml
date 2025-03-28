@@ -16,6 +16,16 @@ TOOL:
     netmhcstabpan_dir: "/mnt/softwares/netMHCstabpan-1.0/Linux_x86_64"
     input_tmp_netmhcstabpan_dir: "/mnt/tmp/NetMHCstabpan/input"
     output_tmp_netmhcstabpan_dir: "/mnt/tmp/NetMHCstabpan/output"
+  PMTNET:
+    pMTnet_env_python_dir: "/mnt/softwares/miniconda3/envs/pmtnet/bin/python"
+    pMTnet_script_dir: "/mnt/softwares/pMTnet/pMTnet.py"
+    library_dir: "/mnt/softwares/pMTnet/library"
+    input_tmp_pmtnet_dir: "/mnt/tmp/pMtNet/input"
+    output_tmp_pmtnet_dir: "/mnt/tmp/pmtnet/output"
+  EXTRACT_PEPTIDE:
+    tmp_extract_peptide_dir: "/mnt/tmp/ExtractPeptide/output"
+
+
  
 
 MINIO:
@@ -23,4 +33,6 @@ MINIO:
   netmhcpan_bucket: "netmhcpan-results"
   esm_bucket: "esm3-results"
   netmhcstabpan_bucket: "netmhcstabpan-results"
+  pmtnet_bucket: "pmtnet-results"
+  extract_peptide_bucket: "extract-peptide-results"
   secure: false
