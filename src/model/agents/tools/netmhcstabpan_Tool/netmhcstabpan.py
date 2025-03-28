@@ -186,11 +186,17 @@ async def run_netmhcstabpan(
         else:
             input_path.unlink(missing_ok=True)  # 只删除输入文件，保留输出文件
     # 返回结果
-    result = {
-        "type": "link",
-        "url": file_path,
-        "content": filtered_content  # 替换为生成的Markdown内容
-    }
+    if filtered_content.strip() == "**警告**: 未找到任何符合条件的肽段，请检查输入数据或参数设置。":
+        result = {
+            "type": "text",
+            "content": filtered_content  # 仅返回警告信息
+        }
+    else:
+        result = {
+            "type": "link",
+            "url": file_path,
+            "content": filtered_content  # 替换为生成的Markdown内容
+        }
 
     return json.dumps(result, ensure_ascii=False)
 
