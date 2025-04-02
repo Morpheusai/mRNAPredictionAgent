@@ -49,9 +49,6 @@ class UserInput(BaseModel):
         description="User input to the agent.",
         examples=["_______________________________DQATSLRILNNGHAFNVEFDDSQDKAVLK"or"What is the weather in Tokyo?"],
     )
-    system_token: str = Field(
-        description="传入系统token，验证有效性",
-    )
     conversation_id: str = Field(
         description="传入会话id，存入数据库",
     )
