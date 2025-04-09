@@ -24,6 +24,13 @@ TOOL:
     output_tmp_pmtnet_dir: "/mnt/tmp/pmtnet/output"
   EXTRACT_PEPTIDE:
     tmp_extract_peptide_dir: "/mnt/tmp/ExtractPeptide/output"
+  NETCTLPAN:
+    netctlpan_dir: /mnt/softwares/netCTLpan-1.1
+    input_tmp_netctlpan_dir: /mnt/tmp/netctlpan/input
+    output_tmp_netctlpan_dir: /mnt/tmp/netctlpan/output
+  PISTE:
+    piste_env_python_dir: /mnt/softwares/miniconda3/envs/piste/bin/python
+    output_tmp_piste_dir: /mnt/tmp/piste/output
 
 
  
@@ -35,4 +42,6 @@ MINIO:
   netmhcstabpan_bucket: "netmhcstabpan-results"
   pmtnet_bucket: "pmtnet-results"
   extract_peptide_bucket: "extract-peptide-results"
+  netctlpan_bucket: "netctlpan-results"
+  piste_bucket: "piste-results"
   secure: false
