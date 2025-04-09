@@ -15,11 +15,13 @@ from src.model.agents.tools import NetMHCstabpan
 from src.model.agents.tools import FastaFileProcessor
 from src.model.agents.tools import ExtractPeptide
 from src.model.agents.tools import pMTnet
+from src.model.agents.tools import NetCTLpan
+from src.model.agents.tools import PISTE
 from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
-from .core.prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS , PMTNET_RESULT
+from .core.prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS , PMTNET_RESULT , NETCTLpan_RESULT , PISTE_RESULT
 
 
 class AgentState(MessagesState, total=False):
@@ -30,8 +32,11 @@ class AgentState(MessagesState, total=False):
     esm3_result: Optional[str]=None
     netmhcstabpan_result: Optional[str]=None
     pmtnet_result: Optional[str]=None
+    netctlpan_result: Optional[str]=None
+    piste_result: Optional[str]=None
+    
 
-TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan , ExtractPeptide ,pMTnet]       
+TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan , ExtractPeptide , pMTnet, NetCTLpan, PISTE]       
 
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -72,11 +77,15 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
                 esm3_result = ESM3_RESULT.format(esm3_result=state.get("esm3_result"))
                 netmhcstabpan_result = NETMHCSTABPAN_RESULT.format(netmhcstabpan_result=state.get("netmhcstabpan_result"))
                 pmtnet_result= PMTNET_RESULT.format(pmtnet_result=state.get("pmtnet_result"))
+                netctlpan_result = NETCTLpan_RESULT.format(netctlpan_result=state.get("netctlpan_result"))
+                piste_result = PISTE_RESULT.format(piste_result=state.get("piste_result"))
                 instructions += file_list_content
                 instructions += netmhcpan_result
                 instructions += esm3_result
                 instructions += netmhcstabpan_result
                 instructions += pmtnet_result
+                instructions += netctlpan_result
+                instructions += piste_result
                 instructions +=OUTPUT_INSTRUCTIONS
 
 
@@ -94,6 +103,8 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     esm3_result=""
     netmhcstabpan_result=""
     pmtnet_result=""
+    netctlpan_result=""
+    piste_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -181,6 +192,27 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
+                
+            elif tool_name == "PISTE":
+                input_file_dir = tool_call["args"].get("input_file_dir")
+                model_name = tool_call["args"].get("model_name","random")
+                threshold = tool_call["args"].get("threshold", 0.5)
+                antigen_type = tool_call["args"].get("antigen_type","MT")
+                func_result = await PISTE.ainvoke(
+                    {
+                        "input_file_dir": input_file_dir,
+                        "model_name": model_name,
+                        "threshold": threshold,
+                        "antigen_type": antigen_type
+                    }
+                )
+                logger.info(f"piste result: {func_result}")
+                piste_result=func_result
+                tool_msg = ToolMessage(
+                    content=func_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
 
             elif tool_name == "ESM3":
                 tool_call_esm3_input=tool_call["args"].get("protein_sequence")
@@ -221,12 +253,38 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
+                
+            elif tool_name == "NetCTLpan":
+                input_file = tool_call["args"].get("input_file")
+                mhc_allele=tool_call["args"].get("mhc_allele","HLA-A02:01")
+                weight_of_clevage=tool_call["args"].get("weight_of_clevage",0.225)
+                weight_of_tap=tool_call["args"].get("weight_of_tap",0.025)
+                peptide_length=tool_call["args"].get("peptide_length","9")
+                func_result = await NetCTLpan.ainvoke(
+                    {
+                        "input_file": input_file,
+                        "mhc_allele": mhc_allele,
+                        "weight_of_clevage": weight_of_clevage,
+                        "weight_of_tap": weight_of_tap,
+                        "peptide_length":peptide_length
+                    }
+                )
+                netctlpan_result=func_result
+                logger.info(f"NetCTLpan result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=func_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
+                
     return {
         "messages": tmp_tool_msg,
         "netmhcpan_result":netmhcpan_result,
         "esm3_result":esm3_result,
         "netmhcstabpan_result":netmhcstabpan_result,
-        "pmtnet_result":pmtnet_result
+        "pmtnet_result":pmtnet_result,
+        "piste_result": piste_result,
+        "netctlpan_result":netctlpan_result,
         }
 
 
