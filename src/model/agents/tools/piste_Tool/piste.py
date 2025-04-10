@@ -16,7 +16,7 @@ current_script_dir = current_file.parent
 project_root = current_file.parents[5]
 sys.path.append(str(project_root))
 from src.utils.log import logger
-from src.model.agents.tools.piste_Tool.prase_piste_result import parse_piste_result
+from src.model.agents.tools.piste_Tool.parse_piste_result import parse_piste_result
 from config import CONFIG_YAML
 
 # PISTE 相关路径配置
