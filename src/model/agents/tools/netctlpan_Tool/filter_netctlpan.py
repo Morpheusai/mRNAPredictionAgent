@@ -58,7 +58,7 @@ def filter_netctlpan_output(output_lines: list) -> str:
 
     # 限制返回行数
     display_data = sorted_data[:7] if len(sorted_data) > 7 else sorted_data
-    extra_message = "\n**提示**: 结果超过 7 行，仅显示前 7 行，全部内容请下载表格查看。" if len(
+    extra_message = "\n⚠️ 结果超过 7 行，仅显示前 7 行，全部内容请下载表格查看。" if len(
         sorted_data) > 7 else ""
 
     # 构建 Markdown 表格

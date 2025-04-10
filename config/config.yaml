@@ -30,7 +30,9 @@ TOOL:
     output_tmp_netctlpan_dir: /mnt/tmp/netctlpan/output
   PISTE:
     piste_env_python_dir: /mnt/softwares/miniconda3/envs/piste/bin/python
+    input_tmp_piste_dir: /mnt/tmp/piste/input
     output_tmp_piste_dir: /mnt/tmp/piste/output
+
 
 
  

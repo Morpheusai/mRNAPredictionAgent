@@ -4,6 +4,7 @@ import subprocess
 import sys
 import os
 import requests
+
 from minio import Minio
 from minio.error import S3Error
 from pathlib import Path
@@ -16,6 +17,7 @@ current_script_dir = current_file.parent
 project_root = current_file.parents[5]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录 
 sys.path.append(str(project_root))
 from config import CONFIG_YAML
+from src.model.agents.tools.pMTnet_Tool.prase_pMTnet_result import parse_pmtnet_result
 from src.utils.log import logger
 #动态获取文件路径
 pMTnet_script = current_script_dir / "pMTnet_script.py"
@@ -158,11 +160,14 @@ async def run_pMTnet(input_file_dir_minio: str):
                 break
 
         # 返回结果
-        text_content="已成功完成pMHC-TCR结合预测"
+        if pmtnet_results_path is None:
+            raise ValueError("MinIO path not found in the output.")
+        markdown_content = parse_pmtnet_result(pmtnet_results_path)
+        # print(markdown_content)
         result = {
         "type": "link",
         "url": pmtnet_results_path,
-        "content": text_content,
+        "content": markdown_content,
         }     
         return json.dumps(result, ensure_ascii=False)  
 
