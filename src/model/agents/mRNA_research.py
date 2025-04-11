@@ -17,11 +17,23 @@ from src.model.agents.tools import ExtractPeptide
 from src.model.agents.tools import pMTnet
 from src.model.agents.tools import NetCTLpan
 from src.model.agents.tools import PISTE
+from src.model.agents.tools import ImmuneApp
 from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
-from .core.prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS , PMTNET_RESULT , NETCTLpan_RESULT , PISTE_RESULT
+from .core.prompts import (
+    MRNA_AGENT_PROMPT,
+    FILE_LIST,
+    NETMHCPAN_RESULT,
+    ESM3_RESULT,
+    NETMHCSTABPAN_RESULT,
+    OUTPUT_INSTRUCTIONS,
+    PMTNET_RESULT,
+    NETCTLpan_RESULT,
+    PISTE_RESULT,
+    ImmuneApp_RESULT,
+)
 
 
 class AgentState(MessagesState, total=False):
@@ -34,10 +46,30 @@ class AgentState(MessagesState, total=False):
     pmtnet_result: Optional[str]=None
     netctlpan_result: Optional[str]=None
     piste_result: Optional[str]=None
+    immuneapp_result: Optional[str]=None
     
-
-TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan , ExtractPeptide , pMTnet, NetCTLpan, PISTE]       
-
+TOOLS = [
+    mRNAResearchAndProduction,
+    NetMHCpan,
+    ESM3,
+    FastaFileProcessor,
+    NetMHCstabpan,
+    ExtractPeptide,
+    pMTnet,
+    NetCTLpan,
+    PISTE,
+    ImmuneApp,
+]
+    
+TOOL_TEMPLATES = {
+    "netmhcpan_result": NETMHCPAN_RESULT,
+    "esm3_result": ESM3_RESULT,
+    "netmhcstabpan_result": NETMHCSTABPAN_RESULT,
+    "pmtnet_result": PMTNET_RESULT,
+    "netctlpan_result": NETCTLpan_RESULT,
+    "piste_result": PISTE_RESULT,
+    "immuneapp_result": ImmuneApp_RESULT,
+}
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
     model = model.bind_tools(TOOLS)
@@ -48,7 +80,20 @@ def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializ
     )
     return preprocessor | model
 
+def format_file_info(file) -> str:
+    return (
+        f"*上传文件名*: {file.file_name}\n"
+        f"*上传的文件路径*: {file.file_path}\n"
+        f"*上传的文件内容*: {file.file_content}\n"
+        f"*上传的文件描述*: {file.file_desc}\n"
+    )
 
+def format_tool_results(state: dict, tool_templates: dict) -> str:
+    return "\n".join(
+        template.format(**{key: state.get(key)})
+        for key, template in tool_templates.items()
+    )
+    
 async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
     m = get_model(
         config["configurable"].get("model", None),
@@ -64,31 +109,9 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
     if file_list:
         for conversation_file in file_list:
             for file in conversation_file.files:
-                file_name = file.file_name
-                file_path = file.file_path
-                file_content = file.file_content
-                file_desc = file.file_desc
-                file_instructions = f"*上传文件名*: {file_name} \n" + \
-                                    f"*上传的文件路径*: {file_path} \n" + \
-                                    f"*上传的文件内容*: {file_content} \n" + \
-                                    f"*上传的文件描述*: {file_desc} \n"
-                file_list_content = FILE_LIST.format(file_list=file_instructions)
-                netmhcpan_result = NETMHCPAN_RESULT.format(netmhcpan_result=state.get("netmhcpan_result"))
-                esm3_result = ESM3_RESULT.format(esm3_result=state.get("esm3_result"))
-                netmhcstabpan_result = NETMHCSTABPAN_RESULT.format(netmhcstabpan_result=state.get("netmhcstabpan_result"))
-                pmtnet_result= PMTNET_RESULT.format(pmtnet_result=state.get("pmtnet_result"))
-                netctlpan_result = NETCTLpan_RESULT.format(netctlpan_result=state.get("netctlpan_result"))
-                piste_result = PISTE_RESULT.format(piste_result=state.get("piste_result"))
-                instructions += file_list_content
-                instructions += netmhcpan_result
-                instructions += esm3_result
-                instructions += netmhcstabpan_result
-                instructions += pmtnet_result
-                instructions += netctlpan_result
-                instructions += piste_result
-                instructions +=OUTPUT_INSTRUCTIONS
-
-
+                file_info = FILE_LIST.format(file_list=format_file_info(file))
+                tool_results = format_tool_results(state, TOOL_TEMPLATES)
+                instructions += f"{file_info}\n{tool_results}\n{OUTPUT_INSTRUCTIONS}"
     
     model_runnable = wrap_model(m,instructions)
     response = await model_runnable.ainvoke(state, config)
@@ -105,6 +128,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     pmtnet_result=""
     netctlpan_result=""
     piste_result=""
+    immuneapp_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -276,6 +300,27 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
+            elif tool_name == "ImmuneApp":
+                input_file_dir = tool_call["args"].get("input_file_dir")
+                alleles=tool_call["args"].get("alleles","HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02")
+                use_binding_score=tool_call["args"].get("use_binding_score",True)
+                peptide_lengths=tool_call["args"].get("peptide_lengths",None)
+                
+                func_result = await ImmuneApp.ainvoke(
+                    {
+                        "input_file_dir": input_file_dir,
+                        "alleles": alleles,
+                        "use_binding_score": use_binding_score,
+                        "peptide_lengths": peptide_lengths,
+                    }
+                )
+                immuneapp_result=func_result
+                logger.info(f"ImmuneApp result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=func_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
                 
     return {
         "messages": tmp_tool_msg,
@@ -285,6 +330,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         "pmtnet_result":pmtnet_result,
         "piste_result": piste_result,
         "netctlpan_result":netctlpan_result,
+        "immuneapp_result": immuneapp_result,
         }
 
 

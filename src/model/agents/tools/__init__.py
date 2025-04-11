@@ -7,3 +7,4 @@ from .extractPeptide_Tool.extract_peptide_sequence import ExtractPeptide
 from .pMTnet_Tool.pMTnet import pMTnet
 from .netctlpan_Tool.netctlpan import NetCTLpan
 from .piste_Tool.piste import PISTE
+from .immuneapp_Tool.immuneapp import ImmuneApp
