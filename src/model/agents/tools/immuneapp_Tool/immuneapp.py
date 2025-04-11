@@ -205,19 +205,19 @@ async def run_ImmuneApp(minio_input_path: str,
                 "type": "link",
                 "result_file_url": result_path,  # 预测结果文件
                 "annotation_file_url": annotation_path,  # 注释统计文件
-                "content": f"ImmuneApp运行完成，结果文件已生成。\n\n[预测结果]\n{immuneapp_content}\n\n[注释统计结果]\n{immuneapp_annotation_content}。",
+                "content": f"ImmuneApp工具执行完成，结果文件已生成。\n\n[预测结果]\n{immuneapp_content}\n\n[注释统计结果]\n{immuneapp_annotation_content}。",
             }, ensure_ascii=False)
         else:
             return json.dumps({
                 "type": "text",
-                "content": "ImmuneApp运行完成，但未找到结果路径"
+                "content": "ImmuneApp工具执行完成，但未找到结果路径"
             }, ensure_ascii=False)
 
     except Exception as e:
-        logger.error(f"ImmuneApp运行失败: {e}")
+        logger.error(f"ImmuneApp工具执行失败: {e}")
         return json.dumps({
             "type": "text",
-            "content": f"ImmuneApp运行失败: {e}"
+            "content": f"ImmuneApp工具执行失败: {e}"
         }, ensure_ascii=False)
 # TODO： 加过滤函数：在这里回读minio路径然后下载文件到输出目录中然后读取内容呈现markdown
 
@@ -250,7 +250,7 @@ def ImmuneApp(input_file_dir: str,
     except Exception as e:
         return json.dumps({
             "type": "text",
-            "content": f"ImmuneApp运行失败: {e}"
+            "content": f"ImmuneApp工具执行失败: {e}"
         }, ensure_ascii=False)
 
 

@@ -304,8 +304,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 input_file_dir = tool_call["args"].get("input_file_dir")
                 alleles=tool_call["args"].get("alleles","HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02")
                 use_binding_score=tool_call["args"].get("use_binding_score",True)
-                peptide_lengths=tool_call["args"].get("peptide_lengths",None)
-                
+                peptide_lengths=tool_call["args"].get("peptide_lengths",[8,9])
                 func_result = await ImmuneApp.ainvoke(
                     {
                         "input_file_dir": input_file_dir,
