@@ -125,6 +125,21 @@ PMTNET_RESULT = """
 {pmtnet_result}
 """
 
+NETCHOP_RESULT = """
+# netchop生成结果
+{netchop_result}
+"""
+
+PRIME_RESULT = """
+# prime生成结果
+{prime_result}
+"""
+
+NETTCR_RESULT = """
+# nettcr生成结果
+{nettcr_result}
+"""
+
 # 输出要求说明，拼接在system message的最后
 OUTPUT_INSTRUCTIONS = """
 1. 结构清晰

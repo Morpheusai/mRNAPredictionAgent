@@ -13,16 +13,10 @@ from src.model.agents.tools import NetMHCpan
 from src.model.agents.tools import ESM3
 from src.model.agents.tools import NetMHCstabpan
 from src.model.agents.tools import FastaFileProcessor
-from src.model.agents.tools import ExtractPeptide
-from src.model.agents.tools import pMTnet
-from src.model.agents.tools import NetChop
-from src.model.agents.tools import Prime
-from src.model.agents.tools import NetTCR
-from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
-from .core.prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS, PMTNET_RESULT, NETCHOP_RESULT, PRIME_RESULT,NETTCR_RESULT
+from .core.pMHC_affinity_prediction_prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS
 
 
 class AgentState(MessagesState, total=False):
@@ -32,12 +26,8 @@ class AgentState(MessagesState, total=False):
     netmhcpan_result: Optional[str]=None
     esm3_result: Optional[str]=None
     netmhcstabpan_result: Optional[str]=None
-    pmtnet_result: Optional[str]=None
-    netchop_result: Optional[str]=None
-    prime_result: Optional[str]=None
-    nettcr_result: Optional[str]=None
 
-TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan , ExtractPeptide, pMTnet, NetChop, Prime, NetTCR]       
+TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan]       
 
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -77,19 +67,13 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
                 netmhcpan_result = NETMHCPAN_RESULT.format(netmhcpan_result=state.get("netmhcpan_result"))
                 esm3_result = ESM3_RESULT.format(esm3_result=state.get("esm3_result"))
                 netmhcstabpan_result = NETMHCSTABPAN_RESULT.format(netmhcstabpan_result=state.get("netmhcstabpan_result"))
-                pmtnet_result= PMTNET_RESULT.format(pmtnet_result=state.get("pmtnet_result"))
-                netchop_result=NETCHOP_RESULT.format(netchop_result=state.get("netchop_result"))
-                prime_result=PRIME_RESULT.format(prime_result=state.get("prime_result"))
-                nettcr_result=NETTCR_RESULT.format(nettcr_result=state.get("nettcr_result"))
                 instructions += file_list_content
                 instructions += netmhcpan_result
-                instructions += esm3_result
-                instructions += netmhcstabpan_result
-                instructions += pmtnet_result
-                instructions += netchop_result
-                instructions += prime_result
-                instructions += nettcr_result
+                instructions +=esm3_result
+                instructions +=netmhcstabpan_result
                 instructions +=OUTPUT_INSTRUCTIONS
+ 
+
     
     model_runnable = wrap_model(m,instructions)
     response = await model_runnable.ainvoke(state, config)
@@ -103,10 +87,6 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     netmhcpan_result=""
     esm3_result=""
     netmhcstabpan_result=""
-    pmtnet_result=""
-    netchop_result=""
-    prime_result=""
-    nettcr_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -132,8 +112,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                         "peptide_length":peptide_length
                     }
                 )
-                netmhcpan_result=extract_min_affinity_peptide(func_result)
-
+                netmhcpan_result=func_result
                 logger.info(f"NetMHCpan result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
@@ -154,19 +133,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)            
-            elif tool_name == "ExtractPeptide":
-                input_content = tool_call["args"].get("peptide_sequence")
-                func_result = await ExtractPeptide.ainvoke(
-                    {
-                        "peptide_sequence": input_content
-                    }
-                )
-                logger.info(f"ExtractPeptide result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
+                
 
             elif tool_name == "mRNAResearchAndProduction":
                 func_result = await mRNAResearchAndProduction.ainvoke(
@@ -180,20 +147,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
-            elif tool_name == "pMTnet":
-                input_file_dir = tool_call["args"].get("input_file_dir")
-                func_result = await pMTnet.ainvoke(
-                    {
-                        "input_file_dir": input_file_dir
-                    }
-                )
-                logger.info(f"pMTnet result: {func_result}")
-                pmtnet_result=func_result
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
+
 
             elif tool_name == "ESM3":
                 tool_call_esm3_input=tool_call["args"].get("protein_sequence")
@@ -234,75 +188,21 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
-
-            elif tool_name == "NetChop":
-                input_file = tool_call["args"].get("input_file")
-                cleavage_site_threshold=tool_call["args"].get("cleavage_site_threshold",0.5)
-                func_result = await NetChop.ainvoke(
-                    {
-                        "input_file": input_file,
-                        "cleavage_site_threshold": cleavage_site_threshold,
-                    }
-                )
-                netchop_result=func_result
-
-                logger.info(f"NetChop result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)         
-            elif tool_name == "Prime":
-                input_file = tool_call["args"].get("input_file")
-                mhc_allele=tool_call["args"].get("mhc_allele","A0101")
-                func_result = await Prime.ainvoke(
-                    {
-                        "input_file": input_file,
-                        "mhc_allele": mhc_allele,
-                    }
-                )
-                prime_result=func_result
-
-                logger.info(f"Prime result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)       
-            elif tool_name == "NetTCR":
-                input_file = tool_call["args"].get("input_file")
-                func_result = await NetTCR.ainvoke(
-                    {
-                        "input_file": input_file,
-                    }
-                )
-                nettcr_result=func_result
-
-                logger.info(f"NetTCR result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)                                    
     return {
         "messages": tmp_tool_msg,
         "netmhcpan_result":netmhcpan_result,
         "esm3_result":esm3_result,
         "netmhcstabpan_result":netmhcstabpan_result,
-        "pmtnet_result":pmtnet_result,
-        "netchop_result":netchop_result,
-        "prime_result":prime_result,
-        "nettcr_result":nettcr_result
         }
 
 
 # Define the graph
-mrnaResearchAgent = StateGraph(AgentState)
-mrnaResearchAgent.add_node("modelNode", modelNode)
-mrnaResearchAgent.add_node("should_continue", should_continue)
-mrnaResearchAgent.set_entry_point("modelNode")
+PMHCAffinityPredictionResearchAgent = StateGraph(AgentState)
+PMHCAffinityPredictionResearchAgent.add_node("modelNode", modelNode)
+PMHCAffinityPredictionResearchAgent.add_node("should_continue", should_continue)
+PMHCAffinityPredictionResearchAgent.set_entry_point("modelNode")
 
-mrnaResearchAgent.add_edge("should_continue", END)
+PMHCAffinityPredictionResearchAgent.add_edge("should_continue", "modelNode")
 
 def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     last_message = state["messages"][-1]
@@ -313,10 +213,10 @@ def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     return "done"
 
 
-mrnaResearchAgent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
+PMHCAffinityPredictionResearchAgent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
 
 
-async def compile_mRNA_research():
-    conn = await aiosqlite.connect("checkpoints.sqlite")
-    mRNA_research = mrnaResearchAgent.compile(checkpointer=AsyncSqliteSaver(conn))
-    return mRNA_research, conn
+async def compile_pMHC_affinity_prediction_research():
+    pMHC_affinity_prediction_research_conn = await aiosqlite.connect("checkpoints.sqlite")
+    pMHC_affinity_prediction_research = PMHCAffinityPredictionResearchAgent.compile(checkpointer=AsyncSqliteSaver(pMHC_affinity_prediction_research_conn))
+    return pMHC_affinity_prediction_research, pMHC_affinity_prediction_research_conn

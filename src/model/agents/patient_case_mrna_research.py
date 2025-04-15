@@ -13,11 +13,10 @@ from src.model.agents.tools import NetMHCpan
 from src.model.agents.tools import ESM3
 from src.model.agents.tools import NetMHCstabpan
 from src.model.agents.tools import FastaFileProcessor
-from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
-from .core.demo_prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS
+from .core.patient_case_mrna_prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS
 
 
 class AgentState(MessagesState, total=False):
@@ -113,7 +112,6 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                         "peptide_length":peptide_length
                     }
                 )
-                # netmhcpan_result=extract_min_affinity_peptide(func_result)
                 netmhcpan_result=func_result
                 logger.info(f"NetMHCpan result: {func_result}")
                 tool_msg = ToolMessage(
@@ -199,12 +197,13 @@ async def should_continue(state: AgentState, config: RunnableConfig):
 
 
 # Define the graph
-DemoMrnaResearchAgent = StateGraph(AgentState)
-DemoMrnaResearchAgent.add_node("modelNode", modelNode)
-DemoMrnaResearchAgent.add_node("should_continue", should_continue)
-DemoMrnaResearchAgent.set_entry_point("modelNode")
 
-DemoMrnaResearchAgent.add_edge("should_continue", "modelNode")
+PatientCaseMrnaAgent = StateGraph(AgentState)
+PatientCaseMrnaAgent.add_node("modelNode", modelNode)
+PatientCaseMrnaAgent.add_node("should_continue", should_continue)
+PatientCaseMrnaAgent.set_entry_point("modelNode")
+
+PatientCaseMrnaAgent.add_edge("should_continue", "modelNode")
 
 def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     last_message = state["messages"][-1]
@@ -215,10 +214,11 @@ def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     return "done"
 
 
-DemoMrnaResearchAgent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
+PatientCaseMrnaAgent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
 
 
-async def demo_compile_mRNA_research():
-    DEMO_conn = await aiosqlite.connect("checkpoints.sqlite")
-    DEMO_mRNA_research = DemoMrnaResearchAgent.compile(checkpointer=AsyncSqliteSaver(DEMO_conn))
-    return DEMO_mRNA_research, DEMO_conn
+async def compile_patient_case_mRNA_research():
+    patient_case_mRNA_research_conn = await aiosqlite.connect("checkpoints.sqlite")
+    patient_case_mRNA_research = PatientCaseMrnaAgent.compile(checkpointer=AsyncSqliteSaver(patient_case_mRNA_research_conn))
+    return patient_case_mRNA_research, patient_case_mRNA_research_conn
+

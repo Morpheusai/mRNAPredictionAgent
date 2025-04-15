@@ -24,6 +24,17 @@ TOOL:
     output_tmp_pmtnet_dir: "/mnt/tmp/pmtnet/output"
   EXTRACT_PEPTIDE:
     tmp_extract_peptide_dir: "/mnt/tmp/ExtractPeptide/output"
+  NETCHOP:
+    netchop_dir: "/mnt/softwares/netchop-3.1/Linux_x86_64"
+    input_tmp_netchop_dir: "/mnt/tmp/NetChop/input"
+    output_tmp_netchop_dir: "/mnt/tmp/NetChop/output"
+  PRIME:
+    input_tmp_prime_dir: "/mnt/tmp/Prime/input"
+    output_tmp_prime_dir: "/mnt/tmp/Prime/output"
+  NETTCR:
+    nettcr_dir: "/mnt/softwares/NetTCR-2.2"  
+    input_tmp_nettcr_dir: "/mnt/tmp/NetTCR/input"
+    output_tmp_nettcr_dir: "/mnt/tmp/NetTCR/output"    
 
 
  
@@ -35,4 +46,7 @@ MINIO:
   netmhcstabpan_bucket: "netmhcstabpan-results"
   pmtnet_bucket: "pmtnet-results"
   extract_peptide_bucket: "extract-peptide-results"
+  netchop_bucket: "netchop-results"
+  prime_bucket: "prime-results"
+  nettcr_bucket: "nettcr-results"
   secure: false

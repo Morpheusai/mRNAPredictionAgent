@@ -4,8 +4,8 @@ from langgraph.graph.state import CompiledStateGraph
 from src.model.schema import AgentInfo
 
 DEFAULT_AGENT = "mRNA_research"
-DEMO_AGENT="demo_mRNA_research"
-
+PMHC_AFFINITY_PREDICTION="pMHC_affinity_prediction"
+PATIENT_CASE_MRNA_AGENT="patient_case_mRNA_research"
 
 @dataclass
 class Agent:
@@ -22,14 +22,22 @@ async def initialize_agents():
         graph=mRNA_research
     )
 
-    from src.model.agents.DEMO_mRNA_research import demo_compile_mRNA_research
-    DEMO_mRNA_research, DEMO_conn = await demo_compile_mRNA_research()
-    agents["demo_mRNA_research"] = Agent(
-        description="A demo of mRNA antigen agent.",
-        graph=DEMO_mRNA_research
+    from model.agents.pMHC_affinity_prediction_research import compile_pMHC_affinity_prediction_research
+    pMHC_affinity_prediction_research, pMHC_affinity_prediction_research_conn = await compile_pMHC_affinity_prediction_research()
+    agents["pMHC_affinity_prediction"] = Agent(
+        description="肽段亲和力预测agent.",
+        graph=pMHC_affinity_prediction_research
     )
+
+    from src.model.agents.patient_case_mrna_research import compile_patient_case_mRNA_research
+    patient_case_mRNA_research, patient_case_mRNA_research_conn = await compile_patient_case_mRNA_research()
+    agents["patient_case_mRNA_research"] = Agent(
+        description="研究患者案例 mRNA 的Agent",
+        graph=patient_case_mRNA_research
+    )
+
     # 返回所有连接对象
-    return {"mRNA_conn": conn, "demo_conn": DEMO_conn}
+    return {"mRNA_conn": conn, "pMHC_affinity_prediction_research_conn": pMHC_affinity_prediction_research_conn , "patient_case_mRNA_research_conn" :patient_case_mRNA_research_conn}
 
 def get_agent(agent_id: str) -> CompiledStateGraph:
     return agents[agent_id].graph

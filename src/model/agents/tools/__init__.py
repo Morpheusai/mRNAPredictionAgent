@@ -5,3 +5,6 @@ from .fastaFileProcessor_Tool.fastaFileProcessor import FastaFileProcessor
 from .netmhcstabpan_Tool.netmhcstabpan import NetMHCstabpan
 from .extractPeptide_Tool.extract_peptide_sequence import ExtractPeptide
 from .pMTnet_Tool.pMTnet import pMTnet
+from .netchop_Tool.netchop import NetChop
+from .prime_Tool.prime import Prime
+from .nettcr_Tool.nettcr import NetTCR
