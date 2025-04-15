@@ -8,3 +8,6 @@ from .pMTnet_Tool.pMTnet import pMTnet
 from .netchop_Tool.netchop import NetChop
 from .prime_Tool.prime import Prime
 from .nettcr_Tool.nettcr import NetTCR
+from .netctlpan_Tool.netctlpan import NetCTLpan
+from .piste_Tool.piste import PISTE
+from .immuneapp_Tool.immuneapp import ImmuneApp

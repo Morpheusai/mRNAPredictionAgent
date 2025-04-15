@@ -66,6 +66,28 @@ MRNA_AGENT_PROMPT = """
    输出的minio路径文件中包含一个包含 4 列的表格：CDR3 序列、抗原序列、HLA 等位基因以及每对 TCR/pMHC 的排名（rank）。排名反映了 TCR 和 pMHC 之间预测结合强度相对于 10,000 个随机采样的 TCR 对相同 pMHC 的百分位排名。排名越低，预测效果越好。
  - 
    
+# netCTLpan工具使用说明
+你在使用 netCTLpan 工具前，需要和用户进行多轮对话以确认以下参数，请记住有些参数用户可以不提供，但在这之前需要告知用户你的使用情况。
+ - 肿瘤变异蛋白序列：用户必须提供 Fasta 格式的文件，没有默认值。
+ - HLA分型数据：用户可以不提供，有默认值：HLA-A02:01
+ - 蛋白酶切割打分权重（Weight of Cleavage）：用户可以不提供，有默认值：0.225
+ - TAP打分权重（Weight of TAP）：用户可以不提供，有默认值：0.025
+ - 肽段预测长度：用户可以不提供（取值范围[8-11]），有默认值：9
+
+# PISTE工具使用说明
+你在使用 PISTE 工具前，需要和用户进行多轮对话以确认以下参数，请记住有些参数用户可以不提供，但在这之前需要告知用户你的使用情况。
+ - 文件路径 (input_file_dir)：用户必须提供，当前的输入要求是用户需上传.csv文件，文件包含四列：'CDR3'，'MT_pep'，'HLA_type'和'HLA_sequence'，分别代表TCR CDR3序列，抗原序列，HLA-I等位基因和HLA伪序列。 如果'HLA_sequence'不在列中，程序将自动匹配与HLA-I等位基因相对应的HLA伪序列。
+ - 预测模型名称 (model_name)：用户可以不提供，有默认值：random，使用不同负采样生成的数据集选择不同的训练模型：random, unipep, reftcr。
+ - 抗原呈递评分阈值 (threshold)：用户可以不提供，有默认值：0.5，根据预测分数定义活页夹的阈值，范围从 0 - 1（默认值：0.5）
+ - 抗原类型 (antigen_type)：用户可以不提供，有默认值：MT，说明：MT 表示肿瘤突变型抗原（Mutant Type），WT 表示正常野生型抗原（Wild Type）
+ - 输出说明：文件包含六列：'CDR3'、'MT_pep'、'HLA_type'、'HLA_sequence'、'predicted_label' 和 'predicted_score'，分别代表 TCR CDR3 序列、抗原序列、HLA-I 等位基因、HLA 伪序列及其预测的结合标签和分数。所有 TCR-抗原-HLA 三元组都是输入文件中的三元组。
+
+# ImmuneApp工具使用说明
+你在使用 ImmuneApp 工具前，需要和用户进行多轮对话以确认以下参数，请记住有些参数用户可以不提供，但在这之前需要告知用户你的使用情况。
+ - 输入文件路径 (input_file_dir)：用户必须提供，当前的输入要求是用户需上传.txt或.fasta文件，文件包含肽段序列。（用户上传的文件是fasta格式时，需要 -l（默认 [9,10]））
+ - 等位基因列表 (alleles)：用户可以不提供，有默认值：HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02
+ - 是否启用结合分数 (use_binding_score)：用户可以不提供，有默认值：True
+ - 肽段长度 (peptide_lengths)：用户可以不提供，有默认值：[9,10]，仅对 fasta 输入有效
 
 # 注章事项
  - 当存在*用户上传文件列表*部分内容时，可以认为用户进行了文件上传
@@ -138,6 +160,21 @@ PRIME_RESULT = """
 NETTCR_RESULT = """
 # nettcr生成结果
 {nettcr_result}
+"""
+
+NETCTLpan_RESULT = """
+# netCTLpan生成结果
+{netctlpan_result}
+"""
+
+PISTE_RESULT = """
+# PISTE生成结果
+{piste_result}
+"""
+
+ImmuneApp_RESULT = """
+# ImmuneApp生成结果
+{immuneapp_result}
 """
 
 # 输出要求说明，拼接在system message的最后

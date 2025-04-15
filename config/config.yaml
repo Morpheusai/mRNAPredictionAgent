@@ -35,6 +35,20 @@ TOOL:
     nettcr_dir: "/mnt/softwares/NetTCR-2.2"  
     input_tmp_nettcr_dir: "/mnt/tmp/NetTCR/input"
     output_tmp_nettcr_dir: "/mnt/tmp/NetTCR/output"    
+  NETCTLPAN:
+    netctlpan_dir: /mnt/softwares/netCTLpan-1.1
+    input_tmp_netctlpan_dir: /mnt/tmp/netctlpan/input
+    output_tmp_netctlpan_dir: /mnt/tmp/netctlpan/output
+  PISTE:
+    piste_env_python_dir: /mnt/softwares/miniconda3/envs/piste/bin/python
+    input_tmp_piste_dir: /mnt/tmp/piste/input
+    output_tmp_piste_dir: /mnt/tmp/piste/output
+  IMMUNEAPP:
+    script_path: /mnt/softwares/ImmuneApp/ImmuneApp_presentation_prediction.py
+    python_bin: /mnt/softwares/miniconda3/envs/ImmuneApp/bin/python
+    input_tmp_dir: /mnt/tmp/immuneapp/input  
+    output_tmp_dir: /mnt/tmp/immuneapp/output
+
 
 
  
@@ -49,4 +63,7 @@ MINIO:
   netchop_bucket: "netchop-results"
   prime_bucket: "prime-results"
   nettcr_bucket: "nettcr-results"
+  netctlpan_bucket: "netctlpan-results"
+  piste_bucket: "piste-results"
+  immuneapp_bucket: immuneapp-results
   secure: false
