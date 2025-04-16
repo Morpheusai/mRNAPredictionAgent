@@ -55,10 +55,10 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
                                     f"*上传的文件内容*: {file_content} \n" + \
                                     f"*上传的文件描述*: {file_desc} \n"
                 patient_info += file_instructions
-    refernces = state.get("rag_result", "暂无")
+    references = state.get("rag_result", "暂无")
     system_prompt = MRNA_AGENT_PROMPT.format(
         patient_info = patient_info,
-        refernces = refernces
+        references = references
     )
     logger.info(f"Current system prompt: {system_prompt}")
     model_runnable = wrap_model(m, system_prompt)
