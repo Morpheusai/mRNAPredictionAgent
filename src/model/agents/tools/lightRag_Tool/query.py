@@ -105,6 +105,39 @@ def RAG_Expanded(
         },
         ensure_ascii=False
     )
+
+@tool
+def RAG(
+    query: str,
+) -> str:
+    """
+    使用LightRAG系统查询本地专业文献知识库，检索返回可参考信息。
+
+    Args:
+        query (str): 用户输入的问题
+    Returns:
+        str: JSON格式的响应（含 type + content）
+    """
+    mode = "mix"
+    top_k = 1
+    response_type = "string"
     
+    response = run_rag_stream(
+        query=query,
+        mode=mode,
+        top_k=top_k,
+        response_type=response_type
+    )
+    
+    return json.dumps(
+        {
+            "type": "text",
+            "content": (
+                f"# 病例相关专业信息\n ```\n{response}\n```\n"
+            )
+        },
+        ensure_ascii=False
+    )
+
 if __name__ == "__main__":
     print(run_rag_stream("请根据知识图谱解释一下 Tumor-specific neo-antigens", mode="mix", top_k=1))

@@ -8,7 +8,7 @@ from langgraph.graph import END, MessagesState, StateGraph
 from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
 from typing import Literal,Optional
 
-from src.model.agents.tools import RAG_Expanded
+from src.model.agents.tools import RAG
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
@@ -20,7 +20,7 @@ class AgentState(MessagesState, total=False):
     """
     rag_result: Optional[str]=None
 
-TOOLS = [RAG_Expanded]       
+TOOLS = [RAG]       
 
 
 def wrap_model(model: BaseChatModel, system_prompt: str) -> RunnableSerializable[AgentState, AIMessage]:
