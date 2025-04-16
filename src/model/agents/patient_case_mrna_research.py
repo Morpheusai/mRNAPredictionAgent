@@ -12,10 +12,7 @@ from src.model.agents.tools import RAG_Expanded
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
-from .core.patient_case_mrna_prompts import (
-    MRNA_AGENT_PROMPT, 
-    PATIENT_INFO
-)
+from .core.patient_case_mrna_prompts import MRNA_AGENT_PROMPT
 
 class AgentState(MessagesState, total=False):
     """`total=False` is PEP589 specs.
@@ -58,7 +55,6 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
                                     f"*上传的文件内容*: {file_content} \n" + \
                                     f"*上传的文件描述*: {file_desc} \n"
                 patient_info += file_instructions
-    patient_info = PATIENT_INFO.format(patient_info=file_instructions)
     refernces = state.get("rag_result", "暂无")
     system_prompt = MRNA_AGENT_PROMPT.format(
         patient_info = patient_info,
