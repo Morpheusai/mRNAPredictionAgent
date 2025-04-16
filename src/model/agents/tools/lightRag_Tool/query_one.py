@@ -1,5 +1,3 @@
-# query_stream.py
-
 import json
 import requests
 import logging
@@ -58,8 +56,14 @@ def run_rag_stream(
         # logger.error(f"调用 RAG Server 失败：{e}")
         return f"调用 RAG 工具失败：{e}"
 
+
 @tool
-def RAG(query: str, mode: str = "mix", top_k: int = 1, response_type: str = "string") -> str:
+def RAG_Expanded(
+    query: str,
+    mode: str = "mix",
+    top_k: int = 1,
+    response_type: str = "string"
+) -> str:
     """
     使用 LightRAG Server 查询本地知识库，返回答案。
 
@@ -72,14 +76,31 @@ def RAG(query: str, mode: str = "mix", top_k: int = 1, response_type: str = "str
     Returns:
         str: JSON格式的响应（含 type + content）
     """
-    return run_rag_stream(
+    
+    # 生成扩展查询
+
+    
+    response = run_rag_stream(
         query=query,
         mode=mode,
         top_k=top_k,
         response_type=response_type
     )
     
+
+    
+    return json.dumps(
+        {
+            "type": "text",
+            "content": (
+                "# 问题的相关理论及方法\n"
+                f"```\n{response}\n```\n\n"
+            )
+        },
+        ensure_ascii=False
+    )
+
+    
 if __name__ == "__main__":
     print(run_rag_stream("请根据知识图谱解释一下 Tumor-specific neo-antigens", mode="mix", top_k=1))
     
-    #embding

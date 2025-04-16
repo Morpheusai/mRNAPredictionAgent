@@ -100,7 +100,12 @@ def RAG_Expanded(
     return json.dumps(
         {
             "type": "text",
-            "content": f"\n# 病例理论及方法相关\n```{theory_response}```\n\n# 案例相关\n```{case_response}```"
+            "content": (
+                "# 病例理论及方法相关\n"
+                f"```\n{theory_response}\n```\n\n"
+                "# 案例相关\n"
+                f"```\n{case_response}\n```"
+            )
         },
         ensure_ascii=False
     )
