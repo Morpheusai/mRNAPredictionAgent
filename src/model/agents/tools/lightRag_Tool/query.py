@@ -61,27 +61,22 @@ def run_rag_stream(
 @tool
 def RAG_Expanded(
     query: str,
-    mode: str = "mix",
-    top_k: int = 1,
-    response_type: str = "string"
 ) -> str:
     """
-    使用 LightRAG Server 查询本地知识库，返回答案。
+    使用LightRAG系统查询本地专业文献知识库，检索返回可参考信息。
 
     Args:
         query (str): 用户输入的问题
-        mode (str): 检索模式，支持 naive, local, hybrid, mix 等
-        top_k (int): 返回前 K 条检索内容
-        response_type (str): 响应格式，例如 string, bullet points 等
-
     Returns:
         str: JSON格式的响应（含 type + content）
     """
+    mode = "mix",
+    top_k = 1,
+    response_type = "string"
     
     # 生成扩展查询
     theory_query, case_query = expand_query(query)
 
-    
     theory_response = run_rag_stream(
         query=theory_query,
         mode=mode,
@@ -96,7 +91,6 @@ def RAG_Expanded(
         response_type=response_type
     )
     
-    
     return json.dumps(
         {
             "type": "text",
@@ -108,4 +102,3 @@ def RAG_Expanded(
     
 if __name__ == "__main__":
     print(run_rag_stream("请根据知识图谱解释一下 Tumor-specific neo-antigens", mode="mix", top_k=1))
-    
