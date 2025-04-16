@@ -7,6 +7,7 @@ from langchain_core.tools import tool
 from typing import Optional
 
 from src.model.agents.query_expansion_agent import expand_query
+from src.utils.log import logger
 # current_file = Path(__file__).resolve()
 # current_script_dir = current_file.parent
 # project_root = current_file.parents[4] 
@@ -70,12 +71,13 @@ def RAG_Expanded(
     Returns:
         str: JSON格式的响应（含 type + content）
     """
-    mode = "mix",
-    top_k = 1,
+    mode = "mix"
+    top_k = 1
     response_type = "string"
     
     # 生成扩展查询
     theory_query, case_query = expand_query(query)
+    logger.info(f"theory_query：{theory_query} \n case_query：{case_query}")
 
     theory_response = run_rag_stream(
         query=theory_query,
@@ -98,7 +100,6 @@ def RAG_Expanded(
         },
         ensure_ascii=False
     )
-
     
 if __name__ == "__main__":
     print(run_rag_stream("请根据知识图谱解释一下 Tumor-specific neo-antigens", mode="mix", top_k=1))
