@@ -4,7 +4,6 @@ import subprocess
 import sys
 import os
 import requests
-
 from minio import Minio
 from minio.error import S3Error
 from pathlib import Path
@@ -16,15 +15,12 @@ current_script_dir = current_file.parent
 project_root = current_file.parents[5]
 sys.path.append(str(project_root))
 from src.utils.log import logger
-from src.model.agents.tools.piste_Tool.parse_piste_result import parse_piste_result
 from config import CONFIG_YAML
 
 # PISTE 相关路径配置
 piste_predict = current_script_dir / "piste_predict.py"
 piste_env_python = CONFIG_YAML["TOOL"]["PISTE"]["piste_env_python_dir"]
-input_tmp_dir = CONFIG_YAML["TOOL"]["PISTE"]["input_tmp_piste_dir"]
 output_dir = CONFIG_YAML["TOOL"]["PISTE"]["output_tmp_piste_dir"]
-os.makedirs(input_tmp_dir, exist_ok=True)
 os.makedirs(output_dir, exist_ok=True)
 # ---------
 # input_file = "/mnt/softwares/PISTE/demo/example.csv"
@@ -106,7 +102,7 @@ async def run_PISTE(input_file_dir_minio: str,
                     threshold=None,
                     antigen_type=None):
     if check_minio_connection():
-        input_file = download_file_from_minio(input_file_dir_minio, input_tmp_dir)
+        input_file = download_file_from_minio(input_file_dir_minio, output_dir)
     if not input_file:
         raise FileNotFoundError("Input file not found.")
     command = [
@@ -149,18 +145,12 @@ async def run_PISTE(input_file_dir_minio: str,
             if line.startswith("MinIO path: "):
                 piste_results_path = line.replace("MinIO path: ", "").strip()
                 break
-        if piste_results_path is None:
-            raise ValueError("MinIO path not found in the output.")
-        markdown_content = parse_piste_result(str(piste_results_path))
-        
+        text_content = "PISTE预测已成功完成"
         result = {
             "type": "link",
             "url": piste_results_path or "无有效输出路径",
-            "content": markdown_content,
+            "content": text_content,
         }
-        if piste_results_path:
-            logger.info(f"PISTE results saved at {piste_results_path}")
-            
         return json.dumps(result, ensure_ascii=False)
 
     except asyncio.CancelledError:

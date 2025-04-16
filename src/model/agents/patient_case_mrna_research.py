@@ -13,10 +13,11 @@ from src.model.agents.tools import NetMHCpan
 from src.model.agents.tools import ESM3
 from src.model.agents.tools import NetMHCstabpan
 from src.model.agents.tools import FastaFileProcessor
+from src.model.agents.tools import RAG_Expanded
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
-from .core.patient_case_mrna_prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS
+from .core.patient_case_mrna_prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, LIGHTRAG_RESULT,OUTPUT_INSTRUCTIONS
 
 
 class AgentState(MessagesState, total=False):
@@ -26,8 +27,9 @@ class AgentState(MessagesState, total=False):
     netmhcpan_result: Optional[str]=None
     esm3_result: Optional[str]=None
     netmhcstabpan_result: Optional[str]=None
+    # lightrag_result: Optional[str]=None
 
-TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan]       
+TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan,RAG_Expanded]       
 
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -67,10 +69,12 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
                 netmhcpan_result = NETMHCPAN_RESULT.format(netmhcpan_result=state.get("netmhcpan_result"))
                 esm3_result = ESM3_RESULT.format(esm3_result=state.get("esm3_result"))
                 netmhcstabpan_result = NETMHCSTABPAN_RESULT.format(netmhcstabpan_result=state.get("netmhcstabpan_result"))
+                # lightrag_result = LIGHTRAG_RESULT.format(lightrag_result=state.get("lightrag_result"))
                 instructions += file_list_content
                 instructions += netmhcpan_result
                 instructions +=esm3_result
                 instructions +=netmhcstabpan_result
+                # instructions +=lightrag_result
                 instructions +=OUTPUT_INSTRUCTIONS
  
 
@@ -87,6 +91,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     netmhcpan_result=""
     esm3_result=""
     netmhcstabpan_result=""
+    # lightrag_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -188,11 +193,34 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
+
+            elif tool_name == "RAG_Expanded":
+                query = tool_call["args"].get("query")
+                mode=tool_call["args"].get("mode","hybrid")
+                top_k=tool_call["args"].get("top_k",1)
+                response_type=tool_call["args"].get("response_type","string")
+                func_result = await RAG_Expanded.ainvoke(
+                    {
+                        "query": query,
+                        "mode": mode,
+                        "top_k": top_k,
+                        "response_type": response_type,
+                    }
+                )
+                # lightrag_result=func_result
+
+                logger.info(f"RAG_Expanded result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=func_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)                
     return {
         "messages": tmp_tool_msg,
         "netmhcpan_result":netmhcpan_result,
         "esm3_result":esm3_result,
         "netmhcstabpan_result":netmhcstabpan_result,
+        # "lightrag_result":lightrag_result
         }
 
 

@@ -172,6 +172,15 @@ ESM3_RESULT = """
 
 """
 
+LIGHTRAG_RESULT = """
+# lightRag生成结果
+
+{lightrag_result}
+
+"""
+
+
+
 # 输出要求说明，拼接在system message的最后
 OUTPUT_INSTRUCTIONS = """
  - 避免将所有内容堆砌于同一段落，保证可读性
@@ -179,3 +188,16 @@ OUTPUT_INSTRUCTIONS = """
  - 尽可能使用emoji表情对输出内容进行修饰
 """
 
+#扩展query提示词
+QUERY_EXPAND_SYSTEM_PROMPT = """
+You are a professional query expansion assistant. Please expand the user's question into two specialized versions:
+1. Theoretical version: Focus on methodological principles, technical theories, and mechanism explanations
+2. Case version: Focus on practical cases, application scenarios, and implementation examples
+
+Requirements:
+1. Maintain the core of the original question
+2. Each expanded version should not exceed 2 sentences
+3. Strictly use the following format:
+Theoretical version: [Expanded theoretical query]
+Case version: [Expanded case query]
+"""
