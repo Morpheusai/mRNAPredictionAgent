@@ -52,8 +52,8 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
                 file_content = file.file_content
                 file_desc = file.file_desc
                 file_instructions = f"*上传文件名*: {file_name} \n" + \
-                                    f"*上传的文件内容*: {file_content} \n" + \
-                                    f"*上传的文件描述*: {file_desc} \n"
+                                    f"*上传的文件描述*: {file_desc} \n" + \
+                                    f"*上传的文件内容*: {file_content} \n"
                 patient_info += file_instructions
     references = state.get("rag_result", "暂无")
     system_prompt = MRNA_AGENT_PROMPT.format(
@@ -68,6 +68,7 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
 async def should_continue(state: AgentState, config: RunnableConfig):
     messages = state["messages"]
     last_message = messages[-1]
+    logger.info(f"Current last message: {last_message}")
     tmp_tool_msg = []
     rag_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
