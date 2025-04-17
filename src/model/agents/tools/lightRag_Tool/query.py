@@ -118,7 +118,7 @@ def RAG(
     Returns:
         str: JSON格式的响应（含 type + content）
     """
-    mode = "mix"
+    mode = "global"
     top_k = 1
     response_type = "string"
     
@@ -128,13 +128,15 @@ def RAG(
         top_k=top_k,
         response_type=response_type
     )
-    
+    content = \
+f"""
+# 病例相关专业信息
+{response}
+"""
     return json.dumps(
         {
             "type": "text",
-            "content": (
-                f"# 病例相关专业信息\n ```\n{response}\n```\n"
-            )
+            "content": content
         },
         ensure_ascii=False
     )
