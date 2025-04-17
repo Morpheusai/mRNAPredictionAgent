@@ -80,15 +80,15 @@ async def should_continue(state: AgentState, config: RunnableConfig):
             # 检查是否已经存在相同 tool_call_id 的 ToolMessage
             if any(isinstance(msg, ToolMessage) and msg.tool_call_id == tool_call_id for msg in messages):
                 continue  # 如果已经存在，跳过添加
-            if tool_name == "RAG_Expanded":
+            if tool_name == "RAG":
                 query = tool_call["args"].get("query")
-                func_result = await RAG_Expanded.ainvoke(
+                func_result = await RAG.ainvoke(
                     {
                         "query": query
                     }
                 )
                 rag_result = func_result
-                logger.info(f"RAG_Expanded result: {func_result}")
+                logger.info(f"RAG result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
                     tool_call_id=tool_call_id,
