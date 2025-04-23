@@ -13,7 +13,7 @@ import pandas as pd
 from langchain_core.tools import tool
 from pathlib import Path
 
-from src.model.agents.tools.nettcr_Tool.filter_nettcr import filter_nettcr_output
+from src.model.agents.tools.bigmhc_Tool.filter_bigmhc import filter_bigmhc_output
 from src.utils.log import logger
 
 load_dotenv()
@@ -29,14 +29,14 @@ MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
 MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
 MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
-MINIO_BUCKET = MINIO_CONFIG["nettcr_bucket"]
+MINIO_BUCKET = MINIO_CONFIG["bigmhc_bucket"]
 MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
-# nettcr 配置 
-NETTCR_DIR = CONFIG_YAML["TOOL"]["NETTCR"]["nettcr_dir"]
-INPUT_TMP_DIR = CONFIG_YAML["TOOL"]["NETTCR"]["input_tmp_nettcr_dir"]
+# bigmhc 配置 
+BIGMHC_DIR = CONFIG_YAML["TOOL"]["BIGMHC"]["bigmhc_dir"]
+INPUT_TMP_DIR = CONFIG_YAML["TOOL"]["BIGMHC"]["input_tmp_bigmhc_dir"]
 DOWNLOADER_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["output_download_url_prefix"]
-OUTPUT_TMP_DIR = CONFIG_YAML["TOOL"]["NETTCR"]["output_tmp_nettcr_dir"]
+OUTPUT_TMP_DIR = CONFIG_YAML["TOOL"]["BIGMHC"]["output_tmp_bigmhc_dir"]
 
 # 初始化 MinIO 客户端
 minio_client = Minio(
@@ -57,13 +57,14 @@ def check_minio_connection(bucket_name=MINIO_BUCKET):
         return False
 
 
-async def run_nettcr(
+async def run_bigmhc(
     input_file: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
-    nettcr_dir: str = NETTCR_DIR
+    model_type:str,
+    bigmhc_dir: str = BIGMHC_DIR
     ) -> str:
 
     """
-    异步运行 nettcr 并将处理后的结果上传到 MinIO
+    异步运行 bigmhc 并将处理后的结果上传到 MinIO
     :param input_file: MinIO 文件路径，格式为 "bucket-name/file-path"
     :return: JSON 字符串，包含 MinIO 文件路径（或下载链接）
     """
@@ -154,20 +155,24 @@ async def run_nettcr(
         }, ensure_ascii=False)
 
     # 构建输出文件名和临时路径
-    output_filename = f"{random_id}_NetTCR_results.xlsx"
+    output_filename = f"{random_id}_BigMHC_results.xlsx"
+
+    csv_filename= "BigMHC_results.csv"
     #工具输出文件路径
     output_tmp = f"{random_id}_output"
     output_tmp_path = output_dir / output_tmp
     output_tmp_path.mkdir(parents=True, exist_ok=True)
+    output_tmp_path_filename = output_tmp_path / csv_filename
     
     # 构建命令
     cmd = [
         "python",
-        "src/make_webserver_prediction.py",
-        "-d", nettcr_dir,  # 添加 模型路径
+        "predict.py",
         "-i", str(input_path),  # 添加 输入参数
-        "-o", str(output_tmp_path),  # 添加 输出参数
-        "-a", "10",  # 添加 -a 参数
+        "-m", str(model_type), # 选择是el还是im模型
+        "-t", "2", # 指定输入文件中真实标签的列索引（如果有)
+        "-d", "cpu", # 使用cpu运行
+        "-o", str(output_tmp_path_filename),  # 添加 输出参数
     ]
 
     # 启动异步进程
@@ -175,17 +180,12 @@ async def run_nettcr(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        cwd=f"{nettcr_dir}"
+        cwd=f"{bigmhc_dir}"
     )
 
     # 处理输出
     stdout, stderr = await proc.communicate()
     output = stdout.decode()
-    # print(output)
-       
-
-    
-    
     # 错误处理
     if proc.returncode != 0:
         error_msg = stderr.decode()
@@ -197,17 +197,18 @@ async def run_nettcr(
         }
     else:
         # 检查 CSV 文件是否存在并转换
-        csv_file = output_tmp_path / "nettcr_predictions.csv"
-        excel_file = output_tmp_path / "nettcr_predictions.xlsx"
+        excel_file = output_tmp_path / "BigMHC_results.xlsx"
         
         try:
-            df = pd.read_csv(csv_file)
+            df = pd.read_csv(output_tmp_path_filename)
             df.to_excel(excel_file, index=False, engine="openpyxl")
+            # 调用markdown过滤函数
+            filtered_content = filter_bigmhc_output(excel_file)            
         except FileNotFoundError:
-            logger.error(f"警告: 未找到预测结果文件 {csv_file}")
+            logger.error(f"警告: 未找到预测结果文件 {output_tmp_path_filename}")
             return json.dumps({
                 "type": "text",
-                "content": f"警告: 未找到预测结果文件 {csv_file}"
+                "content": f"警告: 未找到预测结果文件 {output_tmp_path_filename}"
             }, ensure_ascii=False)            
         except Exception as e:
             logger.error(f"CSV 转 Excel 失败: {str(e)}")    
@@ -215,10 +216,8 @@ async def run_nettcr(
                 "type": "text",
                 "content": f"CSV 转 Excel 失败: {str(e)}"
             }, ensure_ascii=False)  
-
-        # 调用markdown过滤函数
-        filtered_content = filter_nettcr_output(excel_file)
         try:
+
             if minio_available:
                 minio_client.fput_object(
                     MINIO_BUCKET,
@@ -230,7 +229,7 @@ async def run_nettcr(
                 # 如果 MinIO 不可用，返回下载链接
                 file_path = f"{DOWNLOADER_PREFIX}{output_filename}"
         except S3Error as e:
-            file_path = f"{DOWNLOADER_PREFIX}{output_filename}"
+            file_path = f"{DOWNLOADER_PREFIX}{output_filename}"    
         finally:
             # 如果 MinIO 成功上传，清理临时文件；否则保留
             if minio_available:
@@ -249,21 +248,22 @@ async def run_nettcr(
     return json.dumps(result, ensure_ascii=False)
 
 @tool
-def NetTCR(input_file: str) -> str:
+def BigMHC(input_file: str, model_type:str) -> str:  
     """                                    
-    NetTCR用于预测肽段（peptide）与 T 细胞受体（TCR）的相互作用。
+    BigMHC是基于深度学习的 MHC-I 抗原呈递（BigMHC EL）和免疫原性（BigMHC IM）预测工具。
     Args:                                  
         input_file (str): 输入文件的路径，文件需包含待预测的肽段和 TCR 序列。
+        model_type (str): 模型类型："el"（抗原呈递）或 "im"（免疫原性），默认为el。
     Returns:                               
         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """
     try:
-        return asyncio.run(run_nettcr(input_file))
+        return asyncio.run(run_bigmhc(input_file,model_type))
 
     except Exception as e:
         result = {
             "type": "text",
-            "content": f"调用NetTCR工具失败: {e}"
+            "content": f"调用BigMHC工具失败: {e}"
         }
         return json.dumps(result, ensure_ascii=False)
     

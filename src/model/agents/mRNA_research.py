@@ -21,6 +21,7 @@ from src.model.agents.tools import NetTCR
 from src.model.agents.tools import NetCTLpan
 from src.model.agents.tools import PISTE
 from src.model.agents.tools import ImmuneApp
+from src.model.agents.tools import BigMHC
 from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
@@ -38,7 +39,8 @@ from .core.prompts import (
     ImmuneApp_RESULT,
     NETCHOP_RESULT, 
     PRIME_RESULT,
-    NETTCR_RESULT
+    NETTCR_RESULT,
+    BIGMHC_RESULT
 )
 
 
@@ -56,6 +58,7 @@ class AgentState(MessagesState, total=False):
     netctlpan_result: Optional[str]=None
     piste_result: Optional[str]=None
     immuneapp_result: Optional[str]=None
+    bigmhc_result: Optional[str]=None
 
 TOOLS = [
     mRNAResearchAndProduction,
@@ -70,7 +73,8 @@ TOOLS = [
     ImmuneApp,
     NetChop, 
     Prime, 
-    NetTCR
+    NetTCR,
+    BigMHC
 ]
     
 TOOL_TEMPLATES = {
@@ -81,6 +85,10 @@ TOOL_TEMPLATES = {
     "netctlpan_result": NETCTLpan_RESULT,
     "piste_result": PISTE_RESULT,
     "immuneapp_result": ImmuneApp_RESULT,
+    "netchop_result": NETCHOP_RESULT, 
+    "prime_result": PRIME_RESULT,
+    "nettcr_result": NETTCR_RESULT,
+    "bigmhc_result": BIGMHC_RESULT, 
 }
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -144,6 +152,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     netctlpan_result=""
     piste_result=""
     immuneapp_result=""
+    bigmhc_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -322,6 +331,11 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 prime_result=func_result
 
                 logger.info(f"Prime result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=prime_result,
+                    tool_call_id=tool_call_id,
+                )                
+                tmp_tool_msg.append(tool_msg)                 
                 
             elif tool_name == "NetCTLpan":
                 input_file = tool_call["args"].get("input_file")
@@ -355,7 +369,12 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 nettcr_result=func_result
 
                 logger.info(f"NetTCR result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=nettcr_result,
+                    tool_call_id=tool_call_id,
+                )                        
                 tmp_tool_msg.append(tool_msg)
+
             elif tool_name == "ImmuneApp":
                 input_file_dir = tool_call["args"].get("input_file_dir")
                 alleles=tool_call["args"].get("alleles","HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02")
@@ -376,7 +395,22 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
-                
+            elif tool_name == "BigMHC":
+                input_file = tool_call["args"].get("input_file")
+                model_type = tool_call["args"].get("model_type")
+                func_result = await BigMHC.ainvoke(
+                    {
+                        "input_file": input_file,
+                        "model_type": model_type,
+                    }
+                )
+                bigmhc_result=func_result
+                logger.info(f"BigMHC result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=bigmhc_result,
+                    tool_call_id=tool_call_id,
+                )                
+                tmp_tool_msg.append(tool_msg)                
     return {
         "messages": tmp_tool_msg,
         "netmhcpan_result":netmhcpan_result,
@@ -389,6 +423,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         "piste_result": piste_result,
         "netctlpan_result":netctlpan_result,
         "immuneapp_result": immuneapp_result,
+        "bigmhc_result": bigmhc_result
         }
 
 

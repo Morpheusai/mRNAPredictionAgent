@@ -12,3 +12,4 @@ from .netctlpan_Tool.netctlpan import NetCTLpan
 from .piste_Tool.piste import PISTE
 from .immuneapp_Tool.immuneapp import ImmuneApp
 from .lightRag_Tool.query import RAG_Expanded, RAG
+from .bigmhc_Tool.bigmhc import BigMHC

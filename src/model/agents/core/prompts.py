@@ -177,6 +177,10 @@ ImmuneApp_RESULT = """
 {immuneapp_result}
 """
 
+BIGMHC_RESULT = """
+# bigmhc生成结果
+{bigmhc_result}
+"""
 # 输出要求说明，拼接在system message的最后
 OUTPUT_INSTRUCTIONS = """
 1. 结构清晰

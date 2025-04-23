@@ -48,8 +48,10 @@ TOOL:
     python_bin: /mnt/softwares/miniconda3/envs/ImmuneApp/bin/python
     input_tmp_dir: /mnt/tmp/immuneapp/input  
     output_tmp_dir: /mnt/tmp/immuneapp/output
-
-
+  BIGMHC:
+    bigmhc_dir: "/mnt/softwares/bigmhc/src"  
+    input_tmp_bigmhc_dir: "/mnt/tmp/BigMHC/input"
+    output_tmp_bigmhc_dir: "/mnt/tmp/BigMHC/output" 
 
  
 
@@ -66,4 +68,5 @@ MINIO:
   netctlpan_bucket: "netctlpan-results"
   piste_bucket: "piste-results"
   immuneapp_bucket: immuneapp-results
+  bigmhc_bucket: "bigmhc-results"
   secure: false
