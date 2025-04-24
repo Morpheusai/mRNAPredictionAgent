@@ -22,6 +22,7 @@ from src.model.agents.tools import NetCTLpan
 from src.model.agents.tools import PISTE
 from src.model.agents.tools import ImmuneApp
 from src.model.agents.tools import BigMHC
+from src.model.agents.tools import TransPHLA_AOMP
 from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
@@ -40,7 +41,8 @@ from .core.prompts import (
     NETCHOP_RESULT, 
     PRIME_RESULT,
     NETTCR_RESULT,
-    BIGMHC_RESULT
+    BIGMHC_RESULT,
+    TransPHLA_AOMP_RESULT
 )
 
 
@@ -59,6 +61,7 @@ class AgentState(MessagesState, total=False):
     piste_result: Optional[str]=None
     immuneapp_result: Optional[str]=None
     bigmhc_result: Optional[str]=None
+    transphla_aomp_result: Optional[str]=None
 
 TOOLS = [
     mRNAResearchAndProduction,
@@ -74,7 +77,8 @@ TOOLS = [
     NetChop, 
     Prime, 
     NetTCR,
-    BigMHC
+    BigMHC,
+    TransPHLA_AOMP,
 ]
     
 TOOL_TEMPLATES = {
@@ -89,6 +93,7 @@ TOOL_TEMPLATES = {
     "prime_result": PRIME_RESULT,
     "nettcr_result": NETTCR_RESULT,
     "bigmhc_result": BIGMHC_RESULT, 
+    "transphla_aomp_result": TransPHLA_AOMP_RESULT
 }
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -153,6 +158,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     piste_result=""
     immuneapp_result=""
     bigmhc_result=""
+    transphla_aomp_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -410,7 +416,31 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     content=bigmhc_result,
                     tool_call_id=tool_call_id,
                 )                
-                tmp_tool_msg.append(tool_msg)                
+                tmp_tool_msg.append(tool_msg)       
+                
+            elif tool_name == "TransPHLA_AOMP":
+                peptide_file = tool_call["args"].get("peptide_file")
+                hla_file = tool_call["args"].get("hla_file")
+                threshold = tool_call["args"].get("threshold", 0.5)
+                cut_length = tool_call["args"].get("cut_length", 10)
+                cut_peptide = tool_call["args"].get("cut_peptide", True)
+                func_result = await TransPHLA_AOMP.ainvoke(
+                    {
+                        "peptide_file": peptide_file,
+                        "hla_file": hla_file,
+                        "threshold": threshold,
+                        "cut_length": cut_length,
+                        "cut_peptide": cut_peptide
+                    }
+                )
+                transphla_aomp_result=func_result
+                logger.info(f"TransPHLA_AOMP result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=transphla_aomp_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
+            
     return {
         "messages": tmp_tool_msg,
         "netmhcpan_result":netmhcpan_result,
@@ -423,7 +453,8 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         "piste_result": piste_result,
         "netctlpan_result":netctlpan_result,
         "immuneapp_result": immuneapp_result,
-        "bigmhc_result": bigmhc_result
+        "bigmhc_result": bigmhc_result,
+        "transphla_aomp_result": transphla_aomp_result
         }
 
 

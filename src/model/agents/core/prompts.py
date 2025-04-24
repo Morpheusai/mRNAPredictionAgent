@@ -89,6 +89,19 @@ MRNA_AGENT_PROMPT = """
  - 是否启用结合分数 (use_binding_score)：用户可以不提供，有默认值：True
  - 肽段长度 (peptide_lengths)：用户可以不提供，有默认值：[9,10]，仅对 fasta 输入有效
 
+#TransPHLA_AOMP工具使用说明
+你在使用 TransPHLA_AOMP 工具前，需要和用户进行多轮对话以确认以下参数，请记住有些参数用户可以不提供，但在这之前需要告知用户你的使用情况。
+ - peptide_file：用户必须提供，当前的输入要求是用户需上传.fasta文件，文件包含肽段序列。
+ - hla_file：用户必须提供，当前的输入要求是用户需上传.fasta文件，文件包含HLA分型数据。
+ - threshold：绑定预测阈值，用户可以不提供，有默认值：0.5
+ - cut_length：肽段最大切割长度，用户可以不提供，有默认值：10
+ - cut_peptide：是否启用肽段切割处理（True/False），用户可以不提供，有默认值：True
+ - 输出说明：返回 JSON 响应，包含以下字段：
+   type：link 表明是一个路径链接
+   url：存储预测结果的 MinIO 路径，用户可下载该文件用于后续分析。
+   content：处理状态信息，表明预测结果已成功生成。
+   输出的minio路径文件中包含一个包含 4 列的表格：HLA、HLA_sequence、Peptide、y_pred、y_prob，分别代表 HLA、HLA序列、肽段、y_pred和y_prob。y_pred表示是否为结合肽段，y_prob表示结合概率。
+
 # 注章事项
  - 当存在*用户上传文件列表*部分内容时，可以认为用户进行了文件上传
  - 对于用户提供的肿瘤变异蛋白序列文件，需要进行合法性检验，非法的内容需要提示用户重新提交
@@ -181,6 +194,12 @@ BIGMHC_RESULT = """
 # bigmhc生成结果
 {bigmhc_result}
 """
+
+TransPHLA_AOMP_RESULT = """
+# TransPHLA_AOMP生成结果
+{transphla_aomp_result}
+"""
+
 # 输出要求说明，拼接在system message的最后
 OUTPUT_INSTRUCTIONS = """
 1. 结构清晰

@@ -52,7 +52,11 @@ TOOL:
     bigmhc_dir: "/mnt/softwares/bigmhc/src"  
     input_tmp_bigmhc_dir: "/mnt/tmp/BigMHC/input"
     output_tmp_bigmhc_dir: "/mnt/tmp/BigMHC/output" 
-
+  TRANSPHLA:
+    script_path: /mnt/softwares/TransPHLA-AOMP/TransPHLA-AOMP/pHLAIformer.py
+    python_bin: /mnt/softwares/miniconda3/envs/transphla/bin/python
+    input_tmp_dir: /mnt/tmp/transphla/input
+    output_tmp_dir: /mnt/tmp/transphla/output
  
 
 MINIO:
@@ -67,6 +71,7 @@ MINIO:
   nettcr_bucket: "nettcr-results"
   netctlpan_bucket: "netctlpan-results"
   piste_bucket: "piste-results"
-  immuneapp_bucket: immuneapp-results
+  immuneapp_bucket: "immuneapp-results"
   bigmhc_bucket: "bigmhc-results"
+  transphla_bucket: "transphla-results"
   secure: false
