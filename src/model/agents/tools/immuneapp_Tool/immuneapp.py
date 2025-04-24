@@ -203,9 +203,10 @@ async def run_ImmuneApp(minio_input_path: str,
                 annotation_path)
             return json.dumps({
                 "type": "link",
-                "result_file_url": result_path,  # 预测结果文件
-                "annotation_file_url": annotation_path,  # 注释统计文件
-                "content": f"ImmuneApp工具执行完成，结果文件已生成。\n\n[预测结果]\n{immuneapp_content}\n\n[注释统计结果]\n{immuneapp_annotation_content}。",
+                "url":{"result_file_url": result_path,  # 预测结果文件
+                       "annotation_file_url": annotation_path,  # 注释统计文件
+                    },
+                "content": f"ImmuneApp工具执行完成，结果文件已生成。\n\n[预测结果]\n{immuneapp_content}\n\n[注释统计结果]\n{immuneapp_annotation_content}",
             }, ensure_ascii=False)
         else:
             return json.dumps({
@@ -255,7 +256,12 @@ def ImmuneApp(input_file_dir: str,
 
 
 if __name__ == "__main__":
+    #输入文件是txt或者fasta格式
+    # print(asyncio.run(run_ImmuneApp(
+    #     minio_input_path="minio://molly/1465d3f7-574b-4c2e-b6e3-0d4c5751333c_immune_test.fasta",
+    #     alleles="HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02",
+    # )))
     print(asyncio.run(run_ImmuneApp(
-        minio_input_path="minio://molly/1465d3f7-574b-4c2e-b6e3-0d4c5751333c_immune_test.fasta",
+        minio_input_path="minio://molly/aeb1733e-d1d1-4279-bc94-43fc3eee6239_test_peplist.txt",
         alleles="HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02",
     )))
