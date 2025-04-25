@@ -102,6 +102,16 @@ MRNA_AGENT_PROMPT = """
    content：处理状态信息，表明预测结果已成功生成。
    输出的minio路径文件中包含一个包含 4 列的表格：HLA、HLA_sequence、Peptide、y_pred、y_prob，分别代表 HLA、HLA序列、肽段、y_pred和y_prob。y_pred表示是否为结合肽段，y_prob表示结合概率。
 
+#ImmuneApp_Neo工具使用说明
+你在使用 ImmuneApp_Neo 工具前，需要和用户进行多轮对话以确认以下参数，请记住有些参数用户可以不提供，但在这之前需要告知用户你的使用情况。
+ - 输入文件路径，用户必须提供。input_file (str): MinIO 文件路径，例如 minio://bucket/file.txt，仅支持 peplist 文件格式（.txt 或 .tsv），包含肽序列列表。
+ - 等位基因列表 (alleles)：用户可以不提供，有默认值：HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02
+   - 输出说明：返回 JSON 响应，包含以下字段：
+      type：link 表明是一个路径链接
+      url：存储预测结果的 MinIO 路径，用户可下载该文件用于后续分析。
+      content：处理状态信息，表明预测结果已成功生成。（markdown表格）
+      输出的minio路径文件中包含一个包含 4 列的表格：Allele、Peptide、Sample、Immunogenicity_score，分别代表 HLA、肽段、样本和免疫原性评分。Immunogenicity_score表示结合概率，越高越好。
+
 # 注章事项
  - 当存在*用户上传文件列表*部分内容时，可以认为用户进行了文件上传
  - 对于用户提供的肿瘤变异蛋白序列文件，需要进行合法性检验，非法的内容需要提示用户重新提交
@@ -198,6 +208,11 @@ BIGMHC_RESULT = """
 TransPHLA_AOMP_RESULT = """
 # TransPHLA_AOMP生成结果
 {transphla_aomp_result}
+"""
+
+ImmuneApp_Neo_RESULT = """
+# ImmuneApp_Neo生成结果
+{immuneapp_neo_result}
 """
 
 # 输出要求说明，拼接在system message的最后

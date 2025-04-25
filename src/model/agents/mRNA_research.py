@@ -23,6 +23,7 @@ from src.model.agents.tools import PISTE
 from src.model.agents.tools import ImmuneApp
 from src.model.agents.tools import BigMHC
 from src.model.agents.tools import TransPHLA_AOMP
+from src.model.agents.tools import ImmuneApp_Neo
 from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
@@ -42,7 +43,9 @@ from .core.prompts import (
     PRIME_RESULT,
     NETTCR_RESULT,
     BIGMHC_RESULT,
-    TransPHLA_AOMP_RESULT
+    TransPHLA_AOMP_RESULT,
+    ImmuneApp_Neo_RESULT,
+    
 )
 
 
@@ -62,6 +65,7 @@ class AgentState(MessagesState, total=False):
     immuneapp_result: Optional[str]=None
     bigmhc_result: Optional[str]=None
     transphla_aomp_result: Optional[str]=None
+    immuneapp_neo_result: Optional[str]=None
 
 TOOLS = [
     mRNAResearchAndProduction,
@@ -79,6 +83,7 @@ TOOLS = [
     NetTCR,
     BigMHC,
     TransPHLA_AOMP,
+    ImmuneApp_Neo,
 ]
     
 TOOL_TEMPLATES = {
@@ -93,7 +98,8 @@ TOOL_TEMPLATES = {
     "prime_result": PRIME_RESULT,
     "nettcr_result": NETTCR_RESULT,
     "bigmhc_result": BIGMHC_RESULT, 
-    "transphla_aomp_result": TransPHLA_AOMP_RESULT
+    "transphla_aomp_result": TransPHLA_AOMP_RESULT,
+    "immuneapp_neo_result": ImmuneApp_Neo_RESULT,
 }
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -159,6 +165,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     immuneapp_result=""
     bigmhc_result=""
     transphla_aomp_result=""
+    immuneapp_neo_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -401,6 +408,22 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
+            elif tool_name == "ImmuneApp_Neo":
+                input_file = tool_call["args"].get("input_file")
+                alleles=tool_call["args"].get("alleles","HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02")
+                func_result = await ImmuneApp_Neo.ainvoke(
+                    {
+                        "input_file": input_file,
+                        "alleles": alleles,
+                    }
+                )
+                immuneapp_neo_result=func_result
+                logger.info(f"ImmuneApp_Neo result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=immuneapp_neo_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
             elif tool_name == "BigMHC":
                 input_file = tool_call["args"].get("input_file")
                 model_type = tool_call["args"].get("model_type")
@@ -454,7 +477,8 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         "netctlpan_result":netctlpan_result,
         "immuneapp_result": immuneapp_result,
         "bigmhc_result": bigmhc_result,
-        "transphla_aomp_result": transphla_aomp_result
+        "transphla_aomp_result": transphla_aomp_result,
+        "immuneapp_neo_result": immuneapp_neo_result,
         }
 
 

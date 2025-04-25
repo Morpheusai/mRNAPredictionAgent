@@ -48,6 +48,11 @@ TOOL:
     python_bin: /mnt/softwares/miniconda3/envs/ImmuneApp/bin/python
     input_tmp_dir: /mnt/tmp/immuneapp/input  
     output_tmp_dir: /mnt/tmp/immuneapp/output
+  IMMUNEAPP_NEO:
+    script_path: /mnt/softwares/ImmuneApp/ImmuneApp_immunogenicity_prediction.py
+    python_bin: /mnt/softwares/miniconda3/envs/ImmuneApp/bin/python
+    input_tmp_dir: /mnt/tmp/immuneapp_neo/input  
+    output_tmp_dir: /mnt/tmp/immuneapp_neo/output
   BIGMHC:
     bigmhc_dir: "/mnt/softwares/bigmhc/src"  
     input_tmp_bigmhc_dir: "/mnt/tmp/BigMHC/input"
@@ -72,6 +77,7 @@ MINIO:
   netctlpan_bucket: "netctlpan-results"
   piste_bucket: "piste-results"
   immuneapp_bucket: "immuneapp-results"
+  immuneapp_neo_bucket: "immuneapp-neo-results"
   bigmhc_bucket: "bigmhc-results"
   transphla_bucket: "transphla-results"
   secure: false
