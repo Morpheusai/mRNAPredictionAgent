@@ -14,7 +14,7 @@ from src.model.agents.tools import NetMHCpan
 from src.model.agents.tools import ESM3
 from src.model.agents.tools import NetMHCstabpan
 from src.model.agents.tools import FastaFileProcessor
-from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
+from src.model.agents.tools.NetMHCPan.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 from src.model.agents.core import get_model  # 相对导入
 from src.model.agents.core.demo_prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS

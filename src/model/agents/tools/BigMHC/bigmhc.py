@@ -13,7 +13,7 @@ import pandas as pd
 from langchain_core.tools import tool
 from pathlib import Path
 
-from src.model.agents.tools.bigmhc_Tool.filter_bigmhc import filter_bigmhc_output
+from src.model.agents.tools.BigMHC.filter_bigmhc import filter_bigmhc_output
 from src.utils.log import logger
 
 load_dotenv()

@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]
 sys.path.append(str(project_root))
-from src.model.agents.tools.immuneapp_neo_Tool.parse_immuneapp_neo_results import parse_immuneapp_neo_results
+from src.model.agents.tools.ImmuneAppNeo.parse_immuneapp_neo_results import parse_immuneapp_neo_results
 from src.utils.log import logger
 from config import CONFIG_YAML
 

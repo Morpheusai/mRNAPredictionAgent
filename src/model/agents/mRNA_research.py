@@ -27,7 +27,7 @@ from src.model.agents.tools import (
     ImmuneApp_Neo,
     UniPMT
 )
-from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
+from src.model.agents.tools.NetMHCPan.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入

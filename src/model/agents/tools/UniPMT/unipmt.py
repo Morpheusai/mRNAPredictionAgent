@@ -19,7 +19,7 @@ project_root = current_file.parents[5]
 sys.path.append(str(project_root))
 from src.utils.log import logger
 from config import CONFIG_YAML
-from src.model.agents.tools.unipmt_Tool.parse_unipmt_results import parse_unipmt_results
+from src.model.agents.tools.UniPMT.parse_unipmt_results import parse_unipmt_results
 
 # UniPMT 工具配置
 unipmt_script = CONFIG_YAML["TOOL"]["UNIPMT"]["script_path"]

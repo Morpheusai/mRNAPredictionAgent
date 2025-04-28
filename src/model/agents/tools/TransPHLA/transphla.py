@@ -16,7 +16,7 @@ project_root = current_file.parents[5]
 sys.path.append(str(project_root))
 from src.utils.log import logger
 from config import CONFIG_YAML
-from src.model.agents.tools.transPhla_Tool.parse_transphla_results import parse_transphla_results
+from src.model.agents.tools.TransPHLA.parse_transphla_results import parse_transphla_results
 
 # TransPHLA 配置
 transphla_script = CONFIG_YAML["TOOL"]["TRANSPHLA"]["script_path"]
