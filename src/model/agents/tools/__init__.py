@@ -14,6 +14,5 @@ from .ImmuneApp.immuneapp import ImmuneApp
 from .LightRAG.query import RAG_Expanded, RAG
 from .BigMHC.bigmhc import BigMHC
 from .TransPHLA.transphla import TransPHLA_AOMP
-
 from .ImmuneAppNeo.immuneapp_neo import ImmuneApp_Neo
 from .UniPMT.unipmt import UniPMT
