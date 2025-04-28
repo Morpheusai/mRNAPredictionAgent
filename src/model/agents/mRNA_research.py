@@ -8,22 +8,25 @@ from langgraph.graph import END, MessagesState, StateGraph
 from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
 from typing import Literal,Optional
 
-from src.model.agents.tools import mRNAResearchAndProduction
-from src.model.agents.tools import NetMHCpan
-from src.model.agents.tools import ESM3
-from src.model.agents.tools import NetMHCstabpan
-from src.model.agents.tools import FastaFileProcessor
-from src.model.agents.tools import ExtractPeptide
-from src.model.agents.tools import pMTnet
-from src.model.agents.tools import NetChop
-from src.model.agents.tools import Prime
-from src.model.agents.tools import NetTCR
-from src.model.agents.tools import NetCTLpan
-from src.model.agents.tools import PISTE
-from src.model.agents.tools import ImmuneApp
-from src.model.agents.tools import BigMHC
-from src.model.agents.tools import TransPHLA_AOMP
-from src.model.agents.tools import ImmuneApp_Neo
+from src.model.agents.tools import (
+    mRNAResearchAndProduction,
+    NetMHCpan,
+    ESM3,
+    NetMHCstabpan,
+    FastaFileProcessor,
+    ExtractPeptide,
+    pMTnet,
+    NetChop,
+    Prime,
+    NetTCR,
+    NetCTLpan,
+    PISTE,
+    ImmuneApp,
+    BigMHC,
+    TransPHLA_AOMP,
+    ImmuneApp_Neo,
+    UniPMT
+)
 from src.model.agents.tools.netmhcpan_Tool.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
@@ -45,6 +48,7 @@ from .core.prompts import (
     BIGMHC_RESULT,
     TransPHLA_AOMP_RESULT,
     ImmuneApp_Neo_RESULT,
+    UNIPMT_RESULT,
     
 )
 
@@ -66,6 +70,7 @@ class AgentState(MessagesState, total=False):
     bigmhc_result: Optional[str]=None
     transphla_aomp_result: Optional[str]=None
     immuneapp_neo_result: Optional[str]=None
+    unipmt_result: Optional[str]=None
 
 TOOLS = [
     mRNAResearchAndProduction,
@@ -84,6 +89,7 @@ TOOLS = [
     BigMHC,
     TransPHLA_AOMP,
     ImmuneApp_Neo,
+    UniPMT,
 ]
     
 TOOL_TEMPLATES = {
@@ -100,6 +106,7 @@ TOOL_TEMPLATES = {
     "bigmhc_result": BIGMHC_RESULT, 
     "transphla_aomp_result": TransPHLA_AOMP_RESULT,
     "immuneapp_neo_result": ImmuneApp_Neo_RESULT,
+    "unipmt_result": UNIPMT_RESULT,
 }
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -166,6 +173,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     bigmhc_result=""
     transphla_aomp_result=""
     immuneapp_neo_result=""
+    unipmt_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -463,7 +471,20 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
-            
+            elif tool_name == "UniPMT":
+                input_file = tool_call["args"].get("input_file")
+                func_result = await UniPMT.ainvoke(
+                    {
+                        "input_file": input_file,
+                    }
+                )
+                unipmt_result=func_result
+                logger.info(f"UniPMT result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=unipmt_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
     return {
         "messages": tmp_tool_msg,
         "netmhcpan_result":netmhcpan_result,
@@ -479,6 +500,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         "bigmhc_result": bigmhc_result,
         "transphla_aomp_result": transphla_aomp_result,
         "immuneapp_neo_result": immuneapp_neo_result,
+        "unipmt_result": unipmt_result,
         }
 
 

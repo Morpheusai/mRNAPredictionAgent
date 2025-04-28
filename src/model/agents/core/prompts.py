@@ -112,6 +112,15 @@ MRNA_AGENT_PROMPT = """
       content：处理状态信息，表明预测结果已成功生成。（markdown表格）
       输出的minio路径文件中包含一个包含 4 列的表格：Allele、Peptide、Sample、Immunogenicity_score，分别代表 HLA、肽段、样本和免疫原性评分。Immunogenicity_score表示结合概率，越高越好。
 
+# UniPMT工具使用说明
+你在使用 UniPMT 工具前，需要和用户进行多轮对话以确认以下参数，请记住有些参数用户可以不提供，但在这之前需要告知用户你的使用情况。
+ - 输入文件路径，用户必须提供。input_file (str)。该文件的结构要求是：必须是一个 CSV 文件，包含以下列：列名分别为"Peptide"、"MHC"、"TCR"，分别对应肽段序列、MHC 等位基因类型和 TCR CDR3 序列。
+ - 输出说明：返回 JSON 响应，包含以下字段：
+   type：link 表明是一个路径链接
+   url：存储预测结果的 MinIO 路径，用户可下载该文件用于后续分析。
+   content：处理状态信息，表明预测结果已成功生成。（markdown表格）
+   输出的minio路径文件中包含一个包含 5 列的表格：Peptide、MHC、TCR、prob、label，分别代表肽段序列、MHC 等位基因类型、TCR CDR3 序列、结合概率和label标签。prob表示结合概率，越高越好。label表示是否为结合肽段，1表示结合，0表示不结合。
+   
 # 注章事项
  - 当存在*用户上传文件列表*部分内容时，可以认为用户进行了文件上传
  - 对于用户提供的肿瘤变异蛋白序列文件，需要进行合法性检验，非法的内容需要提示用户重新提交
@@ -213,6 +222,11 @@ TransPHLA_AOMP_RESULT = """
 ImmuneApp_Neo_RESULT = """
 # ImmuneApp_Neo生成结果
 {immuneapp_neo_result}
+"""
+
+UNIPMT_RESULT = """
+# UniPMT生成结果
+{unipmt_result}
 """
 
 # 输出要求说明，拼接在system message的最后

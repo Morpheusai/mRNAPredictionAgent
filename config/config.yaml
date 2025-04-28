@@ -62,7 +62,18 @@ TOOL:
     python_bin: /mnt/softwares/miniconda3/envs/transphla/bin/python
     input_tmp_dir: /mnt/tmp/transphla/input
     output_tmp_dir: /mnt/tmp/transphla/output
- 
+  UNIPMT:
+    script_path: "/mnt/softwares/UniPMT/code/main.py"
+    python_bin: "/mnt/softwares/miniconda3/envs/unipmt/bin/python"
+    input_tmp_dir: "/mnt/tmp/UniPMT/input"
+    output_tmp_dir: "/mnt/tmp/UniPMT/output"
+    nodes_peptides_csv: "/mnt/softwares/UniPMT/data/pmt_pmt/nodes_peptides.csv"
+    nodes_mhc_csv: "/mnt/softwares/UniPMT/data/pmt_pmt/nodes_mhc.csv"
+    nodes_tcr_csv: "/mnt/softwares/UniPMT/data/pmt_pmt/nodes_tcr.csv"
+    p_features_path: "/mnt/softwares/UniPMT/data/pmt_pmt/meta/p_features.npy"
+    t_features_path: "/mnt/softwares/UniPMT/data/pmt_pmt/meta/t_features.npy"
+    m_features_path: "/mnt/softwares/UniPMT/data/pmt_pmt/meta/m_features.npy"
+    unipmt_input_file_path: "/mnt/softwares/UniPMT/data/pmt_pmt/meta"
 
 MINIO:
   endpoint: "localhost:18080"
@@ -80,4 +91,5 @@ MINIO:
   immuneapp_neo_bucket: "immuneapp-neo-results"
   bigmhc_bucket: "bigmhc-results"
   transphla_bucket: "transphla-results"
+  unipmt_bucket: "unipmt-results"
   secure: false
