@@ -74,7 +74,9 @@ TOOL:
     t_features_path: "/mnt/softwares/UniPMT/data/pmt_pmt/meta/t_features.npy"
     m_features_path: "/mnt/softwares/UniPMT/data/pmt_pmt/meta/m_features.npy"
     unipmt_input_file_path: "/mnt/softwares/UniPMT/data/pmt_pmt/meta"
-
+  NETCHOP_CLEAVAGE:
+    input_tmp_dir: "/mnt/tmp/NetChop_Cleavage/input"
+    output_tmp_dir: "/mnt/tmp/NetChop_Cleavage/output"
 MINIO:
   endpoint: "localhost:18080"
   netmhcpan_bucket: "netmhcpan-results"
@@ -92,4 +94,5 @@ MINIO:
   bigmhc_bucket: "bigmhc-results"
   transphla_bucket: "transphla-results"
   unipmt_bucket: "unipmt-results"
+  netchop_cleavage_bucket: "netchop-cleavage-results"
   secure: false

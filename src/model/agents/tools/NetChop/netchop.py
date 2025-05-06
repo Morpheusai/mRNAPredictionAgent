@@ -10,16 +10,14 @@ from minio.error import S3Error
 from langchain_core.tools import tool
 from pathlib import Path
 
-from src.model.agents.tools.NetChop.filter_netchop import filter_netchop_output
-from src.model.agents.tools.NetChop.netchop_to_excel import save_excel
 
 load_dotenv()
 current_file = Path(__file__).resolve()
-project_root = current_file.parents[4]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
-                                        
-# 将项目根目录添加到 sys.path
+project_root = current_file.parents[5]
 sys.path.append(str(project_root))
 from config import CONFIG_YAML
+from src.model.agents.tools.NetChop.filter_netchop import filter_netchop_output
+from src.model.agents.tools.NetChop.netchop_to_excel import save_excel   
 
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
@@ -211,4 +209,8 @@ def NetChop(input_file: str,cleavage_site_threshold: float = 0.5) -> str:
         }
         return json.dumps(result, ensure_ascii=False)
     
-    
+if __name__ == "__main__":
+    # 示例调用方式
+    input_file = "minio://molly/ab58067f-162f-49af-9d42-a61c30d227df_test_netchop.fsa"
+    result = asyncio.run(run_netchop(input_file))
+    print(result)

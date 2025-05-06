@@ -25,7 +25,8 @@ from src.model.agents.tools import (
     BigMHC,
     TransPHLA_AOMP,
     ImmuneApp_Neo,
-    UniPMT
+    UniPMT,
+    NetChop_Cleavage,
 )
 from src.model.agents.tools.NetMHCPan.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
@@ -49,7 +50,7 @@ from .core.prompts import (
     TransPHLA_AOMP_RESULT,
     ImmuneApp_Neo_RESULT,
     UNIPMT_RESULT,
-    
+    NETCHOP_CLEAVAGE_RESULT,
 )
 
 
@@ -71,6 +72,7 @@ class AgentState(MessagesState, total=False):
     transphla_aomp_result: Optional[str]=None
     immuneapp_neo_result: Optional[str]=None
     unipmt_result: Optional[str]=None
+    netchop_cleavage_result: Optional[str]=None
 
 TOOLS = [
     mRNAResearchAndProduction,
@@ -90,6 +92,7 @@ TOOLS = [
     TransPHLA_AOMP,
     ImmuneApp_Neo,
     UniPMT,
+    NetChop_Cleavage,
 ]
     
 TOOL_TEMPLATES = {
@@ -107,6 +110,7 @@ TOOL_TEMPLATES = {
     "transphla_aomp_result": TransPHLA_AOMP_RESULT,
     "immuneapp_neo_result": ImmuneApp_Neo_RESULT,
     "unipmt_result": UNIPMT_RESULT,
+    "netchop_cleavage_result": NETCHOP_CLEAVAGE_RESULT,
 }
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -174,6 +178,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     transphla_aomp_result=""
     immuneapp_neo_result=""
     unipmt_result=""
+    netchop_cleavage_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -485,6 +490,24 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
+            elif tool_name == "NetChop_Cleavage":
+                input_file = tool_call["args"].get("input_file")
+                lengths=tool_call["args"].get("lengths",[8,9,10])
+                output_format=tool_call["args"].get("output_format","fasta")
+                func_result = await NetChop_Cleavage.ainvoke(
+                    {
+                        "input_file": input_file,
+                        "lengths": lengths,
+                        "output_format": output_format
+                    }
+                )
+                netchop_cleavage_result=func_result
+                logger.info(f"NetChop_Cleavage result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=netchop_cleavage_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
     return {
         "messages": tmp_tool_msg,
         "netmhcpan_result":netmhcpan_result,
@@ -501,6 +524,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         "transphla_aomp_result": transphla_aomp_result,
         "immuneapp_neo_result": immuneapp_neo_result,
         "unipmt_result": unipmt_result,
+        "netchop_cleavage_result": netchop_cleavage_result,
         }
 
 

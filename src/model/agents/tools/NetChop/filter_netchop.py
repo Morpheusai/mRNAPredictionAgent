@@ -27,19 +27,15 @@ def filter_netchop_output(output_lines: list) -> str:
             markdown_content.append(f"**{output_lines[-3]}**\n")  # 保持原有逻辑，但建议检查索引有效性
 
         # 处理有效数据行
-        if "gi|" in line and len(line.split()) >= 5:
-            parts = line.split()
+        parts = line.split()
+        if "gi|" in line and len(parts) >= 5:
             try:
-                # 提取关键字段
-                AA = parts[1]  
-                C = parts[2]  
-                score = float(parts[3])  
-                
                 filtered_data.append({
-                    "AA": AA,
-                    "C": C,
-                    "score": score,
-                })
+                    "pos": int(parts[0]),
+                    "AA": parts[1],
+                    "C": parts[2],
+                    "score": float(parts[3]),
+                    })
             except (IndexError, ValueError, AttributeError) as e:
                 # 记录错误但不中断流程
                 #logo
@@ -48,32 +44,33 @@ def filter_netchop_output(output_lines: list) -> str:
     # ========== 第二部分：生成表格 ==========
     # 添加表头
     table_header = [
-        "| AA |  C  |  score  |",
-        "|----|-----|---------|"
-    ]                                  
-    
+    "| pos | AA |  C  |  score  |",
+    "|-----|----|-----|---------|"
+    ]
     # 添加排序后的数据行
-    sorted_data = sorted(filtered_data, key=lambda x: x['score'], reverse=True)
-    for item in sorted_data:
-        table_header.append(
-            f"| {item['AA']} | {item['C']} | {item['score']} |"
-        )
+    # sorted_data = sorted(filtered_data, key=lambda x: x['score'], reverse=True)
+    
+    # 最多显示前7行数据
+    max_display = 15
+    
+    table_rows = [
+    f"| {item['pos']} | {item['AA']} | {item['C']} | {item['score']} |"
+    for item in filtered_data[:max_display]
+    ]
 
     # ========== 第三部分：生成最终输出 ==========
     # 合并所有内容
-    final_output = markdown_content + table_header
+    final_output = markdown_content + table_header + table_rows
 
     # 添加结果提示（修复 IndexError 的核心修改）
-    if filtered_data:
-        pass
-        # final_output.append(
-        #     f"\n**当前结果**: 已完成肽段的筛选，我可以对 {sorted_data[0]['Peptide']}（最优肽段）进行结构的预测，请问是否继续？"
-        # )
-    else:
+    if not filtered_data:
         final_output.append(
             "\n**警告**: 未找到任何符合条件，请检查：\n"
             "1. 输入文件是否符合格式要求\n"
             "2. 筛选阈值是否设置合理\n"
         )
-
+    if len(filtered_data) > max_display:
+        final_output.append(
+            "\n**提示**: 内容超过15行，仅显示前15行结果。完整内容请查看文件。"
+        )
     return "\n".join(final_output)

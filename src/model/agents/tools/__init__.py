@@ -16,3 +16,4 @@ from .BigMHC.bigmhc import BigMHC
 from .TransPHLA.transphla import TransPHLA_AOMP
 from .ImmuneAppNeo.immuneapp_neo import ImmuneApp_Neo
 from .UniPMT.unipmt import UniPMT
+from .CleavagePeptide.cleavage_peptide import NetChop_Cleavage
