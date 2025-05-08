@@ -5,6 +5,8 @@ import json
 import uuid
 import sys
 import asyncio
+
+from dotenv import load_dotenv
 from pathlib import Path  
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -13,6 +15,7 @@ from langchain_core.tools import tool
 from minio import Minio
 from minio.error import S3Error
 
+load_dotenv()
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]
 sys.path.append(str(project_root))

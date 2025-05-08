@@ -10,10 +10,13 @@ from pathlib import Path
 from langchain_core.tools import tool
 import subprocess
 import sys
+
+from dotenv import load_dotenv
 from urllib.parse import urlparse
 from minio import Minio
 from minio.error import S3Error
 
+load_dotenv()
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]
 sys.path.append(str(project_root))

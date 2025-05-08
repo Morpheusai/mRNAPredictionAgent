@@ -14,7 +14,7 @@ from langgraph.graph.state import CompiledStateGraph
 from typing import Any
 from uuid import UUID, uuid4
 
-from src.model.agents.agents import DEFAULT_AGENT, PMHC_AFFINITY_PREDICTION, PATIENT_CASE_MRNA_AGENT,get_agent, initialize_agents
+from src.model.agents.agents import DEFAULT_AGENT, PMHC_AFFINITY_PREDICTION, PATIENT_CASE_MRNA_AGENT,NEO_ANTIGEN,get_agent, initialize_agents
 from src.model.agents.file_description import fileDescriptionAgent
 from src.model.schema.schema import UserInput
 from src.model.schema import MinioRequest,MinioResponse
@@ -219,8 +219,8 @@ async def message_generator(
     yield "data: [DONE]\n\n"
 
 
-
-@app.post("/stream", response_class=StreamingResponse, responses=_sse_response_example())
+#mRNA_research的接口
+@app.post("/mRNA_research_stream", response_class=StreamingResponse, responses=_sse_response_example())
 async def chat(user_input: UserInput, agent_id: str = DEFAULT_AGENT) -> StreamingResponse:
     """
     Stream an agent's response to a user input, including intermediate messages and tokens.
@@ -239,7 +239,7 @@ async def chat(user_input: UserInput, agent_id: str = DEFAULT_AGENT) -> Streamin
     )
 
 #pMHC_affinity_prediction的接口
-@app.post("/demo_stream", response_class=StreamingResponse, responses=_sse_response_example())
+@app.post("/pmhc_affinity_prediction_stream", response_class=StreamingResponse, responses=_sse_response_example())
 async def chat(user_input: UserInput, agent_id: str = PMHC_AFFINITY_PREDICTION) -> StreamingResponse:
     """
     Stream an agent's response to a user input, including intermediate messages and tokens.
@@ -260,6 +260,25 @@ async def chat(user_input: UserInput, agent_id: str = PMHC_AFFINITY_PREDICTION) 
 #patient_case_mrna_stream的接口
 @app.post("/patient_case_mrna_stream", response_class=StreamingResponse, responses=_sse_response_example())
 async def chat(user_input: UserInput, agent_id: str = PATIENT_CASE_MRNA_AGENT) -> StreamingResponse:
+    """
+    Stream an agent's response to a user input, including intermediate messages and tokens.
+
+    If agent_id is not provided, the default agent will be used.
+    Use thread_id to persist and continue a multi-turn conversation. run_id kwarg
+    is also attached to all messages for recording feedback.
+
+    Set `stream_tokens=false` to return intermediate messages but not token-by-token.
+    """
+
+
+    return StreamingResponse(
+        message_generator(user_input, agent_id),
+        media_type="text/event-stream",
+    )
+
+#neo_antigen_stream的接口
+@app.post("/neo_antigen_stream", response_class=StreamingResponse, responses=_sse_response_example())
+async def chat(user_input: UserInput, agent_id: str = NEO_ANTIGEN) -> StreamingResponse:
     """
     Stream an agent's response to a user input, including intermediate messages and tokens.
 
