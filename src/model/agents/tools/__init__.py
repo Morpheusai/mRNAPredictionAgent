@@ -11,7 +11,7 @@ from .NetTCR.nettcr import NetTCR
 from .NetCTLPan.netctlpan import NetCTLpan
 from .Piste.piste import PISTE
 from .ImmuneApp.immuneapp import ImmuneApp
-from .LightRAG.query import RAG_Expanded, RAG
+from .RAG.query import  RAG
 from .BigMHC.bigmhc import BigMHC
 from .TransPHLA.transphla import TransPHLA_AOMP
 from .ImmuneAppNeo.immuneapp_neo import ImmuneApp_Neo

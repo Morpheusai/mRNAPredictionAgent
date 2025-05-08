@@ -72,6 +72,21 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     tmp_tool_msg = []
     rag_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
+        #获取文件信息
+        file_list = config["configurable"].get("file_list", None)
+        # 处理文件列表
+        patient_info = ""
+        if file_list:
+            for conversation_file in file_list:
+                for file in conversation_file.files:
+                    file_name = file.file_name
+                    file_content = file.file_content
+                    file_desc = file.file_desc
+                    file_instructions = f"*上传文件名*: {file_name} \n" + \
+                                        f"*上传的文件描述*: {file_desc} \n" + \
+                                        f"*上传的文件内容*: {file_content} \n"
+                    patient_info += file_instructions
+
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
             tool_name = tool_call["name"]
@@ -82,9 +97,12 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 continue  # 如果已经存在，跳过添加
             if tool_name == "RAG":
                 query = tool_call["args"].get("query")
+                origin_query = tool_call["args"].get("origin_query")
                 func_result = await RAG.ainvoke(
                     {
-                        "query": query
+                        "query": query,
+                        "origin_query": origin_query,
+                        "files": patient_info
                     }
                 )
                 rag_result = func_result
