@@ -49,23 +49,83 @@ MRNA_AGENT_PROMPT = """
     "Hello1234!"（含非生物序列字符）
  - 如果用户计划使用 Net 工具进行预测，请告知其依赖 ExtractPeptide 工具生成的 .fas 文件路径或者其上传文件返回的路径，也就是说用户要么提供序列，要么上传fasta格式文件。
  - 流程：ExtractPeptide → 生成 .fas 文件 供接下来研究分析使用
-             
-# pMTnet工具使用说明
-你在使用pMTnet工具前，需要和用户进行多轮对话以确认以下参数：
- - 输入文件（必需）
-   当前的输入要求是用户需上传.csv文件，用户上传文件后你可以拿到返回的url，该 MinIO 路径将作为 pMTnet 工具的输入参数
-   输入文件格式（必需）是.csv 格式，且包含以下列：
-   列名分别为"CDR3"、"Antigen"、"HLA"，分别对应TCR-beta CDR3序列、肽段序列、MHC等位基因类型。
- - 示例正确输入
-   类似这个"minio://molly/pmtnet_input.csv"（用户上传文件后返回的 MinIO 路径）
- - 输出结果说明
-   返回 JSON 响应，包含以下字段：
-   type：link 表明是一个路径链接
-   url：存储预测结果的 MinIO 路径，用户可下载该文件用于后续分析。
-   content：处理状态信息，表明预测结果已成功生成。
-   输出的minio路径文件中包含一个包含 4 列的表格：CDR3 序列、抗原序列、HLA 等位基因以及每对 TCR/pMHC 的排名（rank）。排名反映了 TCR 和 pMHC 之间预测结合强度相对于 10,000 个随机采样的 TCR 对相同 pMHC 的百分位排名。排名越低，预测效果越好。
- - 
-   
+       
+# pMTnet工具使用说明      
+   pMTnet 是一个用于预测 TCR-pMHC 结合亲和力的工具。在使用之前，请通过多轮对话与用户确认以下输入参数：
+
+   🔹 输入参数（至少提供一种）：
+   pMTnet 支持以下任意一种或组合的输入方式：
+   1. 上传输入文件（推荐方式）
+      字段名：uploaded_file
+      格式要求：CSV 文件（必须包含 CDR3、Antigen、HLA 三列）注意HLA的格式为 "A*02:01"
+      示例值：minio://molly/pmtnet_input.csv
+   2. 提供 TCR 和抗原信息，系统自动构造输入
+      字段名：
+      cdr3_list：CDR3 序列列表（如：["CASSLGTDTQYF", "CASSPPSGGYTF"]）
+      antigen_input：肽段序列列表或 MinIO 中的 FASTA 文件路径（如：["GILGFVFTL"] 或 minio://bucket/antigen.fasta）
+      hla_list（可选）：MHC 等位基因列表（如：["A*02:01"]）
+   3. 提供抗原-HLA 配对数据
+      字段名：antigen_hla_pairs（可作为 antigen_input + hla_list 的替代）
+      格式：
+      Python 对象示例：[{"Antigen": "GILGFVFTL", "HLA": "A*01:01"}]
+      或 MinIO CSV 文件路径：minio://bucket/pairs.csv
+   ⚠️ 至少应提供 uploaded_file，或同时提供 cdr3_list 与 antigen_input 以构造输入。
+
+# BigMHC_EL 工具使用说明
+   BigMHC-EL 是一个用于预测 MHC-I 表位肽段抗原递呈能力 的工具。在使用前，请通过多轮对话与用户确认以下输入参数。
+   🔹 输入参数（至少提供一种）
+   BigMHC_EL 支持以下任意一种或组合的输入方式：
+   1. 上传格式化输入文件（推荐方式）
+      字段名：input_file
+      格式要求：CSV 文件，必须包含 mhc、pep 两列（可选 tgt 标签列，默认填 1）
+      路径示例：minio://your-bucket/bigmhc_input.csv
+   2. 提供肽段与 HLA 类型，由系统构造输入
+      字段名：
+         peptide_input：肽段序列列表，如 ["GILGFVFTL", "LLFGYPVYV"] 或 MinIO 上 .txt/.fasta 文件路径，如 minio://bucket/peptides.txt
+         hla_input：MHC 等位基因列表，如 ["HLA-A*02:01", "HLA-B*07:02"]，也可为 MinIO 文本文件路径
+      匹配规则：
+         若 peptide 与 HLA 数量相等，则一一对应
+         否则进行笛卡尔积组合构建输入
+         支持的文件类型：
+         .txt：按行读取
+         .fasta：自动解析 FASTA 格式提取肽段
+   使用说明
+      用户 必须 提供 input_file，或同时提供 peptide_input 和 hla_input。
+      不允许同时传入 input_file 与 peptide/hla 参数。
+   返回结果
+      返回值为 JSON 字符串，包含每组 peptide-HLA 的预测分数等信息
+      若参数或请求出错，将返回结构化错误信息 JSON
+      
+# BigMHC_IM 工具使用说明
+   BigMHC-IM 是一个用于预测 MHC-I 肽段免疫原性（Immunogenicity） 的工具。在使用前，请通过多轮对话与用户确认以下输入参数。
+   🔹 输入参数（至少提供一种）
+   BigMHC_IM 支持以下任意一种或组合的输入方式：
+   1. 上传输入文件（推荐方式）
+      字段名：input_file
+      格式要求：
+         可为 CSV 文件，包含 mhc、pep（可选 tgt）列
+         或为特殊格式的 .fasta 文件，每条记录形如 >peptide|HLA，例如：
+         >GILGFVFTL|HLA-A*02:01
+         GILGFVFTL
+      路径示例：minio://your-bucket/input.fasta 或 input.csv
+      自动行为：
+         自动解析 FASTA 文件并补全 HLA- 前缀
+         生成标准 BigMHC 输入 CSV 文件并上传至 MinIO
+   2. 提供肽段与 HLA 类型，由系统构造输入
+      字段名：
+         peptide_input：肽段序列列表或 MinIO 文本/FASTA 文件路径
+         hla_input：MHC 等位基因列表或 MinIO 文件路径
+      匹配逻辑：同 BigMHC_EL，支持一一对应或笛卡尔积组合构建输入
+   ⚠️ 使用说明
+      用户必须提供：
+         input_file（.csv 或 FASTA），或
+         同时提供 peptide_input 和 hla_input
+      不允许同时传入 input_file 与 peptide/hla 参数
+   🔄 返回结果
+      返回值为 JSON 字符串，包含预测分数结果
+      若预测失败，将返回结构化错误信息 JSON
+
+
 # netCTLpan工具使用说明
 你在使用 netCTLpan 工具前，需要和用户进行多轮对话以确认以下参数，请记住有些参数用户可以不提供，但在这之前需要告知用户你的使用情况。
  - 肿瘤变异蛋白序列：用户必须提供 Fasta 格式的文件，没有默认值。
@@ -215,9 +275,13 @@ ImmuneApp_RESULT = """
 {immuneapp_result}
 """
 
-BIGMHC_RESULT = """
+BIGMHC_EL_RESULT = """
 # bigmhc生成结果
-{bigmhc_result}
+{bigmhc_el_result}
+"""
+BIGMHC_IM_RESULT = """
+# bigmhc生成结果
+{bigmhc_im_result}
 """
 
 TransPHLA_AOMP_RESULT = """

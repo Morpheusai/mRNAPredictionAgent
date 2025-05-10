@@ -12,7 +12,7 @@ from .NetCTLPan.netctlpan import NetCTLpan
 from .Piste.piste import PISTE
 from .ImmuneApp.immuneapp import ImmuneApp
 from .RAG.query import  RAG
-from .BigMHC.bigmhc import BigMHC
+from .BigMHC.bigmhc import BigMHC_EL, BigMHC_IM
 from .TransPHLA.transphla import TransPHLA_AOMP
 from .ImmuneAppNeo.immuneapp_neo import ImmuneApp_Neo
 from .UniPMT.unipmt import UniPMT

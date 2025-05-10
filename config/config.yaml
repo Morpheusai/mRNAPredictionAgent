@@ -7,6 +7,7 @@ TOOL:
   COMMON:
     output_download_url_prefix: "https://mollyseek.com/downloads/"
   NETMHCPAN:   
+    url: "http://43.202.64.213:60823/netmhcpan"
     netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
     input_tmp_netmhcpan_dir: "/mnt/tmp/NetMHCpan/input"
     output_tmp_netmhcpan_dir: "/mnt/tmp/NetMHCpan/output"
@@ -17,18 +18,23 @@ TOOL:
     input_tmp_netmhcstabpan_dir: "/mnt/tmp/NetMHCstabpan/input"
     output_tmp_netmhcstabpan_dir: "/mnt/tmp/NetMHCstabpan/output"
   PMTNET:
+    url: "http://43.202.64.213:60825/pMTnet"
     pMTnet_env_python_dir: "/mnt/softwares/miniconda3/envs/pmtnet/bin/python"
     pMTnet_script_dir: "/mnt/softwares/pMTnet/pMTnet.py"
     library_dir: "/mnt/softwares/pMTnet/library"
-    input_tmp_pmtnet_dir: "/mnt/tmp/pMtNet/input"
+    input_tmp_pmtnet_dir: "/mnt/tmp/pmtnet/input"
     output_tmp_pmtnet_dir: "/mnt/tmp/pmtnet/output"
+    upload_dir: "/mnt/tmp/pmtnet/upload"
+    download_dir: "/mnt/tmp/pmtnet/download"
   EXTRACT_PEPTIDE:
     tmp_extract_peptide_dir: "/mnt/tmp/ExtractPeptide/output"
   NETCHOP:
+    url: "http://43.202.64.213:60823/netchop"
     netchop_dir: "/mnt/softwares/netchop-3.1/Linux_x86_64"
     input_tmp_netchop_dir: "/mnt/tmp/NetChop/input"
     output_tmp_netchop_dir: "/mnt/tmp/NetChop/output"
   PRIME:
+    url: "http://43.202.64.213:60823/prime"
     input_tmp_prime_dir: "/mnt/tmp/Prime/input"
     output_tmp_prime_dir: "/mnt/tmp/Prime/output"
   NETTCR:
@@ -40,24 +46,29 @@ TOOL:
     input_tmp_netctlpan_dir: /mnt/tmp/netctlpan/input
     output_tmp_netctlpan_dir: /mnt/tmp/netctlpan/output
   PISTE:
+    url: "http://43.202.64.213:60825/piste"
     piste_env_python_dir: /mnt/softwares/miniconda3/envs/piste/bin/python
     input_tmp_piste_dir: /mnt/tmp/piste/input
     output_tmp_piste_dir: /mnt/tmp/piste/output
   IMMUNEAPP:
+    url: "http://43.202.64.213:60824/ImmuneApp"
     script_path: /mnt/softwares/ImmuneApp/ImmuneApp_presentation_prediction.py
     python_bin: /mnt/softwares/miniconda3/envs/ImmuneApp/bin/python
     input_tmp_dir: /mnt/tmp/immuneapp/input  
     output_tmp_dir: /mnt/tmp/immuneapp/output
   IMMUNEAPP_NEO:
+    url: "http://43.202.64.213:60824/ImmuneApp_Neo"
     script_path: /mnt/softwares/ImmuneApp/ImmuneApp_immunogenicity_prediction.py
     python_bin: /mnt/softwares/miniconda3/envs/ImmuneApp/bin/python
     input_tmp_dir: /mnt/tmp/immuneapp_neo/input  
     output_tmp_dir: /mnt/tmp/immuneapp_neo/output
   BIGMHC:
+    url: "http://43.202.64.213:60823/bigmhc"
     bigmhc_dir: "/mnt/softwares/bigmhc/src"  
     input_tmp_bigmhc_dir: "/mnt/tmp/BigMHC/input"
     output_tmp_bigmhc_dir: "/mnt/tmp/BigMHC/output" 
   TRANSPHLA:
+    url: "http://43.202.64.213:60824/TransPHLA_AOMP"
     script_path: /mnt/softwares/TransPHLA-AOMP/TransPHLA-AOMP/pHLAIformer.py
     python_bin: /mnt/softwares/miniconda3/envs/transphla/bin/python
     input_tmp_dir: /mnt/tmp/transphla/input
