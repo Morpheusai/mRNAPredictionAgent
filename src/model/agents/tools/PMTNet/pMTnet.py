@@ -238,7 +238,7 @@ async def pMTnet(
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(pmtnet_url, json=payload) as response:
                 response.raise_for_status()
-                return await response.text()
+                return await response.json()
     
     except Exception as e:
         print("发生异常类型：", type(e).__name__)

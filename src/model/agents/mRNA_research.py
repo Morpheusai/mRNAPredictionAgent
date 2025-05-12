@@ -29,7 +29,6 @@ from src.model.agents.tools import (
     UniPMT,
     NetChop_Cleavage,
 )
-from src.model.agents.tools.NetMHCPan.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
@@ -210,7 +209,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                         "peptide_length":peptide_length
                     }
                 )
-                netmhcpan_result=extract_min_affinity_peptide(func_result)
+                netmhcpan_result=func_result
 
                 logger.info(f"NetMHCpan result: {func_result}")
                 tool_msg = ToolMessage(

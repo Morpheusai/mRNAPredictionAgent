@@ -19,13 +19,14 @@ from src.model.agents.tools import (
     NetCTLpan,
     PISTE,
     ImmuneApp,
-    BigMHC,
+    BigMHC_EL,
+    BigMHC_IM,
     TransPHLA_AOMP,
     ImmuneApp_Neo,
     UniPMT,
     NetChop_Cleavage,
+    NeoAntigenSelection
 )
-from src.model.agents.tools.NetMHCPan.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
@@ -40,12 +41,14 @@ from .core.neo_antigen_prompts import (
     NETCHOP_RESULT, 
     PRIME_RESULT,
     NETTCR_RESULT,
-    BIGMHC_RESULT,
+    BIGMHC_EL_RESULT,
+    BIGMHC_IM_RESULT,
     TransPHLA_AOMP_RESULT,
     ImmuneApp_Neo_RESULT,
     UNIPMT_RESULT,
     NETCHOP_CLEAVAGE_RESULT,
     OUTPUT_INSTRUCTIONS,
+    NEOANTIGENSELECTION_RESULT,
 )
 
 
@@ -61,11 +64,13 @@ class AgentState(MessagesState, total=False):
     netctlpan_result: Optional[str]=None
     piste_result: Optional[str]=None
     immuneapp_result: Optional[str]=None
-    bigmhc_result: Optional[str]=None
+    bigmhc_el_result: Optional[str]=None
+    bigmhc_im_result: Optional[str]=None
     transphla_aomp_result: Optional[str]=None
     immuneapp_neo_result: Optional[str]=None
     unipmt_result: Optional[str]=None
     netchop_cleavage_result: Optional[str]=None
+    neoantigenselection_result: Optional[str]=None
 
 TOOLS = [
     NetMHCpan,
@@ -78,11 +83,13 @@ TOOLS = [
     NetChop, 
     Prime, 
     NetTCR,
-    BigMHC,
+    BigMHC_EL,
+    BigMHC_IM,
     TransPHLA_AOMP,
     ImmuneApp_Neo,
     UniPMT,
     NetChop_Cleavage,
+    NeoAntigenSelection
 ]
     
 TOOL_TEMPLATES = {
@@ -94,11 +101,13 @@ TOOL_TEMPLATES = {
     "netchop_result": NETCHOP_RESULT, 
     "prime_result": PRIME_RESULT,
     "nettcr_result": NETTCR_RESULT,
-    "bigmhc_result": BIGMHC_RESULT, 
+    "bigmhc_el_result": BIGMHC_EL_RESULT,
+    "bigmhc_im_result": BIGMHC_IM_RESULT,
     "transphla_aomp_result": TransPHLA_AOMP_RESULT,
     "immuneapp_neo_result": ImmuneApp_Neo_RESULT,
     "unipmt_result": UNIPMT_RESULT,
     "netchop_cleavage_result": NETCHOP_CLEAVAGE_RESULT,
+    "neoantigenselection_result":NEOANTIGENSELECTION_RESULT,
 }
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -160,11 +169,13 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     netctlpan_result=""
     piste_result=""
     immuneapp_result=""
-    bigmhc_result=""
+    bigmhc_el_result=""
+    bigmhc_im_result=""
     transphla_aomp_result=""
     immuneapp_neo_result=""
     unipmt_result=""
     netchop_cleavage_result=""
+    neoantigenselection_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -190,7 +201,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                         "peptide_length":peptide_length
                     }
                 )
-                netmhcpan_result=extract_min_affinity_peptide(func_result)
+                netmhcpan_result=func_result
 
                 logger.info(f"NetMHCpan result: {func_result}")
                 tool_msg = ToolMessage(
@@ -211,8 +222,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     content=func_result,
                     tool_call_id=tool_call_id,
                 )
-                tmp_tool_msg.append(tool_msg)     
-
+                tmp_tool_msg.append(tool_msg)            
             elif tool_name == "ExtractPeptide":
                 input_content = tool_call["args"].get("peptide_sequence")
                 func_result = await ExtractPeptide.ainvoke(
@@ -229,10 +239,19 @@ async def should_continue(state: AgentState, config: RunnableConfig):
 
 
             elif tool_name == "pMTnet":
-                input_file_dir = tool_call["args"].get("input_file_dir")
+                cdr3_list = tool_call["args"].get("cdr3_list")
+                antigen_input = tool_call["args"].get("antigen_input")
+                hla_list = tool_call["args"].get("hla_list")
+                antigen_hla_pairs = tool_call["args"].get("antigen_hla_pairs")
+                uploaded_file = tool_call["args"].get("uploaded_file")
                 func_result = await pMTnet.ainvoke(
                     {
-                        "input_file_dir": input_file_dir
+                        "cdr3_list": cdr3_list,
+                        "antigen_input": antigen_input,
+                        "hla_list": hla_list,
+                        "antigen_hla_pairs": antigen_hla_pairs,
+                        "uploaded_file": uploaded_file
+                        
                     }
                 )
                 logger.info(f"pMTnet result: {func_result}")
@@ -373,23 +392,37 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
-            elif tool_name == "BigMHC":
+            elif tool_name == "BigMHC_EL":
+                peptide_input = tool_call["args"].get("peptide_input")
+                hla_input = tool_call["args"].get("hla_input")
                 input_file = tool_call["args"].get("input_file")
-                model_type = tool_call["args"].get("model_type")
-                func_result = await BigMHC.ainvoke(
-                    {
-                        "input_file": input_file,
-                        "model_type": model_type,
-                    }
+                func_result = await BigMHC_EL(
+                    peptide_input=peptide_input,
+                    hla_input=hla_input,
+                    input_file=input_file
                 )
-                bigmhc_result=func_result
-                logger.info(f"BigMHC result: {func_result}")
+                logger.info(f"BigMHC_EL result: {func_result}")
                 tool_msg = ToolMessage(
-                    content=bigmhc_result,
+                    content=func_result,
                     tool_call_id=tool_call_id,
-                )                
-                tmp_tool_msg.append(tool_msg)       
-                
+                )
+                tmp_tool_msg.append(tool_msg)
+            elif tool_name == "BigMHC_IM":
+                peptide_input = tool_call["args"].get("peptide_input")
+                hla_input = tool_call["args"].get("hla_input")
+                input_file = tool_call["args"].get("input_file")
+                func_result = await BigMHC_IM(
+                    peptide_input=peptide_input,
+                    hla_input=hla_input,
+                    input_file=input_file
+                )
+                logger.info(f"BigMHC_IM result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=func_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
+
             elif tool_name == "TransPHLA_AOMP":
                 peptide_file = tool_call["args"].get("peptide_file")
                 hla_file = tool_call["args"].get("hla_file")
@@ -444,6 +477,25 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
+
+            elif tool_name == "NeoAntigenSelection":
+                input_file = tool_call["args"].get("input_file")
+                mhc_allele=tool_call["args"].get("mhc_allele",["HLA-A02:01"])
+                cdr3_sequence=tool_call["args"].get("cdr3_sequence",["CASSVASSGNIQYF"])
+                func_result = await NeoAntigenSelection.ainvoke(
+                    {
+                        "input_file": input_file,
+                        "mhc_allele": mhc_allele,
+                        "cdr3_sequence": cdr3_sequence
+                    }
+                )
+                neoantigenselection_result=func_result
+                logger.info(f"NeoAntigenSelection result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=neoantigenselection_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
     return {
         "messages": tmp_tool_msg,
         "netmhcpan_result":netmhcpan_result,
@@ -454,11 +506,13 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         "piste_result": piste_result,
         "netctlpan_result":netctlpan_result,
         "immuneapp_result": immuneapp_result,
-        "bigmhc_result": bigmhc_result,
+        "bigmhc_el_result": bigmhc_el_result,
+        "bigmhc_im_result": bigmhc_im_result,
         "transphla_aomp_result": transphla_aomp_result,
         "immuneapp_neo_result": immuneapp_neo_result,
         "unipmt_result": unipmt_result,
         "netchop_cleavage_result": netchop_cleavage_result,
+        "neoantigenselection_result":neoantigenselection_result,
         }
 
 
