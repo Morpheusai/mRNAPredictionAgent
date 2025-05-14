@@ -19,3 +19,4 @@ from .UniPMT.unipmt import UniPMT
 from .CleavagePeptide.cleavage_peptide import NetChop_Cleavage
 from .NeoAntigenSelection.neoanigenselection import NeoAntigenSelection
 from .LinearDesign.lineardesign import LinearDesign
+from .RNAFold.rnaflod import RNAFold 

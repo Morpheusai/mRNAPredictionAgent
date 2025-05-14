@@ -29,6 +29,7 @@ from src.model.agents.tools import (
     UniPMT,
     NetChop_Cleavage,
     LinearDesign,
+    RNAFold
 )
 from src.utils.log import logger
 
@@ -54,6 +55,7 @@ from .core.prompts import (
     UNIPMT_RESULT,
     NETCHOP_CLEAVAGE_RESULT,
     LINEARDESIGN_RESULT,
+    RNAFOLD_RESULT,
 )
 
 
@@ -78,6 +80,7 @@ class AgentState(MessagesState, total=False):
     unipmt_result: Optional[str]=None
     netchop_cleavage_result: Optional[str]=None
     lineardesign_result: Optional[str]=None
+    rnafold_result: Optional[str]=None
 
 TOOLS = [
     mRNAResearchAndProduction,
@@ -100,6 +103,7 @@ TOOLS = [
     UniPMT,
     NetChop_Cleavage,
     LinearDesign,
+    RNAFold,
 ]
     
 TOOL_TEMPLATES = {
@@ -120,6 +124,7 @@ TOOL_TEMPLATES = {
     "unipmt_result": UNIPMT_RESULT,
     "netchop_cleavage_result": NETCHOP_CLEAVAGE_RESULT,
     "lineardesign_result": LINEARDESIGN_RESULT,
+    "rnafold_result": RNAFOLD_RESULT
 }
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -190,6 +195,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     unipmt_result=""
     netchop_cleavage_result=""
     lineardesign_result=""
+    rnafold_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -558,6 +564,22 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
+
+            elif tool_name == "RNAFold":
+                input_file = tool_call["args"].get("input_file")
+                func_result = await RNAFold.ainvoke(
+                    {
+                        "input_file": input_file,
+                    }
+                )
+                rnafold_result=func_result
+                logger.info(f"RNAFold result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=rnafold_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
+
     return {
         "messages": tmp_tool_msg,
         "netmhcpan_result":netmhcpan_result,
@@ -576,7 +598,8 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         "immuneapp_neo_result": immuneapp_neo_result,
         "unipmt_result": unipmt_result,
         "netchop_cleavage_result": netchop_cleavage_result,
-        "lineardesign_result": lineardesign_result
+        "lineardesign_result": lineardesign_result,
+        "rnafold_result": rnafold_result,
         }
 
 

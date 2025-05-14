@@ -95,10 +95,16 @@ TOOL:
     # bind_level_alternative: ["<= SB", "<= WB"]  # 如果需要 "<= SB" 或 "<= WB"
     bigmhc_el_threshold: 0.1
     bigmhc_im_threshold: 0.1
+<<<<<<< Updated upstream
   LINEARDESIGN:
     script: "/mnt/softwares/LinearDesign/linear_design.py"
     input_tmp_dir: "/mnt/tmp/LinearDesign/input"
     output_tmp_dir: "/mnt/tmp/LinearDesign/output"
+=======
+  RNAFOLD:
+    input_tmp_dir: "/mnt/tmp/rnafold/input" 
+    output_tmp_dir: "/mnt/tmp/rnafold/output"
+>>>>>>> Stashed changes
 
 MINIO:
   endpoint: "localhost:18080"
@@ -118,7 +124,11 @@ MINIO:
   transphla_bucket: "transphla-results"
   unipmt_bucket: "unipmt-results"
   netchop_cleavage_bucket: "netchop-cleavage-results"
+<<<<<<< Updated upstream
   lineardesign_bucket: "lineardesign-results"
+=======
+  rnafold_bucket: "rnafold-results"
+>>>>>>> Stashed changes
   secure: false
 
 
