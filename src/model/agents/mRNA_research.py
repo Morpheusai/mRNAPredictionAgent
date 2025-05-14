@@ -14,7 +14,7 @@ from src.model.agents.tools import (
     ESM3,
     NetMHCstabpan,
     FastaFileProcessor,
-    ExtractPeptide,
+    ExtractPeptides,
     pMTnet,
     NetChop,
     Prime,
@@ -28,6 +28,7 @@ from src.model.agents.tools import (
     ImmuneApp_Neo,
     UniPMT,
     NetChop_Cleavage,
+    LinearDesign,
 )
 from src.utils.log import logger
 
@@ -52,6 +53,7 @@ from .core.prompts import (
     ImmuneApp_Neo_RESULT,
     UNIPMT_RESULT,
     NETCHOP_CLEAVAGE_RESULT,
+    LINEARDESIGN_RESULT,
 )
 
 
@@ -75,6 +77,7 @@ class AgentState(MessagesState, total=False):
     immuneapp_neo_result: Optional[str]=None
     unipmt_result: Optional[str]=None
     netchop_cleavage_result: Optional[str]=None
+    lineardesign_result: Optional[str]=None
 
 TOOLS = [
     mRNAResearchAndProduction,
@@ -82,7 +85,7 @@ TOOLS = [
     ESM3,
     FastaFileProcessor,
     NetMHCstabpan,
-    ExtractPeptide,
+    ExtractPeptides,
     pMTnet,
     NetCTLpan,
     PISTE,
@@ -96,6 +99,7 @@ TOOLS = [
     ImmuneApp_Neo,
     UniPMT,
     NetChop_Cleavage,
+    LinearDesign,
 ]
     
 TOOL_TEMPLATES = {
@@ -115,6 +119,7 @@ TOOL_TEMPLATES = {
     "immuneapp_neo_result": ImmuneApp_Neo_RESULT,
     "unipmt_result": UNIPMT_RESULT,
     "netchop_cleavage_result": NETCHOP_CLEAVAGE_RESULT,
+    "lineardesign_result": LINEARDESIGN_RESULT,
 }
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -184,6 +189,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     immuneapp_neo_result=""
     unipmt_result=""
     netchop_cleavage_result=""
+    lineardesign_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -231,14 +237,14 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)            
-            elif tool_name == "ExtractPeptide":
-                input_content = tool_call["args"].get("peptide_sequence")
-                func_result = await ExtractPeptide.ainvoke(
+            elif tool_name == "ExtractPeptides":
+                input_content = tool_call["args"].get("peptide_list")
+                func_result = await ExtractPeptides.ainvoke(
                     {
-                        "peptide_sequence": input_content
+                        "peptide_list": input_content
                     }
                 )
-                logger.info(f"ExtractPeptide result: {func_result}")
+                logger.info(f"ExtractPeptides result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
                     tool_call_id=tool_call_id,
@@ -536,6 +542,22 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
+            elif tool_name == "LinearDesign":
+                minio_input_fasta = tool_call["args"].get("minio_input_fasta")
+                lambda_val = tool_call["args"].get("lambda_val", 1.0)
+                func_result = await LinearDesign.ainvoke(
+                    {
+                        "minio_input_fasta": minio_input_fasta,
+                        "lambda_val": lambda_val
+                    }
+                )
+                lineardesign_result=func_result
+                logger.info(f"LinearDesign result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=lineardesign_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
     return {
         "messages": tmp_tool_msg,
         "netmhcpan_result":netmhcpan_result,
@@ -554,6 +576,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         "immuneapp_neo_result": immuneapp_neo_result,
         "unipmt_result": unipmt_result,
         "netchop_cleavage_result": netchop_cleavage_result,
+        "lineardesign_result": lineardesign_result
         }
 
 

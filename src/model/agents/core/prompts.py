@@ -186,7 +186,14 @@ MRNA_AGENT_PROMPT = """
  - 输入文件路径 ：用户必须提供，当前的输入要求是用户需上传 input_file (str): MinIO 文件路径。
  - lengths (list): 要生成的肽段长度列表，默认 [8, 9, 10]
  - output_format (str): 输出格式，支持 fasta, csv, tsv, json
- 
+
+#lineardesign工具使用说明：
+你在使用 LinearDesign 工具前，需要和用户进行多轮对话以确认以下参数。请记住，有些参数用户可以不提供，但你必须在执行前明确告知用户工具的作用和所需参数。
+ - LinearDesign 是一个用于对蛋白质序列进行 mRNA 优化设计的工具。它可以根据用户提供的氨基酸序列或 FASTA 文件，生成更适合表达的 mRNA 序列。优化过程支持调整表达效率与结构稳定性之间的平衡。该工具适用于蛋白质序列优化的场景，尤其适合疫苗设计、mRNA表达调控等任务。
+ - 输入参数：
+   minio_input_fasta：请上传 FASTA 格式文件。一般如果用户提供的是肽段序列的话需要先使用 ExtractPeptide 工具生成 .fas 文件路径，或者用户直接上传的文件路径。
+   lambda_val 参数确认：这个参数是可选的，默认值是 0.5。它用于控制表达效率和结构稳定性之间的平衡。值越大，越倾向优化结构稳定性；值越小，越倾向优化表达效率。你需要告诉用户默认值是 0.5，并询问是否需要调整。
+
 # 注章事项
  - 当存在*用户上传文件列表*部分内容时，可以认为用户进行了文件上传
  - 对于用户提供的肿瘤变异蛋白序列文件，需要进行合法性检验，非法的内容需要提示用户重新提交
@@ -302,6 +309,11 @@ UNIPMT_RESULT = """
 NETCHOP_CLEAVAGE_RESULT = """
 # NetChop_Cleavage生成结果
 {netchop_cleavage_result}
+"""
+
+LINEARDESIGN_RESULT = """
+# LinearDesign生成结果
+{lineardesign_result}
 """
 
 # 输出要求说明，拼接在system message的最后

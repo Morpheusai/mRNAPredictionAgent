@@ -38,10 +38,12 @@ TOOL:
     input_tmp_prime_dir: "/mnt/tmp/Prime/input"
     output_tmp_prime_dir: "/mnt/tmp/Prime/output"
   NETTCR:
+    url: "http://43.202.64.213:60823/nettcr"
     nettcr_dir: "/mnt/softwares/NetTCR-2.2"  
     input_tmp_nettcr_dir: "/mnt/tmp/NetTCR/input"
     output_tmp_nettcr_dir: "/mnt/tmp/NetTCR/output"    
   NETCTLPAN:
+    url: "http://43.202.64.213:60823/netctlpan"
     netctlpan_dir: /mnt/softwares/netCTLpan-1.1
     input_tmp_netctlpan_dir: /mnt/tmp/netctlpan/input
     output_tmp_netctlpan_dir: /mnt/tmp/netctlpan/output
@@ -93,6 +95,10 @@ TOOL:
     # bind_level_alternative: ["<= SB", "<= WB"]  # 如果需要 "<= SB" 或 "<= WB"
     bigmhc_el_threshold: 0.1
     bigmhc_im_threshold: 0.1
+  LINEARDESIGN:
+    script: "/mnt/softwares/LinearDesign/linear_design.py"
+    input_tmp_dir: "/mnt/tmp/LinearDesign/input"
+    output_tmp_dir: "/mnt/tmp/LinearDesign/output"
 
 MINIO:
   endpoint: "localhost:18080"
@@ -112,6 +118,7 @@ MINIO:
   transphla_bucket: "transphla-results"
   unipmt_bucket: "unipmt-results"
   netchop_cleavage_bucket: "netchop-cleavage-results"
+  lineardesign_bucket: "lineardesign-results"
   secure: false
 
 
