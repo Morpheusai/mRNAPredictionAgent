@@ -11,7 +11,7 @@ from typing import Literal,Optional
 from src.model.agents.tools import (
     NetMHCpan,
     FastaFileProcessor,
-    ExtractPeptide,
+    ExtractPeptides,
     pMTnet,
     NetChop,
     Prime,
@@ -75,7 +75,7 @@ class AgentState(MessagesState, total=False):
 TOOLS = [
     NetMHCpan,
     FastaFileProcessor,
-    ExtractPeptide,
+    ExtractPeptides,
     pMTnet,
     NetCTLpan,
     PISTE,
@@ -223,14 +223,14 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)            
-            elif tool_name == "ExtractPeptide":
+            elif tool_name == "ExtractPeptides":
                 input_content = tool_call["args"].get("peptide_sequence")
-                func_result = await ExtractPeptide.ainvoke(
+                func_result = await ExtractPeptides.ainvoke(
                     {
                         "peptide_sequence": input_content
                     }
                 )
-                logger.info(f"ExtractPeptide result: {func_result}")
+                logger.info(f"ExtractPeptides result: {func_result}")
                 tool_msg = ToolMessage(
                     content=func_result,
                     tool_call_id=tool_call_id,
@@ -481,7 +481,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
             elif tool_name == "NeoAntigenSelection":
                 input_file = tool_call["args"].get("input_file")
                 mhc_allele=tool_call["args"].get("mhc_allele",["HLA-A02:01"])
-                cdr3_sequence=tool_call["args"].get("cdr3_sequence",["CASSVASSGNIQYF"])
+                cdr3_sequence=tool_call["args"].get("cdr3_sequence",None)
                 func_result = await NeoAntigenSelection.ainvoke(
                     {
                         "input_file": input_file,

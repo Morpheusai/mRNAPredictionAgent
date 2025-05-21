@@ -19,7 +19,8 @@ from src.model.agents.tools.NetMHCPan.netmhcpan import NetMHCpan
 from src.model.agents.tools.BigMHC.bigmhc import BigMHC_EL,BigMHC_IM
 from src.model.agents.tools.PMTNet.pMTnet import pMTnet
 from src.model.agents.tools.NetTCR.nettcr import NetTCR
-
+from src.model.agents.tools.NeoMRNASelection.cds_combine import concatenate_peptides_with_linker
+from src.model.agents.tools.NeoMRNASelection.utr_spacer_rnafold import utr_spacer_rnafold_to_mrna
 
 load_dotenv()
 current_file = Path(__file__).resolve()
@@ -32,12 +33,17 @@ MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
 MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
 MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
+MOLLY_BUCKET = MINIO_CONFIG["molly_bucket"]
 MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
 BIND_LEVEL_ALTERNATIVE = NEOANTIGEN_CONFIG["bind_level_alternative"]  
 BIGMHC_EL_THRESHOLD = NEOANTIGEN_CONFIG["bigmhc_el_threshold"]
 BIGMHC_IM_THRESHOLD = NEOANTIGEN_CONFIG["bigmhc_im_threshold"]
+PMTNET_RANK = NEOANTIGEN_CONFIG["pmtnet_rank"]
+RNAFOLD_ENERGY_THRESHOLD = NEOANTIGEN_CONFIG["rnafold_energy_threshold"]
+OUTPUT_TMP = CONFIG_YAML["TOOL"]["RNAFOLD"]["output_tmp_dir"]
+
 
 # 初始化 MinIO 客户端
 minio_client = Minio(
@@ -46,6 +52,62 @@ minio_client = Minio(
     secret_key=MINIO_SECRET_KEY,
     secure=MINIO_SECURE
 )
+
+
+def filter_rnafold(input_file_path: str, rnafold_energy_threshold: float) -> str:
+    """
+    从MinIO下载RNAFold结果，过滤MFE结构，并上传到molly桶
+    
+    Args:
+        input_file_path (str): MinIO路径，格式如 "minio://rnafold-results/54656457_RNAFold_results.xlsx"
+        rnafold_energy_threshold (float): 自由能过滤阈值
+    
+    Returns:
+        str: 新文件的MinIO路径（如 "minio://molly/filtered_54656457_RNAFold_results.xlsx"）
+    """
+    try:
+        # 1. 解析MinIO路径
+        if not input_file_path.startswith("minio://"):
+            raise ValueError("Input path must start with 'minio://'")
+        
+        path_without_prefix = input_file_path[len("minio://"):]
+        bucket_name, object_name = path_without_prefix.split("/", 1)
+        
+        # 2. 下载文件到临时本地路径
+        local_temp_path = f"{OUTPUT_TMP}/{uuid.uuid4().hex}.xlsx"
+        minio_client.fget_object(bucket_name, object_name, local_temp_path)
+        
+        # 3. 读取Excel并过滤MFE结构
+        df = pd.read_excel(local_temp_path)
+        
+        # 提取自由能值（从"MFE结构"列）
+        df["MFE_energy"] = df["MFE结构"].str.extract(r'\((-?\d+\.\d+)\)').astype(float)
+        filtered_df = df[df["MFE_energy"] <= rnafold_energy_threshold]
+        
+        # 4. 保存过滤结果到新文件
+        filtered_local_path = f"{OUTPUT_TMP}/filtered_{Path(object_name).name}"
+        filtered_df.to_excel(filtered_local_path, index=False)
+        
+        # 5. 上传到molly桶
+        random_id = uuid.uuid4().hex
+        new_object_name = f"{random_id}_filter_RNAFold_results.xlsx"
+        minio_client.fput_object(
+            "molly",  # 目标桶名
+            new_object_name,
+            filtered_local_path
+        )
+        
+        # 6. 清理临时文件
+        Path(local_temp_path).unlink(missing_ok=True)
+        Path(filtered_local_path).unlink(missing_ok=True)
+        
+        return f"minio://molly/{new_object_name}"
+    
+    except S3Error as e:
+        raise Exception(f"MinIO操作失败: {e}")
+    except Exception as e:
+        raise Exception(f"处理失败: {e}")
+
 
 async def run_neoanigenselection(
     input_file: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
@@ -60,6 +122,7 @@ async def run_neoanigenselection(
     bigmhc_im_result_file_path = None
     pmtnet_result_file_path = None
     nettcr_result_file_path = None
+    filter_rnafold_result_file_path=None
 
 #第一步：蛋白切割位点预测
     netchop_result = await NetChop.arun({"input_file" : input_file,"cleavage_site_threshold" : 0.5})
@@ -308,7 +371,6 @@ async def run_neoanigenselection(
     netmhcpan_result_file_path = f"minio://molly/{netmhcpan_result_fasta_filename}"
     #传入辅助模型进行选择阳性肽段
     bigmhc_el_result = await BigMHC_EL.arun({"peptide_input": netmhcpan_result_file_path,"hla_input":mhc_allele})  #TODO 修改
-
     try:
         # 解析返回的JSON结果
         bigmhc_el_result_dict = json.loads(bigmhc_el_result)
@@ -342,7 +404,6 @@ async def run_neoanigenselection(
         
         bucket_name = path_without_prefix[:first_slash_index]
         object_name = path_without_prefix[first_slash_index + 1:]
-        
     except Exception as e:
         raise str(status_code=400, detail=f"解析文件路径失败: {str(e)}") 
 
@@ -350,7 +411,7 @@ async def run_neoanigenselection(
     try:
         response = minio_client.get_object(bucket_name, object_name)
         excel_data = BytesIO(response.read())
-        df = pd.read_excel(excel_data)  
+        df = pd.read_excel(excel_data)
     except S3Error as e:
         # return json.dumps({
         #     "type": "text",
@@ -416,7 +477,7 @@ async def run_neoanigenselection(
         raise 
     bigmhc_el_result_file_path = f"minio://molly/{bigmhc_el_result_fasta_filename}"
 #第三步 pMHC免疫原性预测
-    bigmhc_im_result = await BigMHC_IM.arun({"input_file": bigmhc_el_result_file_path})  #TODO 修改
+    bigmhc_im_result = await BigMHC_IM.arun({"input_file": bigmhc_el_result_file_path})  
 
     try:
         # 解析返回的JSON结果
@@ -547,7 +608,7 @@ async def run_neoanigenselection(
         fasta_bytes = fasta_str.encode('utf-8')
         fasta_stream = BytesIO(fasta_bytes)
         minio_client.put_object(
-            "molly",
+            MOLLY_BUCKET,
             bigmhc_im_result_fasta_filename,
             data=fasta_stream,
             length=len(fasta_bytes),
@@ -557,7 +618,7 @@ async def run_neoanigenselection(
         raise 
     bigmhc_im_result_file_path = f"minio://molly/{bigmhc_im_result_fasta_filename}"
 
-#第四步 pMHC-TCR相互作用预测
+
     if cdr3_sequence == None:
         # result = {
         #     "type": "link",
@@ -566,23 +627,72 @@ async def run_neoanigenselection(
         # }
         # return json.dumps(result, ensure_ascii=False)
     
-        return json.dumps(
-            {
-                "type": "link",
-                "url": {
-                    "cleavage_result_result_file_url": cleavage_result_file_path,
-                    "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
-                    "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
-                },
-                "content": (
+        #pMHC免疫原性预测阶段筛选mRNA流程代码逻辑
+        cds_result = await concatenate_peptides_with_linker(bigmhc_im_result_file_path)
+        if cds_result != None:
+            utr_spacer_rnafold_result=await utr_spacer_rnafold_to_mrna(cds_result)
+            result_str = str(utr_spacer_rnafold_result)
+            if result_str.endswith('.xlsx'):
+                filter_rnafold_result_file_path = filter_rnafold(result_str,RNAFOLD_ENERGY_THRESHOLD)
+                return json.dumps(
+                    {
+                        "type": "link",
+                        "url": {
+                            "cleavage_result_result_file_url": cleavage_result_file_path,
+                            "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
+                            "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
+                            "filter_rnafold_file_url": filter_rnafold_result_file_path
+                        },
+                        "content": (
+                        f"蛋白切割位点预测阶段文件已生成，请下载 cleavage_result.fasta 文件查看。\n"
+                        f"pMHC结合亲和力预测阶段文件已生成，请下载 bigmhc_el.fasta 文件查看。\n"
+                        f"pMHC免疫原性预测阶段文件已生成，请下载 bigmhc_im.fasta 文件查看。\n"
+                        f"mRNA筛选流程文件已生成，请下载filter_RNAFold_results.xlsx文件查看。\n"
+                        f"未提供cdr3序列无法进行下一步pMHC-TCR相互作用预测"
+                        ),
+                    },
+                    ensure_ascii=False,
+                )                        
+            else:
+                return json.dumps(
+                    {
+                        "type": "link",
+                        "url": {
+                            "cleavage_result_result_file_url": cleavage_result_file_path,
+                            "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
+                            "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
+                        },
+                        "content": (
+                        f"蛋白切割位点预测阶段文件已生成，请下载 cleavage_result.fasta 文件查看。\n"
+                        f"pMHC结合亲和力预测阶段文件已生成，请下载 bigmhc_el.fasta 文件查看。\n"
+                        f"pMHC免疫原性预测阶段文件已生成，请下载 bigmhc_im.fasta 文件查看。\n"
+                        f"mRNA筛选过程中预测其最小自由能（MFE）二级结构出现问题：{result_str}\n"
+                        f"未提供cdr3序列无法进行下一步pMHC-TCR相互作用预测"
+                        ),
+                    },
+                    ensure_ascii=False,
+                )   
+        else:
+            return json.dumps(
+                {
+                    "type": "link",
+                    "url": {
+                        "cleavage_result_result_file_url": cleavage_result_file_path,
+                        "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
+                        "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
+                    },
+                    "content": (
                     f"蛋白切割位点预测阶段文件已生成，请下载 cleavage_result.fasta 文件查看。\n"
                     f"pMHC结合亲和力预测阶段文件已生成，请下载 bigmhc_el.fasta 文件查看。\n"
                     f"pMHC免疫原性预测阶段文件已生成，请下载 bigmhc_im.fasta 文件查看。\n"
+                    f"生成cds区过程中未能正确执行完成，无法进行下一步mRNA筛选过程。"
                     f"未提供cdr3序列无法进行下一步pMHC-TCR相互作用预测"
-                ),
-            },
-            ensure_ascii=False,
-        )           
+                    ),
+                },
+                ensure_ascii=False,
+            )                    
+
+    #第四步 pMHC-TCR相互作用预测         
     else:
         # tmp_file_path="minio://molly/66dd7c86-f1c4-455e-9e50-3b2a77be66c9_test_input.csv"
         pmtnet_result = await pMTnet.arun({"cdr3_list":cdr3_sequence,"uploaded_file": bigmhc_im_result_file_path})  #TODO 修改
@@ -632,26 +742,215 @@ async def run_neoanigenselection(
             )                   
     pmtnet_result_file_path = pmtnet_result_dict["url"]
     if cdr3_sequence != "complete":
-        # return pmtnet_result_dict
-        return json.dumps(
-            {
-                "type": "link",
-                "url": {
-                    "cleavage_result_result_file_url": cleavage_result_file_path,
-                    "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
-                    "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
-                    "pmtnet_result_file_url": pmtnet_result_file_path,
+        # # return pmtnet_result_dict
+        # return json.dumps(
+        #     {
+        #         "type": "link",
+        #         "url": {
+        #             "cleavage_result_result_file_url": cleavage_result_file_path,
+        #             "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
+        #             "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
+        #             "pmtnet_result_file_url": pmtnet_result_file_path,
+        #         },
+        #         "content": (
+        #             f"蛋白切割位点预测阶段文件已生成，请下载 cleavage_result.fasta 文件查看。\n"
+        #             f"pMHC结合亲和力预测阶段文件已生成，请下载 bigmhc_el.fasta 文件查看。\n"
+        #             f"pMHC免疫原性预测阶段文件已生成，请下载 bigmhc_im.fasta 文件查看。\n"
+        #             f"pMHC-TCR相互作用预测文件已生成,请下载pMTnet_results.csv文件根据需求选择rank值对应的肽段，rank值越大，结合力越强。\n"
+        #             f"未提供完整的cdr3序列无法更进一步精准的进行下一步pMHC-TCR相互作用预测\n"
+        #         ),
+        #     },
+        #     ensure_ascii=False,
+        # )     
+        # 解析MinIO文件路径，提取桶名和文件名
+        try:
+            # 去掉minio://前缀
+            path_without_prefix = pmtnet_result_file_path[len("minio://"):]
+            
+            # 找到第一个斜杠位置，分割桶名和文件名
+            first_slash_index = path_without_prefix.find("/")
+            
+            if first_slash_index == -1:
+                raise ValueError("文件路径格式错误：缺少桶名或文件名")
+            
+            bucket_name = path_without_prefix[:first_slash_index]  # 提取桶名
+            object_name = path_without_prefix[first_slash_index + 1:]  # 提取文件名
+            
+        except Exception as e:
+            # 如果解析失败，返回错误信息
+            return json.dumps(
+                {
+                    "type": "link",
+                    "url": {
+                        "cleavage_result_result_file_url": cleavage_result_file_path,
+                        "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
+                        "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
+                    },
+                    "content": (
+                        f"前三步结果文件已生成\n"
+                        f"pMHC-TCR相互作用预测阶段失败，解析文件路径失败: {str(e)}"
+                    ),
                 },
-                "content": (
-                    f"蛋白切割位点预测阶段文件已生成，请下载 cleavage_result.fasta 文件查看。\n"
-                    f"pMHC结合亲和力预测阶段文件已生成，请下载 bigmhc_el.fasta 文件查看。\n"
-                    f"pMHC免疫原性预测阶段文件已生成，请下载 bigmhc_im.fasta 文件查看。\n"
-                    f"pMHC-TCR相互作用预测文件已生成,请下载pMTnet_results.csv文件根据需求选择rank值对应的肽段，rank值越大，结合力越强。\n"
-                    f"未提供完整的cdr3序列无法更进一步精准的进行下一步pMHC-TCR相互作用预测\n"
-                ),
-            },
-            ensure_ascii=False,
-        )       
+                ensure_ascii=False,
+            )
+
+        # 从MinIO读取CSV文件并筛选Rank ≥ PMTNET_RANK的肽段
+        try:
+            # 从MinIO获取文件
+            response = minio_client.get_object(bucket_name, object_name)
+            csv_data = BytesIO(response.read())
+            
+            # 读取CSV文件到DataFrame
+            df = pd.read_csv(csv_data)
+            
+            # 筛选Rank值大于等于0.2的行
+            high_rank_peptides = df[df['Rank'] >= PMTNET_RANK]
+            
+            # 检查是否有符合条件的肽段
+            if high_rank_peptides.empty:
+                # 如果没有符合条件的肽段，返回提示信息
+                return json.dumps(
+                    {
+                        "type": "link",
+                        "url": {
+                            "cleavage_result_result_file_url": cleavage_result_file_path,
+                            "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
+                            "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
+                            "pmtnet_result_file_url": pmtnet_result_file_path,
+                        },
+                        "content": (
+                        f"蛋白切割位点预测阶段文件已生成，请下载 cleavage_result.fasta 文件查看。\n"
+                        f"pMHC结合亲和力预测阶段文件已生成，请下载 bigmhc_el.fasta 文件查看。\n"
+                        f"pMHC免疫原性预测阶段文件已生成，请下载 bigmhc_im.fasta 文件查看。\n"
+                        f"pMHC-TCR相互作用预测文件已生成,请下载pMTnet_results.csv文件查看。\n"
+                        f"未找到Rank ≥ {PMTNET_RANK}的高亲和力肽段，无法进行下一步的mRNA筛选流程"
+                        ),
+                    },
+                    ensure_ascii=False,
+                )
+                
+            # 构建FASTA文件内容
+            fasta_content = []
+            for idx, row in high_rank_peptides.iterrows():
+                # 获取肽段序列和HLA分型
+                peptide = row['Antigen']
+                mhc_allele = row['HLA']
+                
+                # 创建FASTA条目，格式为：>peptide|MHC_allele
+                fasta_content.append(f">{peptide}|{mhc_allele}")  # 标题行
+                fasta_content.append(peptide)  # 序列行
+
+            # 合并为完整的FASTA字符串
+            fasta_str = "\n".join(fasta_content)
+
+            # 生成唯一的文件名
+            uuid_name = str(uuid.uuid4())
+            pmtnet_filtered_fasta_filename = f"{uuid_name}_pmtnet_filtered.fasta"
+
+            # 将FASTA文件上传到MinIO的molly桶
+            try:
+                fasta_bytes = fasta_str.encode('utf-8')  # 编码为字节
+                fasta_stream = BytesIO(fasta_bytes)      # 转换为字节流
+                minio_client.put_object(
+                    MOLLY_BUCKET,  # 桶名
+                    pmtnet_filtered_fasta_filename,  # 文件名
+                    data=fasta_stream,  # 文件数据
+                    length=len(fasta_bytes),  # 文件长度
+                    content_type='text/plain'  # 文件类型
+                )
+            except Exception as e:
+                raise 
+            
+            # 生成文件路径
+            pmtnet_filtered_file_path = f"minio://molly/{pmtnet_filtered_fasta_filename}"
+
+            #pMHC-TCR相互作用预测阶段筛选mRNA流程代码逻辑
+            cds_result = await concatenate_peptides_with_linker(pmtnet_filtered_file_path)
+            if cds_result != None:
+                utr_spacer_rnafold_result=await utr_spacer_rnafold_to_mrna(cds_result)
+                result_str = str(utr_spacer_rnafold_result)
+                if result_str.endswith('.xlsx'):
+                    filter_rnafold_result_file_path = filter_rnafold(result_str,RNAFOLD_ENERGY_THRESHOLD)
+                    return json.dumps(
+                        {
+                            "type": "link",
+                            "url": {
+                                "cleavage_result_result_file_url": cleavage_result_file_path,
+                                "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
+                                "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
+                                "pmtnet_result_file_url": pmtnet_result_file_path,
+                                "filter_rnafold_file_url": filter_rnafold_result_file_path
+                            },
+                            "content": (
+                            f"蛋白切割位点预测阶段文件已生成，请下载 cleavage_result.fasta 文件查看。\n"
+                            f"pMHC结合亲和力预测阶段文件已生成，请下载 bigmhc_el.fasta 文件查看。\n"
+                            f"pMHC免疫原性预测阶段文件已生成，请下载 bigmhc_im.fasta 文件查看。\n"
+                            f"pMHC-TCR相互作用预测文件已生成,请下载pMTnet_results.csv文件查看。\n"
+                            f"mRNA筛选流程文件已生成，请下载filter_RNAFold_results.xlsx文件查看。\n"
+                            ),
+                        },
+                        ensure_ascii=False,
+                    )                        
+                else:
+                    return json.dumps(
+                        {
+                            "type": "link",
+                            "url": {
+                                "cleavage_result_result_file_url": cleavage_result_file_path,
+                                "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
+                                "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
+                                "pmtnet_result_file_url": pmtnet_result_file_path,
+                            },
+                            "content": (
+                            f"蛋白切割位点预测阶段文件已生成，请下载 cleavage_result.fasta 文件查看。\n"
+                            f"pMHC结合亲和力预测阶段文件已生成，请下载 bigmhc_el.fasta 文件查看。\n"
+                            f"pMHC免疫原性预测阶段文件已生成，请下载 bigmhc_im.fasta 文件查看。\n"
+                            f"pMHC-TCR相互作用预测文件已生成,请下载pMTnet_results.csv文件查看。\n"
+                            f"mRNA筛选过程中预测其最小自由能（MFE）二级结构出现问题：{result_str}\n"
+                            ),
+                        },
+                        ensure_ascii=False,
+                    )   
+            else:
+                return json.dumps(
+                    {
+                        "type": "link",
+                        "url": {
+                            "cleavage_result_result_file_url": cleavage_result_file_path,
+                            "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
+                            "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
+                            "pmtnet_result_file_url": pmtnet_result_file_path,
+                        },
+                        "content": (
+                        f"蛋白切割位点预测阶段文件已生成，请下载 cleavage_result.fasta 文件查看。\n"
+                        f"pMHC结合亲和力预测阶段文件已生成，请下载 bigmhc_el.fasta 文件查看。\n"
+                        f"pMHC免疫原性预测阶段文件已生成，请下载 bigmhc_im.fasta 文件查看。\n"
+                        f"pMHC-TCR相互作用预测文件已生成,请下载pMTnet_results.csv文件查看。\n"
+                        f"生成cds区过程中未能正确执行完成，无法进行下一步mRNA筛选过程。"
+                        ),
+                    },
+                    ensure_ascii=False,
+                )                    
+
+            
+        except S3Error as e:
+            # 如果读取文件失败，返回错误信息
+            return json.dumps(
+                {
+                    "type": "link",
+                    "url": {
+                        "cleavage_result_result_file_url": cleavage_result_file_path,
+                        "bigmhc_el_result_file_url": bigmhc_el_result_file_path,
+                        "bigmhc_im_result_file_url": bigmhc_im_result_file_path,
+                    },
+                    "content": (
+                        f"前三步结果文件已生成\n"
+                        f"pMHC-TCR相互作用预测阶段失败，无法从MinIO读取文件: {str(e)}"
+                    ),
+                },
+                ensure_ascii=False,
+        )
+
     else:
         tmp_file_path="minio://molly/5a9592bd-4bcf-4d09-a8d2-ca590a1f6515_small_example.csv"
         nettcr_result = await NetTCR.arun({"input_file": tmp_file_path})  #TODO 修改
