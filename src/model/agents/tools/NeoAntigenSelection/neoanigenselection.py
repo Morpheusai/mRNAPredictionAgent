@@ -7,12 +7,26 @@ import uuid
 from dotenv import load_dotenv
 from minio import Minio
 from minio.error import S3Error
+from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import tool
+from langgraph.config import get_stream_writer
+from langchain_core.runnables import RunnableSerializable,RunnableLambda
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+
 from pathlib import Path
 import pandas as pd
 from io import BytesIO
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, AsyncIterator,Any
 
+from src.model.agents.core import get_model
+from src.model.agents.core.tool_summary_prompts import (
+    NETMHCPAN_PROMPT,
+    BIGMHC_EL_PROMPT,
+    BIGMHC_IM_PROMPT,
+    RNAFOLD_PROMPT,
+    PMTNET_PROMPT
+)
+from src.model.schema.models import FileDescriptionName
 from src.model.agents.tools.NetChop.netchop import NetChop
 from src.model.agents.tools.CleavagePeptide.cleavage_peptide import NetChop_Cleavage
 from src.model.agents.tools.NetMHCPan.netmhcpan import NetMHCpan
@@ -21,6 +35,7 @@ from src.model.agents.tools.PMTNet.pMTnet import pMTnet
 from src.model.agents.tools.NetTCR.nettcr import NetTCR
 from src.model.agents.tools.NeoMRNASelection.cds_combine import concatenate_peptides_with_linker
 from src.model.agents.tools.NeoMRNASelection.utr_spacer_rnafold import utr_spacer_rnafold_to_mrna
+
 
 load_dotenv()
 current_file = Path(__file__).resolve()
@@ -52,6 +67,26 @@ minio_client = Minio(
     secret_key=MINIO_SECRET_KEY,
     secure=MINIO_SECURE
 )
+
+
+async def wrap_summary_llm_model_async_stream(
+    model: BaseChatModel, 
+    system_prompt: str
+) -> RunnableSerializable[Dict[str, Any], AsyncIterator[AIMessage]]:
+    """包装模型，使其接受 `{"user_input": "..."}` 并返回流式 AI 响应"""
+    
+    async def stream_response(inputs: Dict[str, Any]) -> AsyncIterator[AIMessage]:
+        # 构造消息：系统提示 + 用户输入
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=inputs["user_input"])
+        ]
+        
+        # 流式调用模型
+        async for chunk in model.astream(messages):
+            yield chunk
+    
+    return RunnableLambda(stream_response)
 
 
 def filter_rnafold(input_file_path: str, rnafold_energy_threshold: float) -> str:
@@ -123,8 +158,20 @@ async def run_neoanigenselection(
     pmtnet_result_file_path = None
     nettcr_result_file_path = None
     filter_rnafold_result_file_path=None
+    #初始化工具过程流式输出
+    writer = get_stream_writer()
+    
+
+    # 初始化 GPT-4 模型
+    summary_llm = get_model(
+                    FileDescriptionName.GPT_4O, FileDescriptionName.TEMPERATURE, 
+                    FileDescriptionName.MAX_TOKENS, FileDescriptionName.BASE_URL, 
+                    FileDescriptionName.FREQUENCY_PENALTY
+                    )    
+    
 
 #第一步：蛋白切割位点预测
+    writer("# 正在将您的输入的蛋白质文件，进行蛋白切割位点预测，请稍后。\n")
     netchop_result = await NetChop.arun({"input_file" : input_file,"cleavage_site_threshold" : 0.5})
 
     # 解析NetChop结果
@@ -174,7 +221,8 @@ async def run_neoanigenselection(
         return json.dumps({
             "type": "text",
             "content": "蛋白切割位点阶段未生成有效结果文件"
-        }, ensure_ascii=False)        
+        }, ensure_ascii=False)     
+    writer("## 蛋白切割位点阶段已完成，已经将您输入的蛋白质切割成一些有效的肽段。\n")  
         #################下载cleavage_result_file_path文件
             # print(cleavage_result_file_path)
             # # 解析MinIO路径
@@ -209,6 +257,7 @@ async def run_neoanigenselection(
 
 #第二步：pMHC结合亲和力预测
     # cleavage_result_file_path="minio://molly/f0e5822c-0c0b-4cb6-95f2-07ec51730ba6_test.fsa"
+    writer("# 现在正在将蛋白切割位点预测阶段获取的有效肽段进行pMHC结合亲和力预测，请稍后。\n")  
     mhc_allele_str = ",".join(mhc_allele) 
     netmhcpan_result = await NetMHCpan.arun({"input_file" : cleavage_result_file_path,"mhc_allele" : mhc_allele_str})
     try:
@@ -321,6 +370,24 @@ async def run_neoanigenselection(
                            ensure_ascii=False)
     # 筛选BindLevel为SB的行
     # sb_peptides = df[df['BindLevel'].str.strip().isin(['<= SB', '<= WB'])]
+    writer("## pMHC结合亲和力预测结果以获取，结果如下：\n") 
+    writer(f"{netmhcpan_result_dict['content']}。\n")
+    writer("### 接下来为您分析获取结果\n")
+
+    model_runnable = await wrap_summary_llm_model_async_stream(summary_llm, NETMHCPAN_PROMPT)
+    
+    # 模拟输入
+    inputs = {"user_input": netmhcpan_result_dict["content"]}
+    
+    # 流式获取输出
+    async for chunk in model_runnable.astream(inputs):
+        # print(chunk)
+        # writer(chunk.content) 
+        continue
+
+    writer(f"\n## 接下来为您筛选符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，请稍后。\n") 
+    
+
     sb_peptides = df[df['BindLevel'].str.strip().isin(BIND_LEVEL_ALTERNATIVE)]
 
     # 检查是否存在SB肽段
@@ -369,8 +436,11 @@ async def run_neoanigenselection(
         raise
 
     netmhcpan_result_file_path = f"minio://molly/{netmhcpan_result_fasta_filename}"
+    writer(f"## 已完成筛选符合要求的高亲和力的肽段，结果如下：\n     {fasta_str}，\n接下来将对这些高亲和力肽段进行细胞内的抗原呈递概率预测，请稍后。\n") 
     #传入辅助模型进行选择阳性肽段
+
     bigmhc_el_result = await BigMHC_EL.arun({"peptide_input": netmhcpan_result_file_path,"hla_input":mhc_allele})  #TODO 修改
+
     try:
         # 解析返回的JSON结果
         bigmhc_el_result_dict = json.loads(bigmhc_el_result)
@@ -422,6 +492,20 @@ async def run_neoanigenselection(
                            "content": f"蛋白切割位点预测阶段文件以生成，请下载cleavage_result.fasta文件查看\npMHC结合亲和力预测阶段未成功运行，无法从 MinIO 读取文件: {str(e)}"}, 
                            ensure_ascii=False)     
 
+    writer(f"## 已完成细胞内的抗原呈递概率预测，结果如下：\n") 
+    writer(f"{bigmhc_el_result_dict['content']}。\n")
+    writer("## 以下是对结果进行一定的分析。\n")
+    model_runnable = await wrap_summary_llm_model_async_stream(summary_llm, BIGMHC_EL_PROMPT)
+    
+    # 模拟输入
+    inputs = {"user_input": bigmhc_el_result_dict["content"]}
+    
+    # 流式获取输出
+    async for chunk in model_runnable.astream(inputs):
+        # print(chunk)
+        # writer(chunk.content) 
+        continue
+    writer(f"\n## 接下来为您筛选为BigMHC_EL >= {BIGMHC_EL_THRESHOLD}的抗原呈递概率的肽段，请稍后。\n") 
     # 筛选BigMHC_EL值≥0.5的行
     high_affinity_peptides = df[df['BigMHC_EL'] >= BIGMHC_EL_THRESHOLD]
 
@@ -476,7 +560,9 @@ async def run_neoanigenselection(
     except Exception as e:
         raise 
     bigmhc_el_result_file_path = f"minio://molly/{bigmhc_el_result_fasta_filename}"
+    writer(f"## 已完成筛选符合要求的抗原呈递概率的肽段，结果如下：\n     {fasta_str}，\n接下来将对这些肽段进行pMHC免疫原性预测，请稍后。\n")     
 #第三步 pMHC免疫原性预测
+    writer("# 现在正在将pMHC结合亲和力预测阶段获取的有效肽段进行pMHC免疫原性预测，请稍后。\n")  
     bigmhc_im_result = await BigMHC_IM.arun({"input_file": bigmhc_el_result_file_path})  
 
     try:
@@ -516,6 +602,20 @@ async def run_neoanigenselection(
 
     # 获取结果文件路径
     bigmhc_im_result_file_path = bigmhc_im_result_dict["url"]
+    writer("## pMHC免疫原性预测预测结果以获取，结果如下：\n") 
+    writer(f"{bigmhc_im_result_dict['content']}。\n")
+    writer("### 接下来为您分析获取结果\n")  
+
+    model_runnable = await wrap_summary_llm_model_async_stream(summary_llm, BIGMHC_IM_PROMPT)
+    
+    # 模拟输入
+    inputs = {"user_input": bigmhc_im_result_dict["content"]}
+    
+    # 流式获取输出
+    async for chunk in model_runnable.astream(inputs):
+        # print(chunk)
+        # writer(chunk.content) 
+        continue      
 
     # 解析MinIO文件路径，提取桶名和文件名
     try:
@@ -559,7 +659,7 @@ async def run_neoanigenselection(
             },
             ensure_ascii=False,
         )         
-
+    writer(f"\n## 接下来为您筛选符合BigMHC_IM >={BIGMHC_IM_THRESHOLD}要求的高亲和力的肽段，请稍后。\n") 
     # 筛选BigMHC_IM值≥0.6的行
     high_affinity_peptides = df[df['BigMHC_IM'] >= BIGMHC_IM_THRESHOLD]
 
@@ -617,7 +717,7 @@ async def run_neoanigenselection(
     except Exception as e:
         raise 
     bigmhc_im_result_file_path = f"minio://molly/{bigmhc_im_result_fasta_filename}"
-
+    writer(f"## 已完成筛选符合要求的高免疫原性的肽段，结果如下：\n     {fasta_str}，\n") 
 
     if cdr3_sequence == None:
         # result = {
@@ -626,14 +726,32 @@ async def run_neoanigenselection(
         #     "content": "提供的下载下载链接是筛选到合适的肽段以及对应的HLA分型"  # 替换为生成的 Markdown 内容
         # }
         # return json.dumps(result, ensure_ascii=False)
-    
+        # writer("## 未提供cdr3序列无法进行下一步pMHC-TCR相互作用预测。\n")
+        writer("## 未提供cdr3序列无法进行下一步pMHC-TCR相互作用预测。\n")
+        writer("## 正在将上面筛选到的高免疫肽段进行mRNA筛选，请稍后。\n") 
         #pMHC免疫原性预测阶段筛选mRNA流程代码逻辑
         cds_result = await concatenate_peptides_with_linker(bigmhc_im_result_file_path)
         if cds_result != None:
-            utr_spacer_rnafold_result=await utr_spacer_rnafold_to_mrna(cds_result)
-            result_str = str(utr_spacer_rnafold_result)
+            utr_spacer_rnafold_result_url,utr_spacer_rnafold_result_content=await utr_spacer_rnafold_to_mrna(cds_result)
+            result_str = str(utr_spacer_rnafold_result_url)
             if result_str.endswith('.xlsx'):
+                writer("## mRNA筛选流程结果以获取，结果如下，在肽段信息这一列中：linear代表线性mRNA，circular代码环状mRNA：\n") 
+                writer(f"{utr_spacer_rnafold_result_content}。\n")
+                writer("### 接下来为您分析获取结果\n")
+                model_runnable = await wrap_summary_llm_model_async_stream(summary_llm, RNAFOLD_PROMPT)
+                
+                # 模拟输入
+                inputs = {"user_input": utr_spacer_rnafold_result_content}
+                
+                # 流式获取输出
+                async for chunk in model_runnable.astream(inputs):
+                    # print(chunk)
+                    # writer(chunk.content) 
+                    continue                
+
                 filter_rnafold_result_file_path = filter_rnafold(result_str,RNAFOLD_ENERGY_THRESHOLD)
+
+                writer(f"\n## 接下来为您筛选符合MFE结构 <= {RNAFOLD_ENERGY_THRESHOLD}的mRNA，请稍后在filter_RNAFold_results.xlsx文件中查看。\n")
                 return json.dumps(
                     {
                         "type": "link",
@@ -694,6 +812,8 @@ async def run_neoanigenselection(
 
     #第四步 pMHC-TCR相互作用预测         
     else:
+        writer("# 正在将筛选出来的高免疫原性肽段，进行pMHC-TCR相互作用预测，请稍后。\n")
+
         # tmp_file_path="minio://molly/66dd7c86-f1c4-455e-9e50-3b2a77be66c9_test_input.csv"
         pmtnet_result = await pMTnet.arun({"cdr3_list":cdr3_sequence,"uploaded_file": bigmhc_im_result_file_path})  #TODO 修改
         try:
@@ -741,6 +861,21 @@ async def run_neoanigenselection(
                 ensure_ascii=False,
             )                   
     pmtnet_result_file_path = pmtnet_result_dict["url"]
+    writer("## pMHC-TCR相互作用预测结果以获取，结果如下：\n") 
+    writer(f"{pmtnet_result_dict['content']}。\n")
+    writer("### 接下来为您分析获取结果\n")    
+
+    model_runnable = await wrap_summary_llm_model_async_stream(summary_llm, PMTNET_PROMPT)
+    
+    # 模拟输入
+    inputs = {"user_input": pmtnet_result_dict["content"]}
+    
+    # 流式获取输出
+    async for chunk in model_runnable.astream(inputs):
+        # print(chunk)
+        # writer(chunk.content) 
+        continue
+
     if cdr3_sequence != "complete":
         # # return pmtnet_result_dict
         # return json.dumps(
@@ -764,6 +899,7 @@ async def run_neoanigenselection(
         # )     
         # 解析MinIO文件路径，提取桶名和文件名
         try:
+            
             # 去掉minio://前缀
             path_without_prefix = pmtnet_result_file_path[len("minio://"):]
             
@@ -796,6 +932,7 @@ async def run_neoanigenselection(
 
         # 从MinIO读取CSV文件并筛选Rank ≥ PMTNET_RANK的肽段
         try:
+            writer(f"\n## 接下来为您筛选符合Rank >={PMTNET_RANK}要求的的肽段，请稍后。\n") 
             # 从MinIO获取文件
             response = minio_client.get_object(bucket_name, object_name)
             csv_data = BytesIO(response.read())
@@ -863,14 +1000,30 @@ async def run_neoanigenselection(
             
             # 生成文件路径
             pmtnet_filtered_file_path = f"minio://molly/{pmtnet_filtered_fasta_filename}"
-
+            writer(f"## 已完成筛选pMHC-TCR相互作用预测的肽段，结果如下：\n     {fasta_str}，\n接下来将对这些肽段进行mRNA筛选，请稍后。\n") 
             #pMHC-TCR相互作用预测阶段筛选mRNA流程代码逻辑
             cds_result = await concatenate_peptides_with_linker(pmtnet_filtered_file_path)
             if cds_result != None:
-                utr_spacer_rnafold_result=await utr_spacer_rnafold_to_mrna(cds_result)
-                result_str = str(utr_spacer_rnafold_result)
+                utr_spacer_rnafold_result_url,utr_spacer_rnafold_result_content=await utr_spacer_rnafold_to_mrna(cds_result)
+                result_str = str(utr_spacer_rnafold_result_url)
                 if result_str.endswith('.xlsx'):
+                    writer("## mRNA筛选流程结果以获取，结果如下，在肽段信息这一列中：linear代表线性mRNA，circular代码环状mRNA：\n") 
+                    writer(f"{utr_spacer_rnafold_result_content}。\n")
+                    writer("### 接下来为您分析获取结果\n")
+                    model_runnable = await wrap_summary_llm_model_async_stream(summary_llm, RNAFOLD_PROMPT)
+                    
+                    # 模拟输入
+                    inputs = {"user_input": utr_spacer_rnafold_result_content}
+                    
+                    # 流式获取输出
+                    async for chunk in model_runnable.astream(inputs):
+                        # print(chunk)
+                        # writer(chunk.content) 
+                        continue                
+
                     filter_rnafold_result_file_path = filter_rnafold(result_str,RNAFOLD_ENERGY_THRESHOLD)
+
+                    writer(f"\n## 接下来为您筛选符合MFE结构 <= {RNAFOLD_ENERGY_THRESHOLD}的mRNA，请稍后在filter_RNAFold_results.xlsx文件中查看。\n")
                     return json.dumps(
                         {
                             "type": "link",

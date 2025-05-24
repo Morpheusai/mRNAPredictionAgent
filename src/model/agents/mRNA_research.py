@@ -467,7 +467,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 peptide_input = tool_call["args"].get("peptide_input")
                 hla_input = tool_call["args"].get("hla_input")
                 input_file = tool_call["args"].get("input_file")
-                func_result = await BigMHC_EL(
+                func_result = await BigMHC_EL.ainvoke(
                     peptide_input=peptide_input,
                     hla_input=hla_input,
                     input_file=input_file
@@ -482,7 +482,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 peptide_input = tool_call["args"].get("peptide_input")
                 hla_input = tool_call["args"].get("hla_input")
                 input_file = tool_call["args"].get("input_file")
-                func_result = await BigMHC_IM(
+                func_result = await BigMHC_IM.ainvoke(
                     peptide_input=peptide_input,
                     hla_input=hla_input,
                     input_file=input_file

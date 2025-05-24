@@ -129,7 +129,7 @@ async def utr_spacer_rnafold_to_mrna(fasta_file, mRNA_type="both"):
                 raise
 
             if rnafold_result_dict.get("type") == "link":
-                return rnafold_result_dict["url"]
+                return rnafold_result_dict["url"],rnafold_result_dict["content"]
             else:
                 return rnafold_result_dict["content"]
         else:
