@@ -101,9 +101,9 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
         structure_output = PatientCaseSummaryReport
     )
     response = await model_runnable.ainvoke(state, config)
-    logger.info(f"patient analysis llm response: {system_prompt}")
     # TODO, debug
-    action = response.content["action"]
+    action = response.action
+    logger.info(f"patient analysis llm response: {response}, {action}")
     if action == "NO":
         return Command(
             update = {
@@ -111,10 +111,10 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
             },
             goto = END
         )
-    mhc_allele = response.content["mhc_allele"]
-    cdr3 = response.content["cdr3"]
-    input_fsa_filename = response.content["input_fsa_filename"]
-    summary = response.content["summary"]
+    mhc_allele = response.mhc_allele
+    cdr3 = response.cdr3
+    input_fsa_filename = response.input_fsa_filename
+    summary = response.summary
 
     # 返回结果
     return Command(
@@ -124,30 +124,27 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
             "input_fsa_filename": input_fsa_filename,
             "patient_case_summary": summary
         },
-        goto = "NetChopNode"
+        goto = "mrna_design_node"
     )
 
-async def mRNADesginNode(state: AgentState, config: RunnableConfig):
+async def mRNADesignNode(state: AgentState, config: RunnableConfig):
     
     input_fsa_filename = state["input_fsa_filename"]
     mhc_allele = state["mhc_allele"]
     cdr3 = state["cdr3"]
 
+    logger.info(f"mRNADesignNode args: fsa filename: {input_fsa_filename}, mhc_allele: {mhc_allele}, cdr3: {cdr3}")
     # 1. 通过state参数构建NeoAntigenResearch工具输入参数
     result = await NeoAntigenSelection.arun(
-        input_file = input_fsa_filename,
-        mhc_allele = mhc_allele,
-        cdr3_sequence = cdr3
+        {
+            "input_file": input_fsa_filename,
+            "mhc_allele": [mhc_allele],
+            "cdr3_sequence": [cdr3]
+        }
     )
 
     return Command(
-        update = {
-            "mhc_allele": mhc_allele,
-            "cdr3": cdr3,
-            "input_fsa_filename": input_fsa_filename,
-            "patient_case_summary": summary
-        },
-        goto = "NetMHCPanNode"
+        goto = END
     )
 
 async def CaseReportNode(state: AgentState, config: RunnableConfig):
@@ -159,11 +156,11 @@ async def CaseReportNode(state: AgentState, config: RunnableConfig):
 # Define the graph
 PatientCaseMrnaAgent = StateGraph(AgentState)
 PatientCaseMrnaAgent.add_node("patient_case_analysis", PatientCaseAnalysisNode)
-PatientCaseMrnaAgent.add_node("mrna_desgin_node", mRNADesginNode)
+PatientCaseMrnaAgent.add_node("mrna_design_node", mRNADesignNode)
 PatientCaseMrnaAgent.add_node("case_report", CaseReportNode)
 PatientCaseMrnaAgent.set_entry_point("patient_case_analysis")
 
-async def patient_case_mRNA_research_nodes():
+async def compile_patient_case_mRNA_research():
     patient_case_mRNA_research_nodes_conn = await aiosqlite.connect("checkpoints.sqlite")
     patient_case_mRNA_research_nodes = PatientCaseMrnaAgent.compile(checkpointer=AsyncSqliteSaver(patient_case_mRNA_research_nodes_conn))
     return patient_case_mRNA_research_nodes, patient_case_mRNA_research_nodes_conn

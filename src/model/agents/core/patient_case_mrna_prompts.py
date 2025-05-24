@@ -1,4 +1,5 @@
 # mRNA_agent.py
+RAG_SUMMARY_PROMPT = ""
 PatientCaseReportAnalysisPrompt = \
 """
 # 场景需求

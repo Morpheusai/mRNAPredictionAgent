@@ -149,6 +149,7 @@ async def run_neoanigenselection(
     mhc_allele: Optional[List[str]] ,  # mhc分型
     cdr3_sequence: Optional[List[str]]    #CDR3序列数据
     ) -> str:
+
     # 初始化变量
     netchop_result_file_path = None
     cleavage_result_file_path = None
@@ -158,19 +159,18 @@ async def run_neoanigenselection(
     pmtnet_result_file_path = None
     nettcr_result_file_path = None
     filter_rnafold_result_file_path=None
+
     #初始化工具过程流式输出
     writer = get_stream_writer()
     
-
     # 初始化 GPT-4 模型
     summary_llm = get_model(
-                    FileDescriptionName.GPT_4O, FileDescriptionName.TEMPERATURE, 
-                    FileDescriptionName.MAX_TOKENS, FileDescriptionName.BASE_URL, 
-                    FileDescriptionName.FREQUENCY_PENALTY
-                    )    
-    
+        FileDescriptionName.GPT_4O, FileDescriptionName.TEMPERATURE, 
+        FileDescriptionName.MAX_TOKENS, FileDescriptionName.BASE_URL, 
+        FileDescriptionName.FREQUENCY_PENALTY
+    )    
 
-#第一步：蛋白切割位点预测
+    ######################### 第一步：蛋白切割位点预测 #################################
     writer("# 正在将您的输入的蛋白质文件，进行蛋白切割位点预测，请稍后。\n")
     netchop_result = await NetChop.arun({"input_file" : input_file,"cleavage_site_threshold" : 0.5})
 
@@ -196,7 +196,6 @@ async def run_neoanigenselection(
 
     # 检查最终结果是否包含有效文件
     if cleavage_result_dict.get("type") == "link":
-        
         # 验证文件是否为空
         cleavage_result_file_path = cleavage_result_dict["url"]
         try:
@@ -206,134 +205,64 @@ async def run_neoanigenselection(
             stat = minio_client.stat_object(bucket_name, object_name)
             
             if stat.size == 0:  # 文件大小为0
-                return json.dumps({
-                    "type": "text",
-                    "content": "蛋白切割位点阶段未找到符合长度和剪切条件的肽段"
-                }, ensure_ascii=False)
+                return json.dumps(
+                    {
+                        "type": "text",
+                        "content": "蛋白切割位点阶段未找到符合长度和剪切条件的肽段"
+                    }, 
+                    ensure_ascii = False
+                )
         except S3Error as e:
-            return json.dumps({
-                "type": "text",
-                "content": f"蛋白切割位点阶段NetChop_Cleavage工具执行失败: {str(e)}"
-            }, ensure_ascii=False)    
+            return json.dumps(
+                {
+                    "type": "text",
+                    "content": f"蛋白切割位点阶段NetChop_Cleavage工具执行失败: {str(e)}"
+                }, 
+                ensure_ascii = False
+            )    
         
     # 检查是否成功获取文件路径
     if not cleavage_result_file_path:
-        return json.dumps({
-            "type": "text",
-            "content": "蛋白切割位点阶段未生成有效结果文件"
-        }, ensure_ascii=False)     
+        return json.dumps(
+            {
+                "type": "text",
+                "content": "蛋白切割位点阶段未生成有效结果文件"
+            }, 
+            ensure_ascii = False
+        )     
     writer("## 蛋白切割位点阶段已完成，已经将您输入的蛋白质切割成一些有效的肽段。\n")  
-        #################下载cleavage_result_file_path文件
-            # print(cleavage_result_file_path)
-            # # 解析MinIO路径
-            # try:
-            #     path_without_prefix = cleavage_result_file_path[len("minio://"):]
-            #     bucket_name, object_name = path_without_prefix.split("/", 1)
-            #     print(f"解析成功 - 桶: {bucket_name}, 文件: {object_name}")
-            # except Exception as e:
-            #     print(f"路径解析失败: {str(e)}")
-            #     raise  # 或者使用 sys.exit(1) 直接退出
 
-            # # 下载并保存文件
-            # try:
-            #     debug_path = f"/tmp/{object_name}"
-                
-            #     # 使用更高效的 fget_object 直接保存到本地
-            #     minio_client.fget_object(bucket_name, object_name, debug_path)
-                
-            #     # 验证文件
-            #     if os.path.exists(debug_path):
-            #         file_size = os.path.getsize(debug_path)
-            #         print(f"文件已保存到 {debug_path} (大小: {file_size}字节)")
-            #     else:
-            #         print("警告: 文件保存后验证失败")
-
-            # except Exception as e:
-            #     import traceback
-            #     print(f"文件下载失败: {str(e)}")
-            #     traceback.print_exc()  
-
-
-
-#第二步：pMHC结合亲和力预测
-    # cleavage_result_file_path="minio://molly/f0e5822c-0c0b-4cb6-95f2-07ec51730ba6_test.fsa"
+    ######################### 第二步：pMHC结合亲和力预测 #################################
     writer("# 现在正在将蛋白切割位点预测阶段获取的有效肽段进行pMHC结合亲和力预测，请稍后。\n")  
     mhc_allele_str = ",".join(mhc_allele) 
     netmhcpan_result = await NetMHCpan.arun({"input_file" : cleavage_result_file_path,"mhc_allele" : mhc_allele_str})
     try:
         netmhcpan_result_dict = json.loads(netmhcpan_result)
     except json.JSONDecodeError:
-        return json.dumps({"type": "link", 
-                           "url":{"result_file_url": cleavage_result_file_path,  },
-                           "content": f"蛋白切割位点预测阶段文件以生成，请下载cleavage_result.fasta文件查看\npMHC结合亲和力预测阶段NetMHCpan工具执行失败"}, ensure_ascii=False)
+        return json.dumps(
+            {
+                "type": "link", 
+                "url":{"result_file_url": cleavage_result_file_path},
+                "content": f"pMHC结合亲和力预测阶段NetMHCpan工具执行失败"
+            }, 
+            ensure_ascii = False
+        )
     
     # 检查NetMHCpan是否成功
     if netmhcpan_result_dict.get("type") != "link":
         # 直接返回NetMHCpan的错误信息
         # return netmhcpan_result
-        return json.dumps({"type": "link", 
-                           "url":{"result_file_url": cleavage_result_file_path,  },
-                           "content": f"蛋白切割位点预测阶段文件以生成，请下载cleavage_result.fasta文件查看\npMHC结合亲和力预测阶段未成功运行，{netmhcpan_result_dict['content']}"}, ensure_ascii=False)
+        return json.dumps(
+            {
+                "type": "link", 
+                "url":{"result_file_url": cleavage_result_file_path,  },
+                "content": f"pMHC结合亲和力预测阶段未成功运行，{netmhcpan_result_dict['content']}"
+            }, 
+            ensure_ascii = False
+        )
         
     #获取肽段
     netmhcpan_result_file_path = netmhcpan_result_dict["url"]
-# ########下载netmhcpan_result_file_path文件
-#     # 解析MinIO路径
-#     try:
-#         path_without_prefix = netmhcpan_result_file_path[len("minio://"):]
-#         first_slash_index = path_without_prefix.find("/")
-        
-#         if first_slash_index == -1:
-#             raise ValueError("Invalid file path format")
-        
-#         bucket_name = path_without_prefix[:first_slash_index]
-#         object_name = path_without_prefix[first_slash_index + 1:]
-#         print(f"MinIO路径解析成功 - 桶名: {bucket_name}, 对象名: {object_name}")
-#     except Exception as e:
-#         print(f"MinIO路径解析失败: {str(e)}")
-#         return json.dumps({
-#             "type": "link", 
-#             "url": {"result_file_url": cleavage_result_file_path},
-#             "content": "蛋白切割位点预测阶段文件已生成\npMHC结合亲和力预测文件路径解析失败"
-#         }, ensure_ascii=False)
-
-#     # 下载并处理Excel文件
-#     try:
-#         # 下载文件
-#         response = minio_client.get_object(bucket_name, object_name)
-#         file_data = response.read()
-        
-#         # 验证文件内容
-#         if len(file_data) < 100:  # Excel文件通常大于100字节
-#             raise ValueError("文件大小异常，可能下载不完整")
-        
-#         # 保存原始文件用于调试
-#         debug_path = f"/tmp/{object_name}"
-#         with open(debug_path, 'wb') as f:
-#             f.write(file_data)
-#         print(f"已保存原始文件到 {debug_path}")
-        
-#         # 尝试读取Excel
-#         excel_data = BytesIO(file_data)
-#         try:
-#             df = pd.read_excel(excel_data, engine='openpyxl')
-#         except Exception as e:
-#             excel_data.seek(0)
-#             try:
-#                 df = pd.read_excel(excel_data, engine='xlrd')
-#             except:
-#                 raise ValueError(f"无法用任何引擎读取Excel: {str(e)}")
-                
-#         print(f"成功读取Excel，共{len(df)}行数据")
-        
-#     except Exception as e:
-#         print(f"文件处理失败: {str(e)}")
-#         return json.dumps({
-#             "type": "link",
-#             "url": {"result_file_url": cleavage_result_file_path},
-#             "content": f"蛋白切割位点预测阶段文件已生成\npMHC结合亲和力预测文件处理失败: {str(e)}"
-#         }, ensure_ascii=False)
-        #提取桶名和文件
     try:
         # 去掉 minio:// 前缀
         path_without_prefix = netmhcpan_result_file_path[len("minio://"):]
@@ -360,16 +289,15 @@ async def run_neoanigenselection(
         excel_data = BytesIO(response.read())
         df = pd.read_excel(excel_data)  
     except S3Error as e:
-        # return json.dumps({
-        #     "type": "text",
-        #     "content": f"无法从 MinIO 读取文件: {str(e)}"
-        # }, ensure_ascii=False)       
-        return json.dumps({"type": "link", 
-                           "url":{"result_file_url": cleavage_result_file_path,},
-                           "content": f"蛋白切割位点预测阶段文件以生成，请下载cleavage_result.fasta文件查看\npMHC结合亲和力预测阶段未成功运行，无法从 MinIO 读取文件: {str(e)}"}, 
-                           ensure_ascii=False)
+        return json.dumps(
+            {
+                "type": "link", 
+                "url":{"result_file_url": cleavage_result_file_path,},
+                "content": f"pMHC结合亲和力预测阶段未成功运行，无法从 MinIO 读取文件: {str(e)}"
+            },
+            ensure_ascii = False
+        )
     # 筛选BindLevel为SB的行
-    # sb_peptides = df[df['BindLevel'].str.strip().isin(['<= SB', '<= WB'])]
     writer("## pMHC结合亲和力预测结果以获取，结果如下：\n") 
     writer(f"{netmhcpan_result_dict['content']}。\n")
     writer("### 接下来为您分析获取结果\n")
@@ -386,20 +314,19 @@ async def run_neoanigenselection(
         continue
 
     writer(f"\n## 接下来为您筛选符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，请稍后。\n") 
-    
 
     sb_peptides = df[df['BindLevel'].str.strip().isin(BIND_LEVEL_ALTERNATIVE)]
 
     # 检查是否存在SB肽段
     if sb_peptides.empty:
-        # return json.dumps({
-        #     "type": "text",
-        #     "content": "pMHC结合亲和力预测NetMHCpan工具未找到高亲和力肽段"
-        # }, ensure_ascii=False)    
-        return json.dumps({"type": "link", 
-                    "url":{"result_file_url": cleavage_result_file_path,},
-                    "content": f"蛋白切割位点预测阶段文件以生成，请下载cleavage_result.fasta文件查看\npMHC结合亲和力预测阶段结束，NetMHCpan工具未找到高亲和力肽段"}, 
-                    ensure_ascii=False)
+        return json.dumps(
+            {
+               "type": "link", 
+               "url":{"result_file_url": cleavage_result_file_path,},
+               "content": f"pMHC结合亲和力预测阶段结束，NetMHCpan工具未找到高亲和力肽段"
+            },
+            ensure_ascii = False
+        )
 
     # 创建FASTA内容
     fasta_content = []
@@ -430,9 +357,7 @@ async def run_neoanigenselection(
             length=len(fasta_bytes),
             content_type='text/plain'
         )
-        # logger.info(f"FASTA文件已成功上传到: minio://molly/{fasta_filename}")
     except Exception as e:
-        # logger.error(f"上传FASTA文件到MinIO失败: {e}")
         raise
 
     netmhcpan_result_file_path = f"minio://molly/{netmhcpan_result_fasta_filename}"
@@ -561,7 +486,7 @@ async def run_neoanigenselection(
         raise 
     bigmhc_el_result_file_path = f"minio://molly/{bigmhc_el_result_fasta_filename}"
     writer(f"## 已完成筛选符合要求的抗原呈递概率的肽段，结果如下：\n     {fasta_str}，\n接下来将对这些肽段进行pMHC免疫原性预测，请稍后。\n")     
-#第三步 pMHC免疫原性预测
+    ############################## 第三步 pMHC免疫原性预测 ##########################################
     writer("# 现在正在将pMHC结合亲和力预测阶段获取的有效肽段进行pMHC免疫原性预测，请稍后。\n")  
     bigmhc_im_result = await BigMHC_IM.arun({"input_file": bigmhc_el_result_file_path})  
 
