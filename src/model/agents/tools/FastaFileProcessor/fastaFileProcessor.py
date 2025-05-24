@@ -81,6 +81,11 @@ def FastaFileProcessor(input_file):
     Return whether there are errors or the corrected file address
     """
     try:
+        if not isinstance(input_file, str) or not input_file.startswith("minio://"):
+            return json.dumps({
+                "type": "text",
+                "content": "输入无效，请确认使用默认文件或上传文件。"
+            }, ensure_ascii=False)
         errors = []  # 错误列表
         records = []  # 用于存储解析后的FASTA记录
         current_header = None  # 当前正在处理的header

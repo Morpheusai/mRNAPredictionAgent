@@ -1,3 +1,4 @@
+import aiosqlite
 import inspect
 import json
 
@@ -367,6 +368,14 @@ async def message_generator(
         yield "data: [DONE]\n\n"
 
 
+async def delete_thread_state(thread_id: str):
+    conn = await aiosqlite.connect("checkpoints.sqlite")
+    async with conn.cursor() as cursor:
+        await cursor.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
+        await cursor.execute("DELETE FROM writes WHERE thread_id = ?", (thread_id,))
+        await conn.commit()
+    await conn.close()
+
 
 
 #mRNA_research的接口
@@ -456,3 +465,12 @@ async def describe_text(request: MinioRequest):
     except Exception as e:
         # 捕获异常并返回错误信息
         raise HTTPException(status_code=500, detail=str(e))
+
+#删除graph中图的状态
+@app.delete("/delete_thread/{thread_id}")
+async def reset_thread(thread_id: str):
+    try:
+        await delete_thread_state(thread_id)
+        return {"status": "success", "message": f"Thread {thread_id} 已清除"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"清除失败: {str(e)}")
