@@ -370,11 +370,28 @@ async def message_generator(
 
 async def delete_thread_state(thread_id: str):
     conn = await aiosqlite.connect("checkpoints.sqlite")
-    async with conn.cursor() as cursor:
-        await cursor.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
-        await cursor.execute("DELETE FROM writes WHERE thread_id = ?", (thread_id,))
-        await conn.commit()
-    await conn.close()
+    try:
+        async with conn.cursor() as cursor:
+            await cursor.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
+            await cursor.execute("DELETE FROM writes WHERE thread_id = ?", (thread_id,))
+            await conn.commit()
+    finally:
+        await conn.close()
+    
+async def thread_exists(thread_id: str) -> bool:
+    conn = await aiosqlite.connect("checkpoints.sqlite")
+    try:
+        async with conn.cursor() as cursor:
+            await cursor.execute("SELECT 1 FROM checkpoints WHERE thread_id = ? LIMIT 1", (thread_id,))
+            result1 = await cursor.fetchone()
+            if result1:
+                return True
+
+            await cursor.execute("SELECT 1 FROM writes WHERE thread_id = ? LIMIT 1", (thread_id,))
+            result2 = await cursor.fetchone()
+            return bool(result2)
+    finally:
+        await conn.close()
 
 
 
@@ -470,6 +487,11 @@ async def describe_text(request: MinioRequest):
 @app.delete("/delete_thread/{thread_id}")
 async def reset_thread(thread_id: str):
     try:
+        # 检查 thread_id 是否存在于 checkpoints 或 writes 中
+        exists = await thread_exists(thread_id)
+        if not exists:
+            return {"status": "success", "message": f"Thread {thread_id} 已删除或不存在"}
+        #删除状态
         await delete_thread_state(thread_id)
         return {"status": "success", "message": f"Thread {thread_id} 已清除"}
     except Exception as e:
