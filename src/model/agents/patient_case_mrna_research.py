@@ -2,7 +2,7 @@ import aiosqlite
 
 from pydantic import BaseModel, Field
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, MessagesState, StateGraph
@@ -18,6 +18,7 @@ from src.utils.log import logger
 from .core import get_model  # 相对导入
 from .core.patient_case_mrna_prompts import (
     PatientCaseReportAnalysisPrompt,
+    PatientCaseReportSummaryPrompt
 )
 
 class AgentState(MessagesState, total=False):
@@ -28,6 +29,7 @@ class AgentState(MessagesState, total=False):
     cdr3: str
     input_fsa_filename: str
     patient_case_summary: str
+    mrna_design_process_result: str
 
 # Data model
 class PatientCaseSummaryReport(BaseModel):
@@ -135,30 +137,68 @@ async def mRNADesignNode(state: AgentState, config: RunnableConfig):
 
     logger.info(f"mRNADesignNode args: fsa filename: {input_fsa_filename}, mhc_allele: {mhc_allele}, cdr3: {cdr3}")
     # 1. 通过state参数构建NeoAntigenResearch工具输入参数
-    result = await NeoAntigenSelection.arun(
+    mrna_design_process_result = await NeoAntigenSelection.ainvoke(
         {
             "input_file": input_fsa_filename,
             "mhc_allele": [mhc_allele],
             "cdr3_sequence": [cdr3]
         }
     )
-
+    
     return Command(
-        goto = END
+        update = {
+            "mrna_design_process_result": mrna_design_process_result
+        },
+        goto = "patient_case_report"
     )
 
-async def CaseReportNode(state: AgentState, config: RunnableConfig):
-    # 1. 通过state参数构建BigMHCNode工具输入参数   
-    # 2. 调用BigMHCNode工具
-    # 3. 调用大模型分析调用结果，看是否继续：END -> CDR3Node
-    return
+async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
+    logger.info(f"patient case report node")
+    mrna_design_process_result = state["mrna_design_process_result"]
+    model = get_model(
+        config["configurable"].get("model", None),
+        config["configurable"].get("temperature", None),
+        config["configurable"].get("max_tokens", None),
+        config["configurable"].get("base_url", None),
+        config["configurable"].get("frequency_penalty", None),
+    )
+    #添加文件到system token里面
+    file_list = config["configurable"].get("file_list", None)
+    # 处理文件列表
+    patient_info = ""
+    if file_list:
+        for conversation_file in file_list:
+            for file in conversation_file.files:
+                file_name = file.file_name
+                file_content = file.file_content
+                file_desc = file.file_desc
+                file_instructions = f"*上传文件名*: {file_name} \n" + \
+                                    f"*上传的文件描述*: {file_desc} \n" + \
+                                    f"*上传的文件内容*: {file_content} \n"
+                patient_info += file_instructions
+    logger.info(f"patient case report node, pi: {patient_info}")
+    system_prompt = PatientCaseReportSummaryPrompt.format(
+        patient_info = patient_info,
+    )
+    logger.info(f"patient case report prompt: {system_prompt}")
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content="mrna_design_process_result"),
+    ]
+    response = await model.ainvoke(messages)
+    logger.info(f"patient case report response: {response}")
+    return END
 
 # Define the graph
 PatientCaseMrnaAgent = StateGraph(AgentState)
 PatientCaseMrnaAgent.add_node("patient_case_analysis", PatientCaseAnalysisNode)
 PatientCaseMrnaAgent.add_node("mrna_design_node", mRNADesignNode)
-PatientCaseMrnaAgent.add_node("case_report", CaseReportNode)
+PatientCaseMrnaAgent.add_node("patient_case_report", PatientCaseReportNode)
+
 PatientCaseMrnaAgent.set_entry_point("patient_case_analysis")
+PatientCaseMrnaAgent.add_edge("patient_case_analysis", "mrna_design_node")
+PatientCaseMrnaAgent.add_edge("mrna_design_node", "patient_case_report")
+PatientCaseMrnaAgent.add_edge("patient_case_report", END)
 
 async def compile_patient_case_mRNA_research():
     patient_case_mRNA_research_nodes_conn = await aiosqlite.connect("checkpoints.sqlite")
