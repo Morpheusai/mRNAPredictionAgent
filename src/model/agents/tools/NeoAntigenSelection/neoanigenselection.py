@@ -90,7 +90,7 @@ async def wrap_summary_llm_model_async_stream(
     return RunnableLambda(stream_response)
 
 
-def filter_rnafold(input_file_path: str, rnafold_energy_threshold: float) -> str:
+def filter_rnafold(input_file_path: str, rnafold_energy_threshold: float) -> tuple[str, str]:
     """
     从MinIO下载RNAFold结果，过滤MFE结构，并上传到molly桶
     
@@ -119,12 +119,15 @@ def filter_rnafold(input_file_path: str, rnafold_energy_threshold: float) -> str
         # 提取自由能值（从"MFE结构"列）
         df["MFE_energy"] = df["MFE结构"].str.extract(r'\((-?\d+\.\d+)\)').astype(float)
         filtered_df = df[df["MFE_energy"] <= rnafold_energy_threshold]
+
+        # 4. 生成Markdown格式字符串
+        markdown_str = filtered_df.to_markdown(index=False)        
         
-        # 4. 保存过滤结果到新文件
+        # 5. 保存过滤结果到新文件
         filtered_local_path = f"{OUTPUT_TMP}/filtered_{Path(object_name).name}"
         filtered_df.to_excel(filtered_local_path, index=False)
         
-        # 5. 上传到molly桶
+        # 6. 上传到molly桶
         random_id = uuid.uuid4().hex
         new_object_name = f"{random_id}_filter_RNAFold_results.xlsx"
         minio_client.fput_object(
@@ -135,14 +138,18 @@ def filter_rnafold(input_file_path: str, rnafold_energy_threshold: float) -> str
         
         # 6. 清理临时文件
         Path(local_temp_path).unlink(missing_ok=True)
-        Path(filtered_local_path).unlink(missing_ok=True)
-        
-        return filtered_df.to_json(), f"minio://molly/{new_object_name}"
+        Path(filtered_local_path).unlink(missing_ok=True)        
+        return markdown_str, f"minio://molly/{new_object_name}"
     
     except S3Error as e:
         raise Exception(f"MinIO操作失败: {e}")
     except Exception as e:
         raise Exception(f"处理失败: {e}")
+    # finally:
+    #     # 7. 清理临时文件
+    #     Path(local_temp_path).unlink(missing_ok=True)
+    #     Path(filtered_local_path).unlink(missing_ok=True)
+
 
 
 async def run_neoanigenselection(
@@ -172,12 +179,12 @@ async def run_neoanigenselection(
         FileDescriptionName.FREQUENCY_PENALTY
     )    
 
-    ######################### 第一步：蛋白切割位点预测 #################################
+    ########################### 第一步：蛋白切割位点预测 #################################
     cleavage_site_threshold = 0.5
     STEP1_DESC1 = \
 f"""
-# 第1部分-NetChop工具开始
-将您的输入的肽段序列文件，进行蛋白切割位点预测，使用参数: cleavage_site_threshold-{cleavage_site_threshold}。\n"
+### 第1部分-NetChop工具开始
+将您的输入的肽段序列文件，进行蛋白切割位点预测，使用参数: cleavage_site_threshold-{cleavage_site_threshold}。\n
 """   
     writer(STEP1_DESC1)
     mrna_design_process_result.append(STEP1_DESC1)
@@ -260,20 +267,22 @@ f"""
 
     STEP1_DESC2 = \
 """
-# 第1部分-NetChop工具完成
+### 第1部分-NetChop工具完成
 已经将您输入的肽段序列切割成一些有效的肽段。\n
 """   
     writer(STEP1_DESC2)
     mrna_design_process_result.append(STEP1_DESC2)
 
-    ######################### 第二步：pMHC结合亲和力预测 #################################
+    ########################### 第二步：pMHC结合亲和力预测 #################################
     mhc_allele_str = ",".join(mhc_allele) 
-
     STEP2_DESC1 = \
 f"""
-# 第2部分-pMHC结合亲和力预测开始
-当前输入文件内容: {netchop_final_result_str},
-设置参数中，mhc allele选用: {mhc_allele_str}
+### 第2部分-pMHC结合亲和力预测开始
+当前输入文件内容: \n
+```
+{netchop_final_result_str}
+```
+\n设置参数中，mhc allele选用: {mhc_allele_str}
 """   
     writer(STEP2_DESC1)
     mrna_design_process_result.append(STEP2_DESC1)
@@ -338,9 +347,9 @@ f"""
     # 筛选BindLevel为SB的行
     STEP2_DESC2 = \
 f"""
-# 第2部分-pMHC结合亲和力预测结束
+### 第2部分-pMHC结合亲和力预测结束
 pMHC结合亲和力预测结果已获取，结果如下：\
-{netmhcpan_result_dict['content']}。\n
+{netmhcpan_result_dict['content']}\n
 \n## 接下来筛选符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，请稍后。\n
 """   
     writer(STEP2_DESC2)
@@ -349,6 +358,13 @@ pMHC结合亲和力预测结果已获取，结果如下：\
     sb_peptides = df[df['BindLevel'].str.strip().isin(BIND_LEVEL_ALTERNATIVE)]
     # 检查是否存在SB肽段
     if sb_peptides.empty:
+        STEP2_DESC3 = \
+    f"""
+    ### 第2部分-pMHC结合亲和力预测结束
+    未筛选到符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，筛选流程结束。
+    """ 
+        writer(STEP2_DESC3)  
+        mrna_design_process_result.append(STEP2_DESC3)        
         return json.dumps(
             {
                "type": "link", 
@@ -390,15 +406,17 @@ pMHC结合亲和力预测结果已获取，结果如下：\
     except Exception as e:
         raise
 
-    STEP2_DESC3 = \
+    STEP2_DESC4 = \
 f"""
-# 第2部分-pMHC结合亲和力预测并筛选结束
+### 第2部分-pMHC结合亲和力预测并筛选结束
 已完成筛选符合要求的高亲和力的肽段，结果如下：
+```
 {fasta_str}
+```
 接下来利用BigMHC_EL工具将对这些高亲和力肽段进行细胞内的抗原呈递概率预测，请稍后。
 """   
-    writer(STEP2_DESC3)
-    mrna_design_process_result.append(STEP2_DESC3)
+    writer(STEP2_DESC4)
+    mrna_design_process_result.append(STEP2_DESC4)
 
     #传入辅助模型进行选择阳性肽段
     netmhcpan_result_file_path = f"minio://molly/{netmhcpan_result_fasta_filename}"
@@ -458,21 +476,29 @@ f"""
             }, 
             ensure_ascii = False)     
 
-    STEP2_DESC4 = \
+    STEP2_DESC5 = \
 f"""
-# 第2部分-pMHC细胞内抗原呈递概率预测结束
+### 第2部分-pMHC细胞内抗原呈递概率预测结束
 已完成细胞内的抗原呈递概率预测，结果如下：
 {bigmhc_el_result_dict['content']}
+
 接下来为您筛选为BigMHC_EL >= {BIGMHC_EL_THRESHOLD}的抗原呈递概率的肽段
 """   
-    writer(STEP2_DESC4)
-    mrna_design_process_result.append(STEP2_DESC4)
+    writer(STEP2_DESC5)
+    mrna_design_process_result.append(STEP2_DESC5)
 
     # 筛选BigMHC_EL值≥0.5的行
     high_affinity_peptides = df[df['BigMHC_EL'] >= BIGMHC_EL_THRESHOLD]
 
     # 检查是否存在高亲和力肽段
     if high_affinity_peptides.empty:
+        STEP2_DESC6 = \
+    f"""
+    ### 第2部分-pMHC结合亲和力预测结束
+    未筛选到符合BigMHC_EL >= {BIGMHC_EL_THRESHOLD}要求的高抗原呈递概率的肽段，筛选流程结束。
+    """ 
+        writer(STEP2_DESC6)   
+        mrna_design_process_result.append(STEP2_DESC6)
         return json.dumps(
             {
                 "type": "text",
@@ -521,14 +547,16 @@ f"""
     except Exception as e:
         raise 
 
-    STEP2_DESC5 = \
+    STEP2_DESC7 = \
 f"""
-# 第2部分-pMHC细胞内抗原呈递概率预测结束并完成筛选
+### 第2部分-pMHC细胞内抗原呈递概率预测结束并完成筛选
 已完成细胞内的抗原呈递概率筛选，结果如下：
+```
 {fasta_str}
+```
 """   
-    writer(STEP2_DESC5)
-    mrna_design_process_result.append(STEP2_DESC5)
+    writer(STEP2_DESC7)
+    mrna_design_process_result.append(STEP2_DESC7)
 
 #    model_runnable = await wrap_summary_llm_model_async_stream(summary_llm, NETMHCPAN_PROMPT)
 #    # 模拟输入
@@ -539,11 +567,11 @@ f"""
 #        # writer(chunk.content) 
 #        continue
 #
-    ######################### 第三步 pMHC免疫原性预测 ####################################
+    ########################### 第三步 pMHC免疫原性预测 ####################################
     STEP3_DESC1 = \
 f"""
-# 第3部分-pMHC免疫原性预测
-基于BigMHC_IM工具进行pMHC免疫原性预测，当前输入文件内容: {fasta_str}, 
+### 第3部分-pMHC免疫原性预测
+基于BigMHC_IM工具对上述内容进行pMHC免疫原性预测 
 """   
     writer(STEP3_DESC1)
     mrna_design_process_result.append(STEP3_DESC1)
@@ -577,7 +605,7 @@ f"""
     # 获取结果文件路径
     STEP3_DESC2 = \
 f"""
-# 第3部分-pMHC免疫原性预测结束
+### 第3部分-pMHC免疫原性预测结束
 pMHC免疫原性预测预测结果已获取，结果如下：
 {bigmhc_im_result_dict['content']}。
 """   
@@ -616,8 +644,8 @@ pMHC免疫原性预测预测结果已获取，结果如下：
         )
     STEP3_DESC3 = \
 f"""
-# 第3部分-pMHC免疫原性预测后筛选
-接下来为您筛选符合BigMHC_IM >={BIGMHC_IM_THRESHOLD}要求的高亲和力的肽段
+### 第3部分-pMHC免疫原性预测后筛选
+接下来为您筛选符合BigMHC_IM >={BIGMHC_IM_THRESHOLD}要求的高免疫原性的肽段
 """   
     writer(STEP3_DESC3)
     mrna_design_process_result.append(STEP3_DESC3)
@@ -627,6 +655,14 @@ f"""
 
     # 检查是否存在高亲和力肽段
     if high_affinity_peptides.empty:
+        STEP3_DESC4 = \
+f"""
+### 第3部分-pMHC免疫原性预测后筛选
+未筛选到符合BigMHC_IM >= {BIGMHC_IM_THRESHOLD}要求的高免疫原性的肽段，筛选流程结束。
+""" 
+        writer(STEP3_DESC4)   
+        mrna_design_process_result.append(STEP3_DESC4)
+
         return json.dumps(
             {
                 "type": "text",
@@ -667,23 +703,27 @@ f"""
     except Exception as e:
         raise 
 
-    STEP3_DESC4 = \
+    STEP3_DESC5 = \
 f"""
-# 第3部分-pMHC免疫原性预测后筛选
+### 第3部分-pMHC免疫原性预测后筛选结束
 已完成筛选符合要求的高免疫原性的肽段，结果如下：
-{bigmhc_im_fasta_str} \n
+```
+{bigmhc_im_fasta_str}
+```\n
 """   
-    writer(STEP3_DESC4)
-    mrna_design_process_result.append(STEP3_DESC4)
+
+    writer(STEP3_DESC5)
+    mrna_design_process_result.append(STEP3_DESC5)
 
     bigmhc_im_result_file_path = f"minio://molly/{bigmhc_im_result_fasta_filename}"
     mrna_input_file_path = bigmhc_im_result_file_path
-    ######################### 第四步 pMTnet预测及筛选阶段 ####################################
+    ########################### 第四步 pMTnet预测及筛选阶段 ####################################
     if cdr3_sequence != None:
+
         STEP4_DESC1 = \
 f"""
-# 第4部分-pMHC-TCR相互作用预测
-输入内容：{bigmhc_im_fasta_str}
+### 第4部分-pMHC-TCR相互作用预测
+对上述内容进行pMHC-TCR相互作用预测
 设置参数,  cdr3序列：{cdr3_sequence}
 """   
         writer(STEP4_DESC1)
@@ -711,7 +751,7 @@ f"""
             )                   
         STEP4_DESC2 = \
 f"""
-# 第4部分-pMHC-TCR相互作用预测结束
+### 第4部分-pMHC-TCR相互作用预测结束
 结果如下:
 {pmtnet_result_dict['content']}。\n
 """   
@@ -746,7 +786,7 @@ f"""
         # 从MinIO读取CSV文件并筛选Rank ≥ PMTNET_RANK的肽段
         STEP4_DESC3 = \
 f"""
-# 第4部分-pMHC-TCR相互作用预测后筛选
+### 第4部分-pMHC-TCR相互作用预测后筛选
 接下来为您筛选符合PMTNET_Rank >={PMTNET_RANK}要求的的肽段，请稍后。\n
 """   
         writer(STEP4_DESC3)
@@ -815,9 +855,11 @@ f"""
             mrna_input_file_path = f"minio://molly/{pmtnet_filtered_fasta_filename}"
             STEP4_DESC4 = \
 f"""
-# 第4部分-pMHC-TCR相互作用预测后筛选
+### 第4部分-pMHC-TCR相互作用预测后筛选
 已完成筛选pMHC-TCR相互作用预测的肽段，结果如下：
+```
 {pmtnet_fasta_str}
+```\n
 """   
             writer(STEP4_DESC4)
             mrna_design_process_result.append(STEP4_DESC4)
@@ -846,12 +888,11 @@ f"""
 #        #writer(chunk.content) 
 #        continue
          
-    ######################### 第五步 mRNA疫苗设计阶段 ####################################
+    ########################### 第五步 mRNA疫苗设计阶段 ####################################
     STEP5_DESC1 = \
 f"""
-# 第5部分-mRNA疫苗设计
-输入以下内容，完成cds区域的序列
-{pmtnet_fasta_str}
+### 第5部分-mRNA疫苗设计
+基于默认的裂解子对对上述肽段序列，完成cds区域的序列
 """
     writer(STEP5_DESC1)
     mrna_design_process_result.append(STEP5_DESC1)
@@ -876,19 +917,21 @@ f"""
             )   
     STEP5_DESC2 = \
 f"""
-# 第5部分-mRNA疫苗设计
-输入以下内容，完成筛选符合MFE结构 <= {RNAFOLD_ENERGY_THRESHOLD}的mRNA
-{rnafold_input_str}
+### 第5部分-mRNA疫苗设计
+输入上述内容，进行符合MFE结构 <= {RNAFOLD_ENERGY_THRESHOLD}的mRNA筛选
 """
     writer(STEP5_DESC2)
     mrna_design_process_result.append(STEP5_DESC2)
 
     filter_rnafold_result, filter_rnafold_result_file_path = filter_rnafold(rnafold_input_str, RNAFOLD_ENERGY_THRESHOLD)
+
     STEP5_DESC3 = \
 f"""
-# 第5部分-mRNA疫苗设计
-完成筛选符合MFE结构 <= {RNAFOLD_ENERGY_THRESHOLD}的mRNA，结果如下
+### 第5部分-mRNA疫苗设计
+完成筛选符合MFE结构 <= {RNAFOLD_ENERGY_THRESHOLD}的mRNA，结果如下:
+```
 {filter_rnafold_result}
+```
 """
     writer(STEP5_DESC3)
     mrna_design_process_result.append(STEP5_DESC3)

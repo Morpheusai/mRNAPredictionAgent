@@ -27,7 +27,7 @@ class AgentState(MessagesState, total=False):
     """
     mhc_allele: str
     cdr3: str
-    input_fsa_filename: str
+    input_fsa_filepath: str
     patient_case_summary: str
     mrna_design_process_result: str
 
@@ -46,9 +46,9 @@ class PatientCaseSummaryReport(BaseModel):
         ...,
         description="病例中测结果中检测到的CDR3序列",
     )
-    input_fsa_filename: str = Field(
+    input_fsa_filepath: str = Field(
         ...,
-        description="病人上传的fsa文件",
+        description="病人上传的fsa文件路径",
     )
     summary: str = Field(
         ...,
@@ -87,9 +87,11 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
             for file in conversation_file.files:
                 file_name = file.file_name
                 file_content = file.file_content
+                file_path = file.file_path
                 file_desc = file.file_desc
                 file_instructions = f"*上传文件名*: {file_name} \n" + \
                                     f"*上传的文件描述*: {file_desc} \n" + \
+                                    f"*上传的文件路径*: {file_path} \n" + \
                                     f"*上传的文件内容*: {file_content} \n"
                 patient_info += file_instructions
     system_prompt = PatientCaseReportAnalysisPrompt.format(
@@ -115,7 +117,7 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
         )
     mhc_allele = response.mhc_allele
     cdr3 = response.cdr3
-    input_fsa_filename = response.input_fsa_filename
+    input_fsa_filepath = response.input_fsa_filepath
     summary = response.summary
 
     # 返回结果
@@ -123,7 +125,7 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
         update = {
             "mhc_allele": mhc_allele,
             "cdr3": cdr3,
-            "input_fsa_filename": input_fsa_filename,
+            "input_fsa_filepath": input_fsa_filepath,
             "patient_case_summary": summary
         },
         goto = "mrna_design_node"
@@ -131,15 +133,15 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
 
 async def mRNADesignNode(state: AgentState, config: RunnableConfig):
     
-    input_fsa_filename = state["input_fsa_filename"]
+    input_fsa_filepath = state["input_fsa_filepath"]
     mhc_allele = state["mhc_allele"]
     cdr3 = state["cdr3"]
 
-    logger.info(f"mRNADesignNode args: fsa filename: {input_fsa_filename}, mhc_allele: {mhc_allele}, cdr3: {cdr3}")
+    logger.info(f"mRNADesignNode args: fsa filename: {input_fsa_filepath}, mhc_allele: {mhc_allele}, cdr3: {cdr3}")
     # 1. 通过state参数构建NeoAntigenResearch工具输入参数
     mrna_design_process_result = await NeoAntigenSelection.ainvoke(
         {
-            "input_file": input_fsa_filename,
+            "input_file": input_fsa_filepath,
             "mhc_allele": [mhc_allele],
             "cdr3_sequence": [cdr3]
         }
@@ -171,9 +173,11 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
             for file in conversation_file.files:
                 file_name = file.file_name
                 file_content = file.file_content
+                file_path = file.file_path
                 file_desc = file.file_desc
                 file_instructions = f"*上传文件名*: {file_name} \n" + \
                                     f"*上传的文件描述*: {file_desc} \n" + \
+                                    f"*上传的文件路径*: {file_path} \n" + \
                                     f"*上传的文件内容*: {file_content} \n"
                 patient_info += file_instructions
     logger.info(f"patient case report node, pi: {patient_info}")
@@ -183,11 +187,13 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     logger.info(f"patient case report prompt: {system_prompt}")
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content="mrna_design_process_result"),
+        HumanMessage(content=mrna_design_process_result),
     ]
     response = await model.ainvoke(messages)
     logger.info(f"patient case report response: {response}")
-    return END
+    return Command(
+        goto = END
+    )
 
 # Define the graph
 PatientCaseMrnaAgent = StateGraph(AgentState)

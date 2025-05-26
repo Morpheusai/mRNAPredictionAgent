@@ -264,6 +264,7 @@ async def message_generator(
             if not isinstance(stream_event, tuple):
                 continue
             stream_mode, event = stream_event
+            # print(stream_mode, event)
             new_messages = []
             if stream_mode == "updates":
                 for node, updates in event.items():
@@ -296,7 +297,7 @@ async def message_generator(
             if stream_mode == "custom":
                 previous_yield_type="token"
                 yield f"data: {json.dumps({'type': 'token', 'content': event})}\n\n"
-                print(event)
+                # print(event)
 
                 # yield f"data: {json.dumps({'type': 'token', 'content': event})}\n\n"
                 # new_messages = [event]
@@ -362,7 +363,21 @@ async def message_generator(
                     yield f"data: {json.dumps({'type': 'token', 'content': convert_message_content_to_string(content)})}\n\n"
     except Exception as e:
         logger.error(f"Error in message generator: {e}")
-        yield f"data: {json.dumps({'type': 'error', 'content': 'Internal server error'})}\n\n"
+        print(f"\n❌ ERROR in message_generator: {str(e)}")
+        print("🔄 Full traceback:")
+        import traceback
+        traceback.print_exc()  # 直接打印完整的错误堆栈
+        
+        # 返回给客户端的错误信息（生产环境建议简化）
+        error_detail = {
+            "type": "error",
+            "content": "Internal server error",
+            # 开发时可以包含详细信息，生产环境应该移除
+            "debug_info": str(e)  
+        }
+        yield f"data: {json.dumps(error_detail, ensure_ascii=False)}\n\n"
+
+        # yield f"data: {json.dumps({'type': 'error', 'content': 'Internal server error'})}\n\n"
     finally:
         previous_yield_type="DONE"         
         yield "data: [DONE]\n\n"
