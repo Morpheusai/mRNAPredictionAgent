@@ -429,7 +429,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
 
             elif tool_name == "ImmuneApp":
                 input_file_dir = tool_call["args"].get("input_file_dir")
-                alleles=tool_call["args"].get("alleles","HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02")
+                alleles=tool_call["args"].get("alleles",["HLA-A*01:01", "HLA-A*02:01", "HLA-A*03:01", "HLA-B*07:02"])
                 use_binding_score=tool_call["args"].get("use_binding_score",True)
                 peptide_lengths=tool_call["args"].get("peptide_lengths",[8,9])
                 func_result = await ImmuneApp.ainvoke(
@@ -449,7 +449,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 tmp_tool_msg.append(tool_msg)
             elif tool_name == "ImmuneApp_Neo":
                 input_file = tool_call["args"].get("input_file")
-                alleles=tool_call["args"].get("alleles","HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02")
+                alleles=tool_call["args"].get("alleles",["HLA-A*01:01", "HLA-A*02:01", "HLA-A*03:01", "HLA-B*07:02"])
                 func_result = await ImmuneApp_Neo.ainvoke(
                     {
                         "input_file": input_file,

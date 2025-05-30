@@ -43,12 +43,12 @@ async def TransPHLA_AOMP(
         "cut_peptide": cut_peptide
     }
 
-    timeout = aiohttp.ClientTimeout(total=30)
+    timeout = aiohttp.ClientTimeout(total=60)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(transphla_url, json=payload) as response:
                 response.raise_for_status()
-                return await response.text()
+                return await response.json()
     except Exception as e:
         print("发生异常类型：", type(e).__name__)
         print("异常信息：", str(e))
