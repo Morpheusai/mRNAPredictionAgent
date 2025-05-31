@@ -8,10 +8,12 @@ from dotenv import load_dotenv
 from minio import Minio
 from minio.error import S3Error
 from langchain_core.tools import tool
+from langgraph.config import get_stream_writer
 from pathlib import Path
 
 from src.model.agents.tools.RNAFold.filter_rnafold import filter_rnafold_excel
 from src.model.agents.tools.RNAFold.rnafold_to_excel import save_excel
+from src.model.agents.tools.RNAPlot.rnaplot import RNAPlot
 from src.utils.log import logger
 
 load_dotenv()
@@ -113,18 +115,28 @@ async def run_rnaflod(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # 写入输入文件
-    input_path = input_dir / f"{random_id}.fsata"
+    input_path = input_dir / f"{random_id}.fasta"
     with open(input_path, "w") as f:
         f.write(file_content)
 
     # 构建输出文件名和临时路径
     output_filename = f"{random_id}_RNAFold_results.xlsx"
     output_path = output_dir / output_filename
+    #存放输出结果的fasta的临时文件，用于给rnaplot的输入
+    output_file = f"{random_id}_out.fasta"
+    output_out_fsata = output_dir / output_file
 
     # 构建命令
     cmd = [
         "RNAfold",
         "-i", str(input_path),
+        "--noPS"
+    ]
+
+    cmd2 = [
+        "RNAfold",
+        "-i", str(input_path),  # 输入文件
+        "--auto-id",
         "--noPS"
     ]
 
@@ -146,14 +158,43 @@ async def run_rnaflod(
         logger.error(error_msg)
         input_path.unlink(missing_ok=True)
         output_path.unlink(missing_ok=True)
+        output_out_fsata.unlink(missing_ok=True)
         result = {
             "type": "text",
             "content": "您的输入信息可能有误，请核对正确再试。"
         }
-
+        return json.dumps(result, ensure_ascii=False)
     logger.info("RNAfold执行成功，正在保存结果...")
     save_excel(output, output_dir, output_filename)
     filtered_content = filter_rnafold_excel(output_path)        
+
+    proc2 = await asyncio.create_subprocess_exec(
+        *cmd2,
+        stdout=asyncio.subprocess.PIPE,  # 捕获标准输出
+        stderr=asyncio.subprocess.PIPE,
+        cwd="/mnt/softwares/ViennaRNA-2.7.0"
+    )
+    stdout2, stderr2 = await proc2.communicate()
+    
+    if proc2.returncode != 0:
+        error_msg = f"RNAfold执行失败 | 退出码: {proc.returncode} | 错误: {stderr.decode()}"
+        logger.error(error_msg)
+        input_path.unlink(missing_ok=True)
+        output_path.unlink(missing_ok=True)
+        output_out_fsata.unlink(missing_ok=True)
+        result = {
+            "type": "text",
+            "content": "您的输入信息可能有误，请核对正确再试。"
+        }    
+        return json.dumps(result, ensure_ascii=False)
+    
+    with open(output_out_fsata, "w") as f:
+        f.write(stdout2.decode())
+    output_out_fsata1=("minio://molly/30aa4214-d5e7-4f6e-86d8-158c85ce6fea_3eb0579238254f51be637226a205567a_out.fsa")
+    rnaplot_result = await RNAPlot.arun({"input_file" : str(output_out_fsata1)})
+    rnaplot_data = json.loads(rnaplot_result)
+
+    
 
     try:
         if minio_available:
@@ -174,16 +215,39 @@ async def run_rnaflod(
         if minio_available:
             input_path.unlink(missing_ok=True)
             output_path.unlink(missing_ok=True)
+            output_out_fsata.unlink(missing_ok=True)
             logger.info("临时文件已清理")
         else:
             input_path.unlink(missing_ok=True)  # 只删除输入文件，保留输出文件
+            output_out_fsata.unlink(missing_ok=True)
 
-        # 返回结果
-        result = {
-            "type": "link",
-            "url": file_path,
-            "content": filtered_content  # 替换为生成的 Markdown 内容
+        writer = get_stream_writer()
+        writer("#NEO#")
+        writer("...工具的中间结果....")
+        writer("#NEO#")
+
+    # 处理 RNAPlot 返回的 URL
+    if isinstance(rnaplot_data.get("url"), dict):
+        # 情况1：RNAPlot返回的是字典（多个URL），合并成一个字典
+        merged_urls = {"rnaflod_result_file_url": file_path}  # 原始 file_path
+        merged_urls.update(rnaplot_data["url"])  # 合并 RNAPlot 的所有 URL
+        file_path = merged_urls
+    elif isinstance(rnaplot_data.get("url"), str):
+        # 情况2：RNAPlot返回的是字符串（单个URL），构造字典
+        file_path = {
+            "original_result_file_url": file_path,
+            "rnaplot_result_file_url": rnaplot_data["url"]
         }
+    else:
+        # 其他情况保持原样
+        pass
+
+    # 返回结果
+    result = {
+        "type": "link",
+        "url": file_path,
+        "content": filtered_content  # 替换为生成的 Markdown 内容
+    }
 
     return json.dumps(result, ensure_ascii=False)
 

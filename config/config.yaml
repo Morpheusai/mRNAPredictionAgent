@@ -6,6 +6,7 @@ LOGGER:
 TOOL:
   COMMON:
     output_download_url_prefix: "https://mollyseek.com/downloads/"
+    markdown_download_url_prefix: "https://try.mollyseek.cn/backend/markdown_download?file_path="
   NETMHCPAN:   
     url: "http://43.202.64.213:60823/netmhcpan"
     netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
@@ -73,6 +74,7 @@ TOOL:
     url: "http://43.202.64.213:60824/TransPHLA_AOMP"
     script_path: /mnt/softwares/TransPHLA-AOMP/TransPHLA-AOMP/pHLAIformer.py
     python_bin: /mnt/softwares/miniconda3/envs/transphla/bin/python
+    hla_peptide_mapping_path: ./hla_mapping.json
     input_tmp_dir: /mnt/tmp/transphla/input
     output_tmp_dir: /mnt/tmp/transphla/output
   UNIPMT:
@@ -106,6 +108,12 @@ TOOL:
   RNAFOLD:
     input_tmp_dir: "/mnt/tmp/rnafold/input" 
     output_tmp_dir: "/mnt/tmp/rnafold/output"
+
+  RNAPLOT:
+    url: "http://43.202.64.213:60823/rnaplot"
+    input_tmp_dir: "/mnt/tmp/rnaplot/input" 
+    output_tmp_dir: "/mnt/tmp/rnaplot/output"
+
 
   NEOMRNA_SELECTION:
     input_tmp_dir: "/mnt/tmp/neomrnaselection/input"
@@ -214,7 +222,7 @@ MINIO:
   netchop_cleavage_bucket: "netchop-cleavage-results"
   rnafold_bucket: "rnafold-results"
   lineardesign_bucket: "lineardesign-results"
-  
+  rnaplot_bucket: "rnaplot-results"
   secure: false
 
 

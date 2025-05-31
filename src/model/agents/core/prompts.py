@@ -321,6 +321,11 @@ RNAFOLD_RESULT = """
 {rnafold_result}
 """
 
+RNAPLOT_RESULT = """
+# RNAPlod生成结果
+{rnaplot_result}
+"""
+
 # 输出要求说明，拼接在system message的最后
 OUTPUT_INSTRUCTIONS = """
 1. 结构清晰

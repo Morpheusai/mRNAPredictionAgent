@@ -61,7 +61,7 @@ async def utr_spacer_rnafold_to_mrna(fasta_file, mRNA_type="both"):
         mRNA_type: 生成的mRNA类型，可选 "linear"、"circular" 或 "both"（默认）
         
     返回:
-        tuple: (输出文件路径, 生成的mRNA数量)
+        tuple: (输出文件路径, 生成的mRNA数量)，str
     """
     # 验证mRNA_type参数
     valid_types = ["linear", "circular", "both"]

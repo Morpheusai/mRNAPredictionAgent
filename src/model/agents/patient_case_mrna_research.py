@@ -30,6 +30,8 @@ class AgentState(MessagesState, total=False):
     input_fsa_filepath: str
     patient_case_summary: str
     mrna_design_process_result: str
+    
+    
 
 # Data model
 class PatientCaseSummaryReport(BaseModel):
@@ -139,14 +141,13 @@ async def mRNADesignNode(state: AgentState, config: RunnableConfig):
 
     logger.info(f"mRNADesignNode args: fsa filename: {input_fsa_filepath}, mhc_allele: {mhc_allele}, cdr3: {cdr3}")
     # 1. 通过state参数构建NeoAntigenResearch工具输入参数
-    mrna_design_process_result = await NeoAntigenSelection.ainvoke(
+    mrna_design_process_result= await NeoAntigenSelection.ainvoke(
         {
             "input_file": input_fsa_filepath,
             "mhc_allele": [mhc_allele],
             "cdr3_sequence": [cdr3]
         }
     )
-    
     return Command(
         update = {
             "mrna_design_process_result": mrna_design_process_result

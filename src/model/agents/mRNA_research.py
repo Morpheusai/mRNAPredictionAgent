@@ -29,7 +29,8 @@ from src.model.agents.tools import (
     UniPMT,
     NetChop_Cleavage,
     LinearDesign,
-    RNAFold
+    RNAFold,
+    RNAPlot
 )
 from src.utils.log import logger
 
@@ -56,6 +57,7 @@ from .core.prompts import (
     NETCHOP_CLEAVAGE_RESULT,
     LINEARDESIGN_RESULT,
     RNAFOLD_RESULT,
+    RNAPLOT_RESULT
 )
 
 
@@ -81,6 +83,7 @@ class AgentState(MessagesState, total=False):
     netchop_cleavage_result: Optional[str]=None
     lineardesign_result: Optional[str]=None
     rnafold_result: Optional[str]=None
+    rnaplot_result: Optional[str]=None
 
 TOOLS = [
     mRNAResearchAndProduction,
@@ -104,6 +107,7 @@ TOOLS = [
     NetChop_Cleavage,
     LinearDesign,
     RNAFold,
+    RNAPlot,
 ]
     
 TOOL_TEMPLATES = {
@@ -124,7 +128,8 @@ TOOL_TEMPLATES = {
     "unipmt_result": UNIPMT_RESULT,
     "netchop_cleavage_result": NETCHOP_CLEAVAGE_RESULT,
     "lineardesign_result": LINEARDESIGN_RESULT,
-    "rnafold_result": RNAFOLD_RESULT
+    "rnafold_result": RNAFOLD_RESULT,
+    "rnaplot_result": RNAPLOT_RESULT
 }
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -196,6 +201,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
     netchop_cleavage_result=""
     lineardesign_result=""
     rnafold_result=""
+    rnaplot_result=""
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         # 处理所有工具调用
         for tool_call in last_message.tool_calls:
@@ -579,6 +585,20 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
+            elif tool_name == "RNAPlot":
+                input_file = tool_call["args"].get("input_file")
+                func_result = await RNAPlot.ainvoke(
+                    {
+                        "input_file": input_file,
+                    }
+                )
+                rnaplot_result=func_result
+                logger.info(f"RNAPlot result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=rnaplot_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
 
     return {
         "messages": tmp_tool_msg,
@@ -600,6 +620,7 @@ async def should_continue(state: AgentState, config: RunnableConfig):
         "netchop_cleavage_result": netchop_cleavage_result,
         "lineardesign_result": lineardesign_result,
         "rnafold_result": rnafold_result,
+        "rnaplot_result": rnaplot_result,
         }
 
 

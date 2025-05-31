@@ -241,6 +241,7 @@ def _create_ai_message(parts: dict) -> AIMessage:
     filtered = {k: v for k, v in parts.items() if k in valid_keys}
     return AIMessage(**filtered)
 
+
 async def message_generator(
     user_input: UserInput, agent_id: str = DEFAULT_AGENT
 ) -> AsyncGenerator[str, None]:
@@ -257,6 +258,7 @@ async def message_generator(
     previous_yield_type = "" 
 
     try:
+        NEO_counts=0
         # Process streamed events from the graph and yield messages over the SSE stream.
         async for stream_event in agent.astream(
             **kwargs, stream_mode=["updates", "messages", "custom"]
@@ -294,9 +296,22 @@ async def message_generator(
                         )
                         update_messages = [msg]
                     new_messages.extend(update_messages)
+            
             if stream_mode == "custom":
-                previous_yield_type="token"
-                yield f"data: {json.dumps({'type': 'token', 'content': event})}\n\n"
+                if isinstance(event, dict):
+                    #  yield f"data: {json.dumps({'type': 'writer_token', 'content': event})}\n\n"
+                    #  print(event)
+                     dumps_event = json.dumps(event,ensure_ascii=False,)
+                     yield f"data: {json.dumps({'type': 'writer_token', 'content': dumps_event})}\n\n"
+                    #  print(dumps_event)
+                elif event == "#NEO#":
+                    NEO_counts += 1 
+                    yield f"data: {json.dumps({'type': 'table', 'content': event})}\n\n"
+                elif NEO_counts % 2 != 0:    
+                    yield f"data: {json.dumps({'type': 'table', 'content': event})}\n\n"
+                else:
+                    previous_yield_type="token"
+                    yield f"data: {json.dumps({'type': 'token', 'content': event})}\n\n"
                 # print(event)
 
                 # yield f"data: {json.dumps({'type': 'token', 'content': event})}\n\n"

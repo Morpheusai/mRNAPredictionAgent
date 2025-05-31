@@ -45,7 +45,7 @@ async def concatenate_peptides_with_linker(fasta_file):
         fasta_file: FASTA文件路径
         
     返回:
-        连接后的长肽段字符串
+        连接后的长肽段字符串,生成的密码子
     """
     try:
         # 解析MinIO路径
