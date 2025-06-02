@@ -23,6 +23,7 @@ async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_re
     
     # 步骤描述
     STEP1_DESC1 = f"""
+## 第1部分-蛋白切割位点预测\n
 ### 第1部分-NetChop工具开始\n
 将您的输入的肽段序列文件，进行蛋白切割位点预测，使用参数: cleavage_site_threshold-{cleavage_site_threshold}。\n
 """

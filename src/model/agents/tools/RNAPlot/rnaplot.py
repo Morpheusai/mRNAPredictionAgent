@@ -302,7 +302,7 @@ project_root = current_file.parents[5]
 sys.path.append(str(project_root))
 from config import CONFIG_YAML
 
-netmhcpan_url = CONFIG_YAML["TOOL"]["RNAPLOT"]["url"]
+rnaplot_url = CONFIG_YAML["TOOL"]["RNAPLOT"]["url"]
 
 @tool
 async def RNAPlot(
@@ -323,7 +323,7 @@ async def RNAPlot(
     timeout = aiohttp.ClientTimeout(total=30)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(netmhcpan_url, json=payload) as response:
+            async with session.post(rnaplot_url, json=payload) as response:
                 response.raise_for_status()
                 return await response.json()
     except Exception as e:

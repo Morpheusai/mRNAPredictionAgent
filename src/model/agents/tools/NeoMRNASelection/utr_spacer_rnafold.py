@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 from minio import Minio
 from minio.error import S3Error
 
-from src.model.agents.tools.RNAFold.rnaflod import RNAFold
 
 load_dotenv()
 current_file = Path(__file__).resolve()
@@ -63,6 +62,8 @@ async def utr_spacer_rnafold_to_mrna(fasta_file, mRNA_type="both"):
     返回:
         tuple: (输出文件路径, 生成的mRNA数量)，str
     """
+    from model.agents.tools.RNAFold.rnafold import RNAFold
+    
     # 验证mRNA_type参数
     valid_types = ["linear", "circular", "both"]
     if mRNA_type.lower() not in valid_types:
@@ -119,8 +120,8 @@ async def utr_spacer_rnafold_to_mrna(fasta_file, mRNA_type="both"):
                 str(output_path)
             )
             file_path = f"minio://molly/mrna_{random_id}.fasta"
-
             rnafold_result = await RNAFold.arun({"input_file": file_path})
+
 
             try:
                 # 解析返回的JSON结果
@@ -140,6 +141,7 @@ async def utr_spacer_rnafold_to_mrna(fasta_file, mRNA_type="both"):
         # 如果 MinIO 成功上传，清理临时文件；否则保留
         if minio_available:
             output_path.unlink(missing_ok=True)
+            # fasta_file.unlink(missing_ok=True)
 
 
 # 使用示例

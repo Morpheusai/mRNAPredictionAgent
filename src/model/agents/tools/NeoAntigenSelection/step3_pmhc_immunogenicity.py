@@ -40,7 +40,7 @@ async def step3_pmhc_immunogenicity(
     """
     # 步骤开始描述
     STEP3_DESC1 = """
-### 第3部分-pMHC免疫原性预测
+## 第3部分-pMHC免疫原性预测
 基于BigMHC_IM工具对上述内容进行pMHC免疫原性预测 
 """
     writer(STEP3_DESC1)

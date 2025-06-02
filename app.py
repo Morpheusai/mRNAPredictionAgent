@@ -259,6 +259,7 @@ async def message_generator(
 
     try:
         NEO_counts=0
+        NEO_RESPONSE_counts=0
         # Process streamed events from the graph and yield messages over the SSE stream.
         async for stream_event in agent.astream(
             **kwargs, stream_mode=["updates", "messages", "custom"]
@@ -309,6 +310,11 @@ async def message_generator(
                     yield f"data: {json.dumps({'type': 'table', 'content': event})}\n\n"
                 elif NEO_counts % 2 != 0:    
                     yield f"data: {json.dumps({'type': 'table', 'content': event})}\n\n"
+                elif event == "#NEO_RESPONSE#":
+                    NEO_RESPONSE_counts += 1 
+                    yield f"data: {json.dumps({'type': 'response_table', 'content': event})}\n\n"
+                elif NEO_RESPONSE_counts % 2 != 0:    
+                    yield f"data: {json.dumps({'type': 'token', 'content': event})}\n\n"
                 else:
                     previous_yield_type="token"
                     yield f"data: {json.dumps({'type': 'token', 'content': event})}\n\n"

@@ -42,7 +42,7 @@ async def step4_pmhc_tcr_interaction(
     if not cdr3_sequence:
         STEP4_DESC1 = \
 f"""
-### 第4部分-pMHC-TCR相互作用预测
+## 第4部分-pMHC-TCR相互作用预测
 未检测到您提供了CDR3序列，无法进行pMHC-TCR预测。
 """   
         writer(STEP4_DESC1)
@@ -57,7 +57,7 @@ f"""
     
     # 步骤开始描述
     STEP4_DESC2 = f"""
-### 第4部分-pMHC-TCR相互作用预测
+## 第4部分-pMHC-TCR相互作用预测
 对上述内容进行pMHC-TCR相互作用预测
 设置参数,  cdr3序列：{cdr3_sequence}
 """

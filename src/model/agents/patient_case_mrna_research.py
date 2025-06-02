@@ -1,6 +1,7 @@
 import aiosqlite
 
 from pydantic import BaseModel, Field
+from langgraph.config import get_stream_writer
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
@@ -100,13 +101,17 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
         patient_info = patient_info,
     )
     logger.info(f"patient analysis prompt: {system_prompt}")
+    writer = get_stream_writer()
+    
     model_runnable = wrap_model(
         model, 
         system_prompt, 
         structure_model = True, 
         structure_output = PatientCaseSummaryReport
     )
+    writer("### 正在综合评估当前病例数据📊，确定是否满足mRNA疫苗接种条件💉✅。\n```json\n")
     response = await model_runnable.ainvoke(state, config)
+    writer("\n```\n ### 根据病例分析📊，该患者符合mRNA疫苗治疗条件✅。我们将立即启动个性化mRNA疫苗设计💉🔬，请您耐心等候⏳，我们会尽快完成这项精准医疗方案✨。")
     # TODO, debug
     action = response.action
     logger.info(f"patient analysis llm response: {response}, {action}")

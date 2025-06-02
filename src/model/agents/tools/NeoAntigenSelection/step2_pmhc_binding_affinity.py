@@ -46,7 +46,8 @@ async def step2_pmhc_binding_affinity(
     
     # 步骤开始描述
     STEP2_DESC1 = f"""
-### 第2部分-pMHC结合亲和力预测开始
+## 第2部分-pMHC结合亲和力预测
+基于NetMHCpan工具对下述内容进行pMHC亲和力预测 
 当前输入文件内容: \n
 ```
 {netchop_final_result_str}
@@ -93,7 +94,7 @@ async def step2_pmhc_binding_affinity(
 ### 第2部分-pMHC结合亲和力预测结束\n
 pMHC结合亲和力预测结果已获取，结果如下：\n
 {netmhcpan_result_dict['content']}\n
-\n## 接下来筛选符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，请稍后。\n
+\n接下来筛选符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，请稍后\n
 """
     writer(STEP2_DESC2)
     mrna_design_process_result.append(STEP2_DESC2)

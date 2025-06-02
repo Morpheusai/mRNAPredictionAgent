@@ -106,6 +106,7 @@ TOOL:
     output_tmp_dir: "/mnt/tmp/LinearDesign/output"
 
   RNAFOLD:
+    url: "http://43.202.64.213:60823/rnafold"
     input_tmp_dir: "/mnt/tmp/rnafold/input" 
     output_tmp_dir: "/mnt/tmp/rnafold/output"
 
