@@ -7,14 +7,15 @@ from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, MessagesState, StateGraph
-from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
+from langchain_core.messages import SystemMessage, AIMessage
 from langgraph.types import Command
-from typing import Literal, Any, Optional
+from typing import Literal, Any
 
 from src.model.agents.tools import (
     NeoAntigenSelection
 )
 from src.utils.log import logger
+from src.utils.pdf_generator import neo_md2pdf
 
 from .core import get_model  # 相对导入
 from .core.patient_case_mrna_prompts import (
@@ -31,8 +32,6 @@ class AgentState(MessagesState, total=False):
     input_fsa_filepath: str
     patient_case_summary: str
     mrna_design_process_result: str
-    
-    
 
 # Data model
 class PatientCaseSummaryReport(BaseModel):
@@ -187,16 +186,19 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
                                     f"*上传的文件内容*: {file_content} \n"
                 patient_info += file_instructions
     logger.info(f"patient case report node, pi: {patient_info}")
-    system_prompt = PatientCaseReportSummaryPrompt.format(
+    human_input = PatientCaseReportSummaryPrompt.format(
         patient_info = patient_info,
+        process_info = mrna_design_process_result
     )
-    logger.info(f"patient case report prompt: {system_prompt}")
     messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=mrna_design_process_result),
+        HumanMessage(content=human_input),
     ]
+    logger.info(f"patient case report prompt: {messages}")
     response = await model.ainvoke(messages)
     logger.info(f"patient case report response: {response}")
+    writer = get_stream_writer()
+    writer("#### 📝 正在进行病例报告PDF生成，💾 已提供下载\n")
+    pdf_path = neo_md2pdf(response.content)
     return Command(
         goto = END
     )

@@ -1,0 +1,113 @@
+/* 水印样式 */
+@page {
+    @top-left {
+        content: " ";
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><text x="20" y="100" font-family="Arial" font-size="20" fill="rgba(200,200,200,0.5)" transform="rotate(-45)">NEO</text></svg>');
+        background-repeat: repeat;
+        background-position: 0 0;
+    }
+}
+
+/* 基础样式 */
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    font-size: 12pt;
+    margin: 0;
+    padding: 20px;
+}
+
+/* 表格样式 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+    page-break-inside: avoid; /* 防止表格跨页断裂 */
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* 防止表格内容溢出 */
+table {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* 标题样式 */
+h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid; /* 防止标题后分页 */
+}
+
+h1 {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+/* 代码块样式 */
+pre {
+    background-color: #f5f5f5;
+    padding: 12px;
+    border-radius: 3px;
+    overflow-x: auto;
+    page-break-inside: avoid;
+}
+
+code {
+    font-family: Consolas, Monaco, 'Andale Mono', monospace;
+    font-size: 0.9em;
+}
+
+/* 链接样式 */
+a {
+    color: #06c;
+    text-decoration: none;
+}
+
+/* 图片样式 */
+img {
+    max-width: 100%;
+    height: auto;
+    page-break-inside: avoid;
+}
+
+/* 页眉页脚 */
+@page {
+    size: A4;
+    margin: 20mm;
+
+    @top-center {
+        content: element(pageHeader);
+    }
+
+    @bottom-center {
+        content: element(pageFooter);
+    }
+}
+
+.header {
+    position: running(pageHeader);
+    text-align: center;
+    width: 100%;
+}
+
+.footer {
+    position: running(pageFooter);
+    text-align: center;
+    width: 100%;
+    font-size: 0.8em;
+    color: #666;
+}

@@ -231,3 +231,9 @@ RAG:
   theory_server_url: "http://52.74.25.27:60820/query/stream"
   case_server_url: "http://43.202.64.213:60820/query/stream"
   files_path: "/mnt/workspace/dev/ljs/lightrag/theory_rag/files_md"
+
+MD2PDF:
+  watermark_content: "mRNANeo.com"
+  header_content: "复旦大学 NEO 项目"
+  css_path: "./src/utils/data/style.css"
+  logo_path: "./src/utils/data/neo.jpg"
