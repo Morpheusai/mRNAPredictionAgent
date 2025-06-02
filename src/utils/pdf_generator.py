@@ -19,6 +19,8 @@ MD2PDF_CSS_PATH = CONFIG_YAML["MD2PDF"]["css_path"]
 MD2PDF_LOGO_PATH = CONFIG_YAML["MD2PDF"]["logo_path"]
 MD2PDF_HEADER_CONTENT = CONFIG_YAML["MD2PDF"]["header_content"]
 
+MINIO_BUCKET = CONFIG_YAML["MINIO"]["molly_bucket"]
+
 def neo_md2pdf(
     md_content,
     watermark_text = MD2PDF_WATERMARK_CONTENT, 
@@ -167,8 +169,8 @@ def neo_md2pdf(
         pdf_writer.write(output_pdf)
     
     final_filepath = upload_file_to_minio(
-        temp_pdf_file, 
-        bucket_name = "CaseReport"
+        temp_pdf_file,
+        MINIO_BUCKET
     )
 
     return final_filepath

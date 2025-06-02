@@ -1,4 +1,5 @@
 import aiosqlite
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 from langgraph.config import get_stream_writer
@@ -113,9 +114,9 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
         structure_model = True, 
         structure_output = PatientCaseSummaryReport
     )
-    #writer("### 正在综合评估当前病例数据📊，确定是否满足mRNA疫苗接种条件💉✅。\n```json\n")
+    writer("### 正在综合评估当前病例数据📊，确定是否满足mRNA疫苗接种条件💉✅。\n```json\n")
     response = await model_runnable.ainvoke(state, config)
-    #writer("\n```\n ### 根据病例分析📊，该患者符合mRNA疫苗治疗条件✅。我们将立即启动个性化mRNA疫苗设计💉🔬，请您耐心等候⏳，我们会尽快完成这项精准医疗方案✨。")
+    writer("\n```\n ### 根据病例分析📊，该患者符合mRNA疫苗治疗条件✅。我们将立即启动个性化mRNA疫苗设计💉🔬，请您耐心等候⏳，我们会尽快完成这项精准医疗方案✨。")
     # TODO, debug
     action = response.action
     logger.info(f"patient analysis llm response: {response}, {action}")
@@ -202,10 +203,15 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     response = await model.ainvoke(messages)
     logger.info(f"patient case report response: {response}")
     writer = get_stream_writer()
-    writer("\n#### 📝 正在进行病例报告PDF生成，💾 以提供下载\n")
+    writer("\n#### 📝 正在进行结果报告生成\n")
     pdf_minio_path = neo_md2pdf(response.content)
-    pdf_download_url = DOWNLOADER_URL_PREFIX + pdf_minio_path
-    writer(f"\n🏥 已完成病例报告PDF生成，📥 请下载: [个性化mRNA疫苗设计-病例报告]({pdf_download_url}) \n")
+    #pdf_download_url = DOWNLOADER_URL_PREFIX + pdf_minio_path
+    pdf_download_url = pdf_minio_path
+    writer("\n🏥 已完成mRNA个体化疫苗设计结果报告生成，📥 请下载: ")
+    writer("#NEO_RESPONSE#")
+    fdtime = datetime.now().strftime('%Y-%m-%d')
+    writer(f"[mRNA疫苗设计报告-张先生-{fdtime}]({pdf_download_url})")
+    writer("#NEO_RESPONSE#")
     return Command(
         goto = END
     )
