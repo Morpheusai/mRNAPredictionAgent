@@ -11,6 +11,8 @@ from langchain_core.messages import SystemMessage, AIMessage
 from langgraph.types import Command
 from typing import Literal, Any
 
+from config import CONFIG_YAML
+
 from src.model.agents.tools import (
     NeoAntigenSelection
 )
@@ -23,6 +25,9 @@ from .core.patient_case_mrna_prompts import (
     PatientCaseReportSummaryPrompt
 )
 
+DOWNLOADER_URL_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["markdown_download_url_prefix"]
+
+# Define the state for the agent
 class AgentState(MessagesState, total=False):
     """`total=False` is PEP589 specs.
     documentation: https://typing.readthedocs.io/en/latest/spec/typeddict.html#totality
@@ -108,9 +113,9 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
         structure_model = True, 
         structure_output = PatientCaseSummaryReport
     )
-    writer("### 正在综合评估当前病例数据📊，确定是否满足mRNA疫苗接种条件💉✅。\n```json\n")
+    #writer("### 正在综合评估当前病例数据📊，确定是否满足mRNA疫苗接种条件💉✅。\n```json\n")
     response = await model_runnable.ainvoke(state, config)
-    writer("\n```\n ### 根据病例分析📊，该患者符合mRNA疫苗治疗条件✅。我们将立即启动个性化mRNA疫苗设计💉🔬，请您耐心等候⏳，我们会尽快完成这项精准医疗方案✨。")
+    #writer("\n```\n ### 根据病例分析📊，该患者符合mRNA疫苗治疗条件✅。我们将立即启动个性化mRNA疫苗设计💉🔬，请您耐心等候⏳，我们会尽快完成这项精准医疗方案✨。")
     # TODO, debug
     action = response.action
     logger.info(f"patient analysis llm response: {response}, {action}")
@@ -197,8 +202,10 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     response = await model.ainvoke(messages)
     logger.info(f"patient case report response: {response}")
     writer = get_stream_writer()
-    writer("#### 📝 正在进行病例报告PDF生成，💾 已提供下载\n")
-    pdf_path = neo_md2pdf(response.content)
+    writer("\n#### 📝 正在进行病例报告PDF生成，💾 以提供下载\n")
+    pdf_minio_path = neo_md2pdf(response.content)
+    pdf_download_url = DOWNLOADER_URL_PREFIX + pdf_minio_path
+    writer(f"\n🏥 已完成病例报告PDF生成，📥 请下载: [个性化mRNA疫苗设计-病例报告]({pdf_download_url}) \n")
     return Command(
         goto = END
     )

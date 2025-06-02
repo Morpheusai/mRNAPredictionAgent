@@ -12,6 +12,7 @@ from io import BytesIO
 
 from config import CONFIG_YAML 
 from src.utils.log import logger
+from src.utils.upload_file_to_minio import upload_file_to_minio
 
 MD2PDF_WATERMARK_CONTENT = CONFIG_YAML["MD2PDF"]["watermark_content"]
 MD2PDF_CSS_PATH = CONFIG_YAML["MD2PDF"]["css_path"]
@@ -35,7 +36,7 @@ def neo_md2pdf(
         header_text, 页脚
     """
     temp_md_file = "/mnt/data/temp/temp_watermark.md"
-    temp_pdf_file = "/mnt/data/temp/temp_watermark.pdf"
+    temp_pdf_file = "/mnt/data/temp/case_report.pdf"
 
     with open(temp_md_file, 'w', encoding='utf-8') as f:
         f.write(md_content)
@@ -165,4 +166,9 @@ def neo_md2pdf(
     with open(temp_pdf_file, "wb") as output_pdf:
         pdf_writer.write(output_pdf)
     
-    return True
+    final_filepath = upload_file_to_minio(
+        temp_pdf_file, 
+        bucket_name = "CaseReport"
+    )
+
+    return final_filepath
