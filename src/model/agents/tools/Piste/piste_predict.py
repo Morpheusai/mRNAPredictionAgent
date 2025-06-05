@@ -28,6 +28,7 @@ project_root = current_file.parents[5]
 sys.path.append(str(project_root))
 from config import CONFIG_YAML
 from src.utils.log import logger
+from utils.minio_utils import upload_file_to_minio
 
 sys.path.append('/mnt/softwares/PISTE')
 from Model.PISTE import Transformer
@@ -206,34 +207,7 @@ def eval_step(model, val_loader, threshold = 0.5, use_cuda = False):
     
     return y_pred_val_list, y_prob_val_list, dec_attns_val_list
 
-def upload_to_minio(minio_client, local_file_path, minio_bucket, minio_object_name):
-    """
-    使用 MinIO 客户端将文件上传到 MinIO 服务器，并返回 MinIO 路径。
 
-    :param minio_client: MinIO 客户端实例
-    :param local_file_path: 本地文件路径
-    :param minio_bucket: MinIO 存储桶名称
-    :param minio_object_name: MinIO 对象名称
-    :return: 上传文件的 MinIO 路径，格式为 minio://bucket/object
-    """
-    try:
-        # 上传文件
-        minio_client.fput_object(
-            minio_bucket,
-            minio_object_name,
-            local_file_path
-        )
-        # 构造并返回 MinIO 路径
-        minio_path = f"minio://{minio_bucket}/{minio_object_name}"
-        logger.info(f"MinIO path: {minio_path}")
-        print(f"MinIO path: {minio_path}")
-        return minio_path
-    except S3Error as e:
-        logger.error(f"MinIO S3 Error: {e}")
-        raise
-    except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
-        raise
 
 antigen_type = args.antigen_type
 predict_data = pd.read_csv(args.input)
@@ -277,7 +251,7 @@ predict_data.to_csv(output_file_to_local, index=0)
 #upload to minio
 if not minio_client.bucket_exists(MINIO_BUCKET):
     minio_client.make_bucket(MINIO_BUCKET)
-minio_path = upload_to_minio(minio_client, output_file_to_local, MINIO_BUCKET, object_name)
+minio_path = upload_file_to_minio(output_file_to_local,MINIO_BUCKET,object_name)
 if minio_path.startswith("minio://") :
     try:
         if not isinstance(output_file_to_local, Path):

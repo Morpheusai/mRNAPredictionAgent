@@ -17,24 +17,16 @@ current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]                
 sys.path.append(str(project_root))
 from config import CONFIG_YAML
+from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 
 immuneapp_neo_url = CONFIG_YAML["TOOL"]["IMMUNEAPP_NEO"]["url"]
 LOCAL_OUTPUT_DIR = CONFIG_YAML["TOOL"]["IMMUNEAPP_NEO"]["output_tmp_dir"]
 os.makedirs(LOCAL_OUTPUT_DIR, exist_ok=True)
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
-MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
 MINIO_BUCKET = MINIO_CONFIG["immuneapp_neo_bucket"]
-MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
+
 
 def fasta_to_peplist_txt(
     minio_path: str,
@@ -48,15 +40,13 @@ def fasta_to_peplist_txt(
     返回：
     - 转换后 .txt 文件的本地路径
     """
-    assert minio_path.startswith("minio://")
-    path = minio_path[len("minio://"):]
-    bucket, object_name = path.split("/", 1)
+
     
     output_dir = Path(LOCAL_OUTPUT_DIR)
     tmp_fasta_path = output_dir / f"{uuid.uuid4().hex}_input.fasta"
     peplist_path = output_dir / f"{uuid.uuid4().hex}_peplist.txt"
 
-    minio_client.fget_object(bucket, object_name, str(tmp_fasta_path))
+    download_from_minio_uri(minio_path,str(tmp_fasta_path))
     
     invalid_length = False
     with open(peplist_path, "w", encoding="utf-8") as fout:
@@ -74,10 +64,10 @@ def fasta_to_peplist_txt(
         raise ValueError("有非法肽段")
     
     upload_name = f"{uuid.uuid4().hex}_peplist.txt"
-    minio_client.fput_object(MINIO_BUCKET, upload_name, str(peplist_path))
+    minio_upload_path=upload_file_to_minio(str(peplist_path),MINIO_BUCKET,upload_name)
     peplist_path.unlink(missing_ok=True)
     
-    return f"minio://{MINIO_BUCKET}/{upload_name}"
+    return minio_upload_path
 
 
 @tool
@@ -86,10 +76,10 @@ async def ImmuneApp_Neo(
     alleles: Optional[List[str]] = None
 ) -> str:
     """
-    使用 ImmuneApp-Neo 工具预测 neoepitope 的免疫原性，仅支持 peplist 文件格式（.txt 或 .tsv）。
+    使用 ImmuneApp-Neo 工具预测 neoepitope 的免疫原性。
 
     参数:
-    - input_file: MinIO 文件路径，例如 minio://bucket/file.txt
+    - input_file: MinIO 文件路径，例如 minio://bucket/file.fasta
     - alleles: HLA-I 等位基因列表（如 ["HLA-A*01:01", "HLA-A*02:01"]）
 
     返回:
@@ -107,7 +97,6 @@ async def ImmuneApp_Neo(
     if alleles is None:
         alleles = ["HLA-A*01:01", "HLA-A*02:01", "HLA-A*03:01", "HLA-B*07:02"]
     alleles = ",".join(alleles)
-    
     payload = {
         "input_file": input_file,
         "alleles": alleles

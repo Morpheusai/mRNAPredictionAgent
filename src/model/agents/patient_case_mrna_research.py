@@ -114,7 +114,8 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
         structure_model = True, 
         structure_output = PatientCaseSummaryReport
     )
-    writer("### 正在综合评估当前病例数据📊，确定是否满足mRNA疫苗接种条件💉✅。\n```json\n")
+    writer("### 正在综合评估当前病例数据📊，确定是否满足mRNA疫苗接种条件💉✅。\n")
+    writer("```json\n")
     response = await model_runnable.ainvoke(state, config)
     writer("\n```\n ### 根据病例分析📊，该患者符合mRNA疫苗治疗条件✅。我们将立即启动个性化mRNA疫苗设计💉🔬，请您耐心等候⏳，我们会尽快完成这项精准医疗方案✨。")
     # TODO, debug

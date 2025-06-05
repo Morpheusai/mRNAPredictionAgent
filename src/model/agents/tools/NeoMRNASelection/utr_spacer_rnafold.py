@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from minio import Minio
 from minio.error import S3Error
 
-
+from utils.minio_utils import upload_file_to_minio
 load_dotenv()
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]
@@ -18,11 +18,7 @@ from config import CONFIG_YAML
 
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
-MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
 MINIO_BUCKET = MINIO_CONFIG["molly_bucket"]
-MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 
 NEOMRNA_CONFIG = CONFIG_YAML["TOOL"]["NEOMRNA_SELECTION"]
@@ -32,24 +28,6 @@ IRES = NEOMRNA_CONFIG["IRES"]
 SPACER = NEOMRNA_CONFIG["spacer"] 
 OUTPUT_TMP_DIR = NEOMRNA_CONFIG["output_tmp_dir"]
 
-# 初始化 MinIO 客户端
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
-
-#检查minio是否可用
-def check_minio_connection(bucket_name=MINIO_BUCKET):
-    try:
-        minio_client.list_buckets()
-        if not minio_client.bucket_exists(bucket_name):
-            minio_client.make_bucket(bucket_name)
-        return True
-    except S3Error as e:
-        print(f"MinIO连接或bucket操作失败: {e}")
-        return False
 
 async def utr_spacer_rnafold_to_mrna(fasta_file, mRNA_type="both"):
     """
@@ -69,7 +47,6 @@ async def utr_spacer_rnafold_to_mrna(fasta_file, mRNA_type="both"):
     if mRNA_type.lower() not in valid_types:
         raise ValueError(f"Invalid mRNA_type. Must be one of: {valid_types}")
 
-    minio_available = check_minio_connection()
     # 读取并解析输入FASTA文件
     sequences = []
     current_seq = []
@@ -113,35 +90,27 @@ async def utr_spacer_rnafold_to_mrna(fasta_file, mRNA_type="both"):
             f_out.write(f">sequence_{i}_{seq_type}\n{mrna}\n")
     
     try:
-        if minio_available:
-            minio_client.fput_object(
-                MINIO_BUCKET,
-                f"mrna_{random_id}.fasta",
-                str(output_path)
-            )
-            file_path = f"minio://molly/mrna_{random_id}.fasta"
-            rnafold_result = await RNAFold.arun({"input_file": file_path})
+        file_path = upload_file_to_minio(str(output_path),MINIO_BUCKET,f"mrna_{random_id}.fasta")
+        rnafold_result = await RNAFold.arun({"input_file": file_path})
 
 
-            try:
-                # 解析返回的JSON结果
-                rnafold_result_dict = json.loads(rnafold_result)
-            except json.JSONDecodeError:    
-                raise
+        try:
+            # 解析返回的JSON结果
+            rnafold_result_dict = json.loads(rnafold_result)
+        except json.JSONDecodeError:    
+            raise
 
-            if rnafold_result_dict.get("type") == "link":
-                return rnafold_result_dict["url"],rnafold_result_dict["content"]
-            else:
-                return rnafold_result_dict["content"]
+        if rnafold_result_dict.get("type") == "link":
+            return rnafold_result_dict["url"],rnafold_result_dict["content"]
         else:
-            raise 
+            return rnafold_result_dict["content"]
+
     except S3Error as e:
         raise
     finally:
         # 如果 MinIO 成功上传，清理临时文件；否则保留
-        if minio_available:
-            output_path.unlink(missing_ok=True)
-            # fasta_file.unlink(missing_ok=True)
+        output_path.unlink(missing_ok=True)
+        Path(fasta_file).unlink(missing_ok=True)
 
 
 # 使用示例

@@ -23,6 +23,7 @@ sys.path.append(str(project_root))
 from src.utils.log import logger
 from config import CONFIG_YAML
 from src.model.agents.tools.UniPMT.parse_unipmt_results import parse_unipmt_results
+from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 
 # UniPMT 工具配置
 unipmt_script = CONFIG_YAML["TOOL"]["UNIPMT"]["script_path"]
@@ -34,10 +35,6 @@ input_tmp_dir = CONFIG_YAML["TOOL"]["UNIPMT"]["input_tmp_dir"]
 # os.makedirs(output_tmp_dir, exist_ok=True)
 # MinIO 配置
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
-MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
-MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 MINIO_BUCKET = CONFIG_YAML["MINIO"]["unipmt_bucket"]
 
 # 配置固定路径
@@ -49,33 +46,7 @@ t_features_path = CONFIG_YAML["TOOL"]["UNIPMT"]["t_features_path"]
 m_features_path =   CONFIG_YAML["TOOL"]["UNIPMT"]["m_features_path"]
 unipmt_input_file_path = CONFIG_YAML["TOOL"]["UNIPMT"]["unipmt_input_file_path"]
 
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
-if not minio_client.bucket_exists(MINIO_BUCKET):
-    minio_client.make_bucket(MINIO_BUCKET)
-def download_file_from_minio(minio_path: str, local_dir: str):
-    """
-    从 MinIO 下载文件到本地目录
-    """
-    if not minio_path.startswith('minio://'):
-        raise ValueError("输入路径必须是 MinIO 格式，如 'minio://bucket/file'")
 
-    url_parts = urlparse(minio_path)
-    bucket_name = url_parts.netloc
-    object_name = url_parts.path.lstrip('/')
-
-    local_path = Path(local_dir) / Path(object_name).name
-    Path(local_dir).mkdir(parents=True, exist_ok=True)
-
-    if not local_path.exists():
-        logger.info(f"Downloading {minio_path} to {local_path}")
-        minio_client.fget_object(bucket_name, object_name, str(local_path))
-
-    return str(local_path)
 
 
 def generate_pmt_data(input_file: str):
@@ -90,7 +61,7 @@ def generate_pmt_data(input_file: str):
     """
     if not input_file.startswith("minio://"):
         raise ValueError(f"无效的 MinIO 路径: {input_file}，请确保路径以 'minio://' 开头")
-    input_file = download_file_from_minio(input_file, input_tmp_dir)
+    input_file = download_from_minio_uri(input_file, input_tmp_dir)
 
     # 加载官方映射
     peptides_df = pd.read_csv(nodes_peptides_csv)
@@ -110,7 +81,6 @@ def generate_pmt_data(input_file: str):
     m_max = m_features.shape[0] - 1
     t_max = t_features.shape[0] - 1
     logger.info(f"p_max: {p_max}, m_max: {m_max}, t_max: {t_max}")
-    print(f"p_max: {p_max}, m_max: {m_max}, t_max: {t_max}")
 
     # 读取你的输入csv
     your_df = pd.read_csv(input_file)
@@ -283,8 +253,12 @@ async def run_unipmt(input_file: str):
                     tcr_node_file=nodes_tcr_csv
                 )
                 object_name = os.path.basename(converted_file)
-                minio_client.fput_object(MINIO_BUCKET, object_name, converted_file)
-                minio_url = f"minio://{MINIO_BUCKET}/{object_name}"
+
+                minio_url = upload_file_to_minio(
+                    converted_file,
+                    MINIO_BUCKET,
+                    object_name
+                )
                 
                 os.remove(converted_file)
                 logger.info(f"Deleted local file: {converted_file}")

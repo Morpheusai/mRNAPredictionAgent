@@ -15,14 +15,14 @@ from langchain_core.tools import tool
 from minio import Minio
 from minio.error import S3Error
 
-load_dotenv()
+from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
+
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]
 sys.path.append(str(project_root))
-
 from src.utils.log import logger
 from config import CONFIG_YAML
-
+load_dotenv()
 
 input_tmp_dir = CONFIG_YAML["TOOL"]["NETCHOP_CLEAVAGE"]["input_tmp_dir"]
 output_tmp_dir = CONFIG_YAML["TOOL"]["NETCHOP_CLEAVAGE"]["output_tmp_dir"]
@@ -30,41 +30,12 @@ os.makedirs(input_tmp_dir, exist_ok=True)
 os.makedirs(output_tmp_dir, exist_ok=True)
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
-MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
-MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 MINIO_BUCKET = CONFIG_YAML["MINIO"]["netchop_cleavage_bucket"]
 
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
 
-if not minio_client.bucket_exists(MINIO_BUCKET):
-    minio_client.make_bucket(MINIO_BUCKET)
 
-def download_file_from_minio(minio_path: str, local_dir: str):
-    """
-    从 MinIO 下载文件到本地目录
-    """
-    if not minio_path.startswith('minio://'):
-        raise ValueError("输入路径必须是 MinIO 格式，如 'minio://bucket/file'")
 
-    url_parts = urlparse(minio_path)
-    bucket_name = url_parts.netloc
-    object_name = url_parts.path.lstrip('/')
 
-    local_path = Path(local_dir) / Path(object_name).name
-    Path(local_dir).mkdir(parents=True, exist_ok=True)
-
-    if not local_path.exists():
-        logger.info(f"Downloading {minio_path} to {local_path}")
-        minio_client.fget_object(bucket_name, object_name, str(local_path))
-
-    return str(local_path)
 def parse_netchop(input_file):
     """解析 NetChop 输出文件（支持 .txt, .tsv, .xlsx 格式）"""
     logger.info(f"Parsing input file: {input_file}")
@@ -241,7 +212,7 @@ async def run_NetChop_Cleavage(
     """
 
     logger.info(f"Starting peptide generation from {input_file}...")
-    local_input = download_file_from_minio(input_file, input_tmp_dir)
+    local_input = download_from_minio_uri(input_file, input_tmp_dir)
     suffix = Path(local_input).suffix.lower()
     if suffix not in [".txt", ".tsv" ,".xlsx"]:
         return json.dumps({"type": "text", 
@@ -267,10 +238,7 @@ async def run_NetChop_Cleavage(
         else:
             logger.warning("No valid peptides generated.")
         
-        
-        minio_client.fput_object(MINIO_BUCKET, str(object_name), str(output_file))
-        file_path = f"minio://{MINIO_BUCKET}/{object_name}"
-        
+        file_path = upload_file_to_minio(str(output_file),MINIO_BUCKET,str(object_name))
         os.remove(local_input)
         os.remove(output_file)
         

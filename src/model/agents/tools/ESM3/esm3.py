@@ -12,56 +12,26 @@ from pathlib import Path
 from minio import Minio
 from minio.error import S3Error
 
-
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
 sys.path.append(str(project_root))    # 将项目根目录添加到 sys.path
 from config import CONFIG_YAML
+from src.utils.minio_utils import upload_file_to_minio
+from src.utils.log import logger
+
 
 load_dotenv()
 
 TOKEN = os.getenv("ESM_API_KEY")
-MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
 
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
-MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
 MINIO_BUCKET = MINIO_CONFIG["esm_bucket"]
-MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 #临时mse3输出.pdb文件
 OUTPUT_TMP_DIR = CONFIG_YAML["TOOL"]["ESM"]["output_tmp_mse3_dir"]
 DOWNLOADER_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["output_download_url_prefix"]
 
-# 初始化 MinIO 客户端
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
-
-def check_minio_connection(bucket_name=MINIO_BUCKET):
-    try:
-        minio_client.list_buckets()
-        if not minio_client.bucket_exists(bucket_name):
-            minio_client.make_bucket(bucket_name)
-        return True
-    except S3Error as e:
-        print(f"MinIO连接或bucket操作失败: {e}")
-        return False
-
-def upload_to_minio(file_path: str, output_filename: str):
-    try:
-        minio_client.fput_object(
-            MINIO_BUCKET,
-            output_filename,
-            file_path
-        )
-        return f"minio://{MINIO_BUCKET}/{output_filename}", None
-    except S3Error as e:
-        return None, f"上传 MinIO 失败: {e}"
 
 async def run_esm3(
     protein_sequence: str,  
@@ -85,7 +55,6 @@ async def run_esm3(
         JSON 字符串，包含 MinIO 文件路径或下载链接。
     """
 
-    minio_available = check_minio_connection()
     output_dir =Path(OUTPUT_TMP_DIR)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -116,17 +85,13 @@ async def run_esm3(
     
 
     try:
-        if minio_available:
-            file_path, error = upload_to_minio(str(output_path), output_pdb)
-            if error:
-                file_path = f"{DOWNLOADER_PREFIX}{output_pdb}"
-        else:
-            file_path = f"{DOWNLOADER_PREFIX}{output_pdb}"
+        file_path=upload_file_to_minio(str(output_path),MINIO_BUCKET,output_pdb)
+
     except Exception as e:
-        file_path = f"{DOWNLOADER_PREFIX}{output_pdb}"
+        logger.error(f"An unexpected error occurred: {e}")
+        raise
     finally:
-        if minio_available and file_path.startswith("minio://"):
-            output_path.unlink(missing_ok=True)
+        output_path.unlink(missing_ok=True)
             
     # response = minio_client.get_object(MINIO_BUCKET, output_pdb)   
     # file_content = response.read()

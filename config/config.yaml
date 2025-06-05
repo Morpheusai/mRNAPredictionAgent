@@ -15,6 +15,7 @@ TOOL:
   ESM:
     output_tmp_mse3_dir: "/mnt/tmp/ESM3"
   NETMHCSTABPAN:   
+    url: "http://43.202.64.213:60823/netmhcstabpan"
     netmhcstabpan_dir: "/mnt/softwares/netMHCstabpan-1.0/Linux_x86_64"
     input_tmp_netmhcstabpan_dir: "/mnt/tmp/NetMHCstabpan/input"
     output_tmp_netmhcstabpan_dir: "/mnt/tmp/NetMHCstabpan/output"
@@ -74,7 +75,7 @@ TOOL:
     url: "http://43.202.64.213:60824/TransPHLA_AOMP"
     script_path: /mnt/softwares/TransPHLA-AOMP/TransPHLA-AOMP/pHLAIformer.py
     python_bin: /mnt/softwares/miniconda3/envs/transphla/bin/python
-    hla_peptide_mapping_path: ./hla_mapping.json
+    hla_peptide_mapping_path: src/model/agents/tools/TransPHLA/TransPHLA_hla_peptide_mapping.json
     input_tmp_dir: /mnt/tmp/transphla/input
     output_tmp_dir: /mnt/tmp/transphla/output
   UNIPMT:
@@ -101,6 +102,7 @@ TOOL:
     rnafold_energy_threshold : 0.0
 
   LINEARDESIGN:
+    url: "http://43.202.64.213:60824/LinearDesign"
     script: "/mnt/softwares/LinearDesign/linear_design.py"
     input_tmp_dir: "/mnt/tmp/LinearDesign/input"
     output_tmp_dir: "/mnt/tmp/LinearDesign/output"

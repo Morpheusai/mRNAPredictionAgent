@@ -17,6 +17,8 @@ from keras.layers import Input,Dense,concatenate,Dropout
 from keras.models import Model,load_model                                                      
 from keras import backend as K
 
+from utils.minio_utils import upload_file_to_minio
+
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
 sys.path.append(str(project_root))
@@ -24,19 +26,8 @@ from config import CONFIG_YAML
 from src.utils.log import logger
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
-MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
 MINIO_BUCKET = MINIO_CONFIG["pmtnet_bucket"]
-MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
-# 初始化 MinIO 客户端
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
 
 ##Customer Input
 #python pMTnet.py -input input.csv -library library_dir -output output_dir
@@ -287,16 +278,9 @@ def upload_to_minio(minio_client, local_file_path, minio_bucket, minio_object_na
     :return: 上传文件的 MinIO 路径，格式为 minio://bucket/object
     """
     try:
-        # 上传文件
-        minio_client.fput_object(
-            minio_bucket,
-            minio_object_name,
-            local_file_path
-        )
-        # 构造并返回 MinIO 路径
-        minio_path = f"minio://{minio_bucket}/{minio_object_name}"
+        minio_path = upload_file_to_minio(local_file_path,minio_bucket,minio_object_name)
+
         logger.info(f"MinIO path: {minio_path}")
-        print(f"MinIO path: {minio_path}")
         return minio_path
     except S3Error as e:
         logger.error(f"MinIO S3 Error: {e}")
@@ -387,9 +371,9 @@ object_name = f"{uuid.uuid4()}_pMTnet_results.csv"
 output_file_to_local = f"{output_dir}/{object_name}"
 rank_output_matrix.to_csv(output_file_to_local, sep=',', index=False)
 #upload to minio
-if not minio_client.bucket_exists(MINIO_BUCKET):
-    minio_client.make_bucket(MINIO_BUCKET)
-minio_path = upload_to_minio(minio_client, output_file_to_local, MINIO_BUCKET, object_name)
+
+minio_path = upload_file_to_minio(output_file_to_local,MINIO_BUCKET,object_name)
+
 if minio_path.startswith("minio://") :
     try:
         if not isinstance(output_file_to_local, Path):

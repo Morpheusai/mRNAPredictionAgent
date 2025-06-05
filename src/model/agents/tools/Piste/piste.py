@@ -17,7 +17,7 @@ piste_url = CONFIG_YAML["TOOL"]["PISTE"]["url"]
 
 @tool
 async def PISTE(
-    input_file_path: str,
+    input_file_dir: str,
     model_name: Optional[str] = None,
     threshold: Optional[float] = None,
     antigen_type: Optional[str] = None
@@ -26,7 +26,7 @@ async def PISTE(
     调用远程 PISTE 服务（支持异步），输入为 MinIO 路径和参数选项。
 
     Args:
-        input_file_path (str): MinIO 输入路径，例如 minio://bucket/file.csv
+        input_file_dir (str): MinIO 输入路径，例如 minio://bucket/file.csv
         model_name (str, optional): 模型名称，如 "random"、"unipep"、"reftcr"
         threshold (float, optional): binder 阈值（0-1）
         antigen_type (str, optional): 抗原类型，"MT" 或 "WT"
@@ -36,7 +36,7 @@ async def PISTE(
     """
     try:
         
-        payload = {"input_file_dir_minio": input_file_path}
+        payload = {"input_file_dir_minio": input_file_dir}
         if model_name:
             payload["model_name"] = model_name
         if threshold is not None:
@@ -48,7 +48,7 @@ async def PISTE(
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(piste_url, json=payload) as response:
                 response.raise_for_status()
-                return await response.text()
+                return await response.json()
 
     except Exception as e:
         print("发生异常类型：", type(e).__name__)
@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     async def test():
         result = await PISTE.ainvoke({
-            "input_file_path": test_input_path,
+            "input_file_dir": test_input_path,
             "model_name": "unipep",
             "threshold": 0.5,
             "antigen_type": "MT"

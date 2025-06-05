@@ -14,45 +14,15 @@ project_root = current_file.parents[5]
 sys.path.append(str(project_root))   
 from config import CONFIG_YAML
 from src.utils.log import logger
+from utils.minio_utils import upload_file_to_minio
+
 TMP_OUTPUT_DIR = CONFIG_YAML["TOOL"]["EXTRACT_PEPTIDE"]["tmp_extract_peptide_dir"]
 tmp_output_dir = Path(TMP_OUTPUT_DIR)
 tmp_output_dir.mkdir(parents=True, exist_ok=True)
 
 # 配置环境变量和 MinIO 连接
-MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
-MINIO_ENDPOINT = CONFIG_YAML["MINIO"]["endpoint"]
 MINIO_BUCKET = CONFIG_YAML["MINIO"]["extract_peptide_bucket"]
-MINIO_SECURE = CONFIG_YAML["MINIO"].get("secure", False)
 
-# 初始化 MinIO 客户端
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
-
-def check_minio_connection(bucket_name=MINIO_BUCKET):
-    try:
-        minio_client.list_buckets()
-        if not minio_client.bucket_exists(bucket_name):
-            minio_client.make_bucket(bucket_name)
-        return True
-    except S3Error as e:
-        print(f"MinIO连接或bucket操作失败: {e}")
-        return False
-
-def upload_to_minio(file_path: str, output_filename: str):
-    try:
-        minio_client.fput_object(
-            MINIO_BUCKET,
-            output_filename,
-            file_path
-        )
-        return f"minio://{MINIO_BUCKET}/{output_filename}", None
-    except S3Error as e:
-        return None, f"上传 MinIO 失败: {e}"
 
 def validate_peptide_sequence(peptide: str) -> bool:
     """
@@ -108,29 +78,17 @@ async def process_multiple_peptides(peptide_list: list[str]) -> str:
             "content": f"写入 FASTA 文件失败: {e}",
         }, ensure_ascii=False)
     # 上传到MinIO
-    minio_available = check_minio_connection()
-    if minio_available:
-        file_path, error = upload_to_minio(str(fasta_file_tmp_path), object_name)
-        try:
-            fasta_file_tmp_path.unlink(missing_ok=True)
-        except Exception as e:
-            logger.warning(f"临时文件删除失败: {e}")
-        if error:
-            return json.dumps({
-                "type": "text",
-                "content": f"上传MinIO失败: {error}",
-            }, ensure_ascii=False)
-        
-        return json.dumps({
-            "type": "link",
-            "url": file_path,
-            "content": f"肽段序列已写入fas文件成功",
-        }, ensure_ascii=False)
-    else:
-        return json.dumps({
-            "type": "text",
-            "content": "MinIO连接失败。",
-        }, ensure_ascii=False)
+
+    file_path = upload_file_to_minio(str(fasta_file_tmp_path),MINIO_BUCKET,object_name)
+    try:
+        fasta_file_tmp_path.unlink(missing_ok=True)
+    except Exception as e:
+        logger.warning(f"临时文件删除失败: {e}")  
+    return json.dumps({
+        "type": "link",
+        "url": file_path,
+        "content": f"肽段序列已写入fas文件成功",
+    }, ensure_ascii=False)
 
 @tool
 def ExtractPeptides(peptide_list: list[str]) -> str:

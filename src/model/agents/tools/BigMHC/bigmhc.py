@@ -16,37 +16,19 @@ from minio.error import S3Error
 from pathlib import Path
 from typing import List, Union, Optional
 
-load_dotenv()
+from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]                
 sys.path.append(str(project_root))
 from config import CONFIG_YAML
+load_dotenv()
 
 bigmhc_url = CONFIG_YAML["TOOL"]["BIGMHC"]["url"]
 
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
-MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
 MINIO_BUCKET = MINIO_CONFIG["bigmhc_bucket"]
-MINIO_SECURE = MINIO_CONFIG.get("secure", False)
-# # 初始化 MinIO 客户端
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
-def check_minio_connection(bucket_name=MINIO_BUCKET):
-    try:
-        minio_client.list_buckets()
-        if not minio_client.bucket_exists(bucket_name):
-            minio_client.make_bucket(bucket_name)
-        return True
-    except S3Error as e:
-        print(f"MinIO连接或bucket操作失败: {e}")
-        return False
+
 
 def parse_fasta(filepath: str) -> List[str]:
     peptides = []
@@ -75,7 +57,7 @@ def resolve_minio_to_list(minio_path: str, is_peptide: bool = False) -> List[str
     ext = os.path.splitext(object_path)[1].lower()
 
     with tempfile.NamedTemporaryFile(delete=True) as tmp:
-        minio_client.fget_object(bucket, object_path, tmp.name)
+        download_from_minio_uri(minio_path,tmp.name)
 
         if is_peptide and ext in [".fa", ".fasta", ".fas"]:
             return parse_fasta(tmp.name)
@@ -117,9 +99,8 @@ def generate_bigmhc_input_file(
     with tempfile.NamedTemporaryFile(delete=True, suffix=".csv") as tmp:
         df.to_csv(tmp.name, index=False)
         unique_name = f"{uuid.uuid4().hex}_bigmhc_el_input.csv"
-        minio_client.fput_object(MINIO_BUCKET, unique_name, tmp.name)
-
-    return f"minio://{MINIO_BUCKET}/{unique_name}"
+        minio_upload_path = upload_file_to_minio(tmp.name,MINIO_BUCKET,unique_name)
+    return minio_upload_path
 
 def generate_bigmhc_im_input_from_fasta(
     fasta_minio_path: str,
@@ -135,10 +116,8 @@ def generate_bigmhc_im_input_from_fasta(
     返回:
     - minio:// 路径的 CSV 文件
     """
-    path = fasta_minio_path[len("minio://"):]
-    bucket, object_path = path.split("/", 1)
     local_path = tempfile.NamedTemporaryFile(delete=True).name
-    minio_client.fget_object(bucket, object_path, local_path)
+    download_from_minio_uri(fasta_minio_path,local_path)
 
     records = []
     HLA_REGEX = re.compile(r"^(HLA-)?[ABC]\*\d{2}:\d{2}$")
@@ -170,9 +149,8 @@ def generate_bigmhc_im_input_from_fasta(
     with tempfile.NamedTemporaryFile(delete=True, suffix=".csv") as tmp:
         df.to_csv(tmp.name, index=False)
         unique_name = f"{uuid.uuid4().hex}_bigmhc_im_input.csv"
-        minio_client.fput_object(MINIO_BUCKET, unique_name, tmp.name)
-
-    return f"minio://{MINIO_BUCKET}/{unique_name}"
+        minio_upload_path = upload_file_to_minio(tmp.name,MINIO_BUCKET,unique_name)
+    return minio_upload_path
 
 def prepare_bigmhc_input_file(
     input_file: Optional[str],
@@ -199,18 +177,16 @@ def prepare_bigmhc_input_file(
             raise ValueError("不允许同时提供 input_file 和 peptide/hla 参数")
 
         # 判断是否是 fasta 文件（用于 BigMHC_IM 特殊格式）
-        if input_file.startswith("minio://") and input_file.lower().endswith((".fa", ".fasta", ".fas")):
+        if input_file.startswith("minio://") and input_file.lower().endswith((".fa", ".fasta", ".fsa")):
             from tempfile import NamedTemporaryFile
             import re
 
             # 支持 HLA-A*02:01 和 A*02:01 等形式
             HLA_REGEX = re.compile(r"^(HLA-)?[ABC]\*\d{2}:\d{2}$")
 
-            path = input_file[len("minio://"):]
-            bucket, object_path = path.split("/", 1)
 
             with NamedTemporaryFile(delete=True) as tmp:
-                minio_client.fget_object(bucket, object_path, tmp.name)
+                download_from_minio_uri(input_file,tmp.name)
 
                 with open(tmp.name, "r") as f:
                     for line in f:

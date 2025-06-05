@@ -16,22 +16,11 @@ project_root = current_dir.parents[4]
 sys.path.append(str(project_root))
 from config import CONFIG_YAML
 from src.utils.log import logger
+from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 
 # 读取 config 中的配置
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
-MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
 MINIO_BUCKET = MINIO_CONFIG["lineardesign_bucket"]
-MINIO_SECURE = MINIO_CONFIG.get("secure", False)
-
-# MinIO 客户端初始化
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
 
 # 配置路径
 linear_design_script = CONFIG_YAML["TOOL"]["LINEARDESIGN"]["script"]
@@ -39,28 +28,7 @@ input_dir = CONFIG_YAML["TOOL"]["LINEARDESIGN"]["input_tmp_dir"]
 output_dir = CONFIG_YAML["TOOL"]["LINEARDESIGN"]["output_tmp_dir"]
 linear_design_dir = Path(linear_design_script).parents[0]
 
-if not minio_client.bucket_exists(MINIO_BUCKET):
-    minio_client.make_bucket(MINIO_BUCKET)
 
-def download_file_from_minio(minio_path: str, local_dir: str) -> str:
-    """下载 MinIO 文件到本地"""
-    url_parts = urlparse(minio_path)
-    bucket_name = url_parts.netloc
-    object_name = url_parts.path.lstrip("/")
-    local_dir_path = Path(local_dir)
-    local_dir_path.mkdir(parents=True, exist_ok=True)
-    local_file_path = local_dir_path / Path(object_name).name
-
-    if not local_file_path.exists():
-        logger.info(f"Downloading {minio_path} to {local_file_path}")
-        minio_client.fget_object(bucket_name, object_name, str(local_file_path))
-    return str(local_file_path)
-
-def upload_file_to_minio(local_file_path: str, remote_name: str = None) -> str:
-    """上传本地文件到 MinIO 并返回路径"""
-    object_name = remote_name or Path(local_file_path).name
-    minio_client.fput_object(MINIO_BUCKET, object_name, local_file_path)
-    return f"minio://{MINIO_BUCKET}/{object_name}"
 
 async def run_lineardesign(minio_input_fasta: str, lambda_val: float = 1.0) -> str:
     try:
@@ -69,8 +37,7 @@ async def run_lineardesign(minio_input_fasta: str, lambda_val: float = 1.0) -> s
         output_filename = f"{output_uuid}_lineardesign_result.fasta"
         local_output = Path(output_dir) / output_filename
         local_output.parent.mkdir(parents=True, exist_ok=True)
-        local_input = download_file_from_minio(minio_input_fasta, input_dir)
-
+        local_input = download_from_minio_uri(minio_input_fasta, input_dir)
         # 构建命令
         command = [
             "python", str(linear_design_script),
@@ -100,9 +67,9 @@ async def run_lineardesign(minio_input_fasta: str, lambda_val: float = 1.0) -> s
                 f"--- stderr ---\n{stderr.decode()}"
             )
             raise RuntimeError(error_message)
-
+        minio_object_name = f"{uuid.uuid4().hex}_lineardesign_result.fasta"
         # 上传结果到 MinIO
-        minio_output_path = upload_file_to_minio(str(local_output))
+        minio_output_path = upload_file_to_minio(str(local_output),MINIO_BUCKET,minio_object_name)
         
         if minio_input_fasta:
             os.remove(local_input)
@@ -139,3 +106,68 @@ if __name__ == "__main__":
         run_lineardesign(
             minio_input_fasta="minio://extract-peptide-results/488eaf064dc74baea195075551388008_peptide_sequence.fasta",
             lambda_val= 0.5)))
+
+
+
+
+import aiohttp
+import asyncio
+import json
+import sys
+import traceback
+
+from langchain_core.tools import tool
+from pathlib import Path
+
+current_file = Path(__file__).resolve()
+project_root = current_file.parents[5]                
+sys.path.append(str(project_root))
+from config import CONFIG_YAML
+
+lineardesign_url = CONFIG_YAML["TOOL"]["LINEARDESIGN"]["url"]
+
+@tool
+async def LinearDesign(minio_input_fasta: str , lambda_val: float = 0.5) -> str:
+    """
+    使用 LinearDesign 工具对给定的肽段或 FASTA 文件进行 mRNA 序列优化。
+
+    参数：
+        minio_input_fasta: MinIO 中的输入文件路径（例如 minio://bucket/input.fasta）
+        lambda_val: lambda 参数控制表达/结构平衡，默认 0.5
+
+    返回：
+        包含 MinIO 链接的 JSON 字符串
+    """
+    
+    payload = {
+        "minio_input_fasta": minio_input_fasta,
+        "lambda_val": lambda_val,
+    }
+
+    timeout = aiohttp.ClientTimeout(total=1800)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(lineardesign_url, json=payload) as response:
+                response.raise_for_status()
+                return await response.json()
+    except Exception as e:
+        print("发生异常类型：", type(e).__name__)
+        print("异常信息：", str(e))
+        traceback.print_exc()
+
+        return json.dumps({
+            "type": "text",
+            "content": f"调用 LinearDesign 服务失败: {type(e).__name__} - {str(e)}"
+        }, ensure_ascii=False)
+if __name__ == "__main__":
+    # test_input = "minio://molly/8e2d5554-cd03-4088-98f4-1766952b4171_B0702.fsa"
+    test_input = "minio://netchop-cleavage-results/c8a29857-345d-49cc-bce5-71a5a9fe4864_cleavage_result.fasta"
+    async def test():
+        result = await LinearDesign.ainvoke({
+            "minio_input_fasta":"minio://extract-peptide-results/488eaf064dc74baea195075551388008_peptide_sequence.fasta",
+            "lambda_val": 0.5
+        })
+        print("LinearDesign 异步调用结果：")
+        print(result)
+
+    asyncio.run(test())

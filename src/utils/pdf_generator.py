@@ -12,7 +12,7 @@ from io import BytesIO
 
 from config import CONFIG_YAML 
 from src.utils.log import logger
-from src.utils.upload_file_to_minio import upload_file_to_minio
+from utils.minio_utils import upload_file_to_minio
 
 MD2PDF_WATERMARK_CONTENT = CONFIG_YAML["MD2PDF"]["watermark_content"]
 MD2PDF_CSS_PATH = CONFIG_YAML["MD2PDF"]["css_path"]

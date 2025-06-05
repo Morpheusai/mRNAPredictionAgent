@@ -16,6 +16,7 @@ from langchain_core.tools import tool
 from urllib.parse import urlparse
 from typing import List, Dict, Optional
 
+from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 current_file = Path(__file__).resolve()
 current_script_dir = current_file.parent
 project_root = current_file.parents[5]
@@ -30,39 +31,15 @@ os.makedirs(download_dir, exist_ok=True)
 
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
-MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
 MINIO_BUCKET = MINIO_CONFIG["pmtnet_bucket"]
-MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
-# 初始化 MinIO 客户端
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
 
-def upload_to_minio(local_path: str, bucket: str = MINIO_BUCKET, object_name: Optional[str] = None) -> str:
-    if not object_name:
-        object_name = f"inputs/{uuid.uuid4()}.csv"
-    minio_client.fput_object(bucket, object_name, local_path)
-    return f"minio://{bucket}/{object_name}"
-
-def download_from_minio(minio_path: str, download_dir: str = download_dir) -> str:
-    url = urlparse(minio_path)
-    bucket = url.netloc
-    object_name = url.path.lstrip("/")
-    local_path = os.path.join(download_dir, f"{uuid.uuid4()}_{os.path.basename(object_name)}")
-    minio_client.fget_object(bucket, object_name, local_path)
-    return local_path
 
 def extract_antigen_sequences(antigen_input) -> List[str]:
     if isinstance(antigen_input, list):
         return antigen_input
     elif isinstance(antigen_input, str) and antigen_input.startswith("minio://"):
-        local_path = download_from_minio(antigen_input)
+        local_path = download_from_minio_uri(antigen_input,download_dir)
         sequences = []
         with open(local_path, "r") as f:
             current_seq = ""
@@ -82,7 +59,7 @@ def extract_antigen_sequences(antigen_input) -> List[str]:
 
 def load_antigen_hla_pairs(input_source) -> List[Dict[str, str]]:
     if isinstance(input_source, str) and input_source.startswith("minio://"):
-        local_path = download_from_minio(input_source)
+        local_path = download_from_minio_uri(input_source,download_dir)
         df = pd.read_csv(local_path)
         if not {"Antigen", "HLA"}.issubset(df.columns):
             raise ValueError("CSV 文件必须包含 'Antigen' 和 'HLA' 两列")
@@ -103,7 +80,7 @@ def process_uploaded_fasta_to_csv(
         raise ValueError(" FASTA 格式时必须提供 cdr3_list")
 
     # 下载
-    local_path = download_from_minio(uploaded_fasta_path)
+    local_path = download_from_minio_uri(uploaded_fasta_path,download_dir)
     hla_pattern = re.compile(r"^[ABC]\*\d{2}:\d{2}$")
     sequences = []
 
@@ -147,7 +124,8 @@ def process_uploaded_fasta_to_csv(
     df.to_csv(tmp_file, index=False)
 
     try:
-        return upload_to_minio(tmp_file)
+        object_name = f"inputs/{uuid.uuid4()}.csv"
+        return upload_file_to_minio(tmp_file,MINIO_BUCKET,object_name)
     finally:
         if os.path.exists(tmp_file):
             os.remove(tmp_file)
@@ -192,7 +170,8 @@ def prepare_pmtnet_input(
     df.to_csv(tmp_file, index=False)
 
     try:
-        return upload_to_minio(tmp_file)
+        object_name = f"inputs/{uuid.uuid4()}.csv"
+        return upload_file_to_minio(tmp_file,MINIO_BUCKET,object_name)
     finally:
         if os.path.exists(tmp_file):
             os.remove(tmp_file)
@@ -266,3 +245,4 @@ if __name__ == "__main__":
         print(result)
 
     asyncio.run(test())
+

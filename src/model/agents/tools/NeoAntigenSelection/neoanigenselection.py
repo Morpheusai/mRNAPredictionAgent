@@ -32,7 +32,7 @@ from src.model.agents.tools.NeoAntigenSelection.step2_pmhc_binding_affinity impo
 from src.model.agents.tools.NeoAntigenSelection.step3_pmhc_immunogenicity import step3_pmhc_immunogenicity
 from src.model.agents.tools.NeoAntigenSelection.step4_pmhc_tcr_interaction import step4_pmhc_tcr_interaction
 from src.model.agents.tools.NeoAntigenSelection.step5_mrna_design import step5_mrna_design
-
+from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 load_dotenv()
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]
@@ -99,8 +99,8 @@ def filter_rnafold(input_file_path: str, rnafold_energy_threshold: float) -> tup
         
         # 2. 下载文件到临时本地路径
         local_temp_path = f"{OUTPUT_TMP}/{uuid.uuid4().hex}.xlsx"
-        minio_client.fget_object(bucket_name, object_name, local_temp_path)
-        
+        # minio_client.fget_object(bucket_name, object_name, local_temp_path)
+        local_temp_path=download_from_minio_uri(input_file_path,local_temp_path)
         # 3. 读取Excel并过滤MFE结构
         df = pd.read_excel(local_temp_path)
         
@@ -118,16 +118,12 @@ def filter_rnafold(input_file_path: str, rnafold_energy_threshold: float) -> tup
         # 6. 上传到molly桶
         random_id = uuid.uuid4().hex
         new_object_name = f"{random_id}_filter_RNAFold_results.xlsx"
-        minio_client.fput_object(
-            MOLLY_BUCKET,  # 目标桶名
-            new_object_name,
-            filtered_local_path
-        )
-        
+
+        mimio_path=upload_file_to_minio(filtered_local_path,MOLLY_BUCKET,new_object_name)
         # 6. 清理临时文件
         Path(local_temp_path).unlink(missing_ok=True)
         Path(filtered_local_path).unlink(missing_ok=True)        
-        return markdown_str, f"minio://molly/{new_object_name}"
+        return markdown_str, mimio_path
     
     except S3Error as e:
         raise Exception(f"MinIO操作失败: {e}")
@@ -164,7 +160,8 @@ async def run_neoanigenselection(
         bigmhc_el_result_file_path, bigmhc_el_fasta_str = await step2_pmhc_binding_affinity(
             cleavage_result_file_path, netchop_final_result_str,mhc_allele, writer, mrna_design_process_result,minio_client
         )
-        
+
+        print(bigmhc_el_result_file_path)
         # 第三步：pMHC免疫原性预测
         bigmhc_im_result_file_path, bigmhc_im_fasta_str = await step3_pmhc_immunogenicity(
             bigmhc_el_result_file_path, writer, mrna_design_process_result,minio_client

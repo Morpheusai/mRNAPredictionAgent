@@ -474,9 +474,11 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 hla_input = tool_call["args"].get("hla_input")
                 input_file = tool_call["args"].get("input_file")
                 func_result = await BigMHC_EL.ainvoke(
-                    peptide_input=peptide_input,
-                    hla_input=hla_input,
-                    input_file=input_file
+                    {
+                    "peptide_input":peptide_input,
+                    "hla_input":hla_input,
+                    "input_file":input_file
+                    }
                 )
                 logger.info(f"BigMHC_EL result: {func_result}")
                 tool_msg = ToolMessage(
@@ -485,13 +487,15 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 )
                 tmp_tool_msg.append(tool_msg)
             elif tool_name == "BigMHC_IM":
-                peptide_input = tool_call["args"].get("peptide_input")
-                hla_input = tool_call["args"].get("hla_input")
-                input_file = tool_call["args"].get("input_file")
+                peptide_input = tool_call["args"].get("peptide_input",None)
+                hla_input = tool_call["args"].get("hla_input",None)
+                input_file = tool_call["args"].get("input_file",None)
                 func_result = await BigMHC_IM.ainvoke(
-                    peptide_input=peptide_input,
-                    hla_input=hla_input,
-                    input_file=input_file
+                    {
+                    "peptide_input":peptide_input,
+                    "hla_input":hla_input,
+                    "input_file":input_file
+                    }
                 )
                 logger.info(f"BigMHC_IM result: {func_result}")
                 tool_msg = ToolMessage(
@@ -502,14 +506,14 @@ async def should_continue(state: AgentState, config: RunnableConfig):
 
             elif tool_name == "TransPHLA_AOMP":
                 peptide_file = tool_call["args"].get("peptide_file")
-                hla_file = tool_call["args"].get("hla_file")
+                alleles = tool_call["args"].get("alleles")
                 threshold = tool_call["args"].get("threshold", 0.5)
                 cut_length = tool_call["args"].get("cut_length", 10)
                 cut_peptide = tool_call["args"].get("cut_peptide", True)
                 func_result = await TransPHLA_AOMP.ainvoke(
                     {
                         "peptide_file": peptide_file,
-                        "hla_file": hla_file,
+                        "alleles": alleles,
                         "threshold": threshold,
                         "cut_length": cut_length,
                         "cut_peptide": cut_peptide
