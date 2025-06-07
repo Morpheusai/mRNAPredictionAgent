@@ -30,7 +30,8 @@ from src.model.agents.tools import (
     NetChop_Cleavage,
     LinearDesign,
     RNAFold,
-    RNAPlot
+    RNAPlot,
+    NeoantigenSelectionIntroduce
 )
 from src.utils.log import logger
 
@@ -108,6 +109,7 @@ TOOLS = [
     LinearDesign,
     RNAFold,
     RNAPlot,
+    NeoantigenSelectionIntroduce,
 ]
     
 TOOL_TEMPLATES = {
@@ -600,6 +602,15 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 logger.info(f"RNAPlot result: {func_result}")
                 tool_msg = ToolMessage(
                     content=rnaplot_result,
+                    tool_call_id=tool_call_id,
+                )
+                tmp_tool_msg.append(tool_msg)
+            elif tool_name == "NeoantigenSelectionIntroduce":
+                func_result = await NeoantigenSelectionIntroduce.ainvoke({})
+                neoantigenselectionintroduce_result=func_result
+                logger.info(f"RNAPlot result: {func_result}")
+                tool_msg = ToolMessage(
+                    content=neoantigenselectionintroduce_result,
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
