@@ -10,7 +10,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, MessagesState, StateGraph
 from langchain_core.messages import SystemMessage, AIMessage
 from langgraph.types import Command
-from typing import Literal, Any
+from typing import Literal, Any,Optional
 
 from config import CONFIG_YAML
 
@@ -46,22 +46,23 @@ class PatientCaseSummaryReport(BaseModel):
         ...,
         description="结合病人的病例分析，是否适合mRNA疫苗治疗",
     )
-    mhc_allele: str = Field(
-        ...,
+    mhc_allele: Optional[str] = Field(
+        None,
         description="病例中测结果中检测到的MHC allele",
     )
-    cdr3: str = Field(
-        ...,
+    cdr3: Optional[str] = Field(
+        None,
         description="病例中测结果中检测到的CDR3序列",
     )
-    input_fsa_filepath: str = Field(
-        ...,
+    input_fsa_filepath: Optional[str] = Field(
+        None,
         description="病人上传的fsa文件路径",
     )
-    summary: str = Field(
-        ...,
+    summary: Optional[str] = Field(
+        None,
         description="病例分析后的总结",
     )
+
 
 def wrap_model(
         model: BaseChatModel, 
@@ -218,12 +219,35 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     )
 
 # Define the graph
+
+# 定义条件判断函数
+def route_based_on_action(state: AgentState) -> str:
+    messages = state.get("messages", [])  # 安全获取，默认为空列表
+    
+    # 检查最后一条消息是否包含关键内容
+    if messages and isinstance(messages[-1], AIMessage):
+        last_msg = messages[-1]
+        if "当前病人不适合做mRNA研究" in last_msg.content:
+            return "END"
+    
+    return "mrna_design_node"
+
 PatientCaseMrnaAgent = StateGraph(AgentState)
 PatientCaseMrnaAgent.add_node("patient_case_analysis", PatientCaseAnalysisNode)
 PatientCaseMrnaAgent.add_node("mrna_design_node", mRNADesignNode)
 PatientCaseMrnaAgent.add_node("patient_case_report", PatientCaseReportNode)
 
 PatientCaseMrnaAgent.set_entry_point("patient_case_analysis")
+# 设置入口和条件边
+PatientCaseMrnaAgent.set_entry_point("patient_case_analysis")
+PatientCaseMrnaAgent.add_conditional_edges(
+    "patient_case_analysis",
+    route_based_on_action,  # 条件判断函数
+    {
+        "mrna_design_node": "mrna_design_node",  # 条件为 False 时跳转
+        "END": END  # 条件为 True 时结束
+    }
+)
 PatientCaseMrnaAgent.add_edge("patient_case_analysis", "mrna_design_node")
 PatientCaseMrnaAgent.add_edge("mrna_design_node", "patient_case_report")
 PatientCaseMrnaAgent.add_edge("patient_case_report", END)
