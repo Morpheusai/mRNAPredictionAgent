@@ -1,542 +1,236 @@
 import aiosqlite
+from datetime import datetime
 
+from pydantic import BaseModel, Field
+from langgraph.config import get_stream_writer
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, MessagesState, StateGraph
-from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
-from typing import Literal,Optional
+from langchain_core.messages import SystemMessage, AIMessage
+from langgraph.types import Command
+from typing import Literal, Any
+
+from config import CONFIG_YAML
 
 from src.model.agents.tools import (
-    NetMHCpan,
-    FastaFileProcessor,
-    ExtractPeptides,
-    pMTnet,
-    NetChop,
-    Prime,
-    NetTCR,
-    NetCTLpan,
-    PISTE,
-    ImmuneApp,
-    BigMHC_EL,
-    BigMHC_IM,
-    TransPHLA_AOMP,
-    ImmuneApp_Neo,
-    UniPMT,
-    NetChop_Cleavage,
     NeoAntigenSelection
 )
 from src.utils.log import logger
+from src.utils.pdf_generator import neo_md2pdf
 
 from .core import get_model  # 相对导入
-from .core.neo_antigen_prompts import (
-    NEO_ANTIGEN_PROMPT,
-    FILE_LIST,
-    NETMHCPAN_RESULT,
-    PMTNET_RESULT,
-    NETCTLpan_RESULT,
-    PISTE_RESULT,
-    ImmuneApp_RESULT,
-    NETCHOP_RESULT, 
-    PRIME_RESULT,
-    NETTCR_RESULT,
-    BIGMHC_EL_RESULT,
-    BIGMHC_IM_RESULT,
-    TransPHLA_AOMP_RESULT,
-    ImmuneApp_Neo_RESULT,
-    UNIPMT_RESULT,
-    NETCHOP_CLEAVAGE_RESULT,
-    OUTPUT_INSTRUCTIONS,
-    NEOANTIGENSELECTION_RESULT,
+from .core.patient_case_mrna_prompts import (
+    PatientCaseReportAnalysisPrompt,
+    PatientCaseReportSummaryPrompt
 )
 
+DOWNLOADER_URL_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["markdown_download_url_prefix"]
 
+# Define the state for the agent
 class AgentState(MessagesState, total=False):
     """`total=False` is PEP589 specs.
     documentation: https://typing.readthedocs.io/en/latest/spec/typeddict.html#totality
     """
-    netmhcpan_result: Optional[str]=None
-    pmtnet_result: Optional[str]=None
-    netchop_result: Optional[str]=None
-    prime_result: Optional[str]=None
-    nettcr_result: Optional[str]=None
-    netctlpan_result: Optional[str]=None
-    piste_result: Optional[str]=None
-    immuneapp_result: Optional[str]=None
-    bigmhc_el_result: Optional[str]=None
-    bigmhc_im_result: Optional[str]=None
-    transphla_aomp_result: Optional[str]=None
-    immuneapp_neo_result: Optional[str]=None
-    unipmt_result: Optional[str]=None
-    netchop_cleavage_result: Optional[str]=None
-    neoantigenselection_result: Optional[str]=None
+    mhc_allele: str
+    cdr3: str
+    input_fsa_filepath: str
+    patient_case_summary: str
+    mrna_design_process_result: str
 
-TOOLS = [
-    NetMHCpan,
-    FastaFileProcessor,
-    ExtractPeptides,
-    pMTnet,
-    NetCTLpan,
-    PISTE,
-    ImmuneApp,
-    NetChop, 
-    Prime, 
-    NetTCR,
-    BigMHC_EL,
-    BigMHC_IM,
-    TransPHLA_AOMP,
-    ImmuneApp_Neo,
-    UniPMT,
-    NetChop_Cleavage,
-    NeoAntigenSelection
-]
-    
-TOOL_TEMPLATES = {
-    "netmhcpan_result": NETMHCPAN_RESULT,
-    "pmtnet_result": PMTNET_RESULT,
-    "netctlpan_result": NETCTLpan_RESULT,
-    "piste_result": PISTE_RESULT,
-    "immuneapp_result": ImmuneApp_RESULT,
-    "netchop_result": NETCHOP_RESULT, 
-    "prime_result": PRIME_RESULT,
-    "nettcr_result": NETTCR_RESULT,
-    "bigmhc_el_result": BIGMHC_EL_RESULT,
-    "bigmhc_im_result": BIGMHC_IM_RESULT,
-    "transphla_aomp_result": TransPHLA_AOMP_RESULT,
-    "immuneapp_neo_result": ImmuneApp_Neo_RESULT,
-    "unipmt_result": UNIPMT_RESULT,
-    "netchop_cleavage_result": NETCHOP_CLEAVAGE_RESULT,
-    "neoantigenselection_result":NEOANTIGENSELECTION_RESULT,
-}
+# Data model
+class PatientCaseSummaryReport(BaseModel):
+    """病例数据分析后的总结输出结果."""
+    action: Literal["YES", "NO"] = Field(
+        ...,
+        description="结合病人的病例分析，是否适合mRNA疫苗治疗",
+    )
+    mhc_allele: str = Field(
+        ...,
+        description="病例中测结果中检测到的MHC allele",
+    )
+    cdr3: str = Field(
+        ...,
+        description="病例中测结果中检测到的CDR3序列",
+    )
+    input_fsa_filepath: str = Field(
+        ...,
+        description="病人上传的fsa文件路径",
+    )
+    summary: str = Field(
+        ...,
+        description="病例分析后的总结",
+    )
 
-def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
-    model = model.bind_tools(TOOLS)
+def wrap_model(
+        model: BaseChatModel, 
+        system_prompt: str,
+        structure_model: bool = False,
+        structure_output: Any = None
+    ) -> RunnableSerializable[AgentState, AIMessage]:
+    if structure_model:
+        model = model.with_structured_output(schema=structure_output)
     #导入prompt
     preprocessor = RunnableLambda(
-        lambda state: [SystemMessage(content=file_instructions)] + state["messages"],
+        lambda state: [SystemMessage(content=system_prompt)] + state["messages"],
         name="StateModifier",
     )
     return preprocessor | model
 
-def format_file_info(file) -> str:
-    return (
-        f"*上传文件名*: {file.file_name}\n"
-        f"*上传的文件路径*: {file.file_path}\n"
-        f"*上传的文件内容*: {file.file_content}\n"
-        f"*上传的文件描述*: {file.file_desc}\n"
-    )
-
-def format_tool_results(state: dict, tool_templates: dict) -> str:
-    return "\n".join(
-        template.format(**{key: state.get(key)})
-        for key, template in tool_templates.items()
-    )
-    
-async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
-    m = get_model(
+async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> AgentState:
+    model = get_model(
         config["configurable"].get("model", None),
         config["configurable"].get("temperature", None),
         config["configurable"].get("max_tokens", None),
         config["configurable"].get("base_url", None),
         config["configurable"].get("frequency_penalty", None),
-        )
+    )
     #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
     # 处理文件列表
-    instructions = NEO_ANTIGEN_PROMPT
+    patient_info = ""
     if file_list:
         for conversation_file in file_list:
             for file in conversation_file.files:
-                file_info = FILE_LIST.format(file_list=format_file_info(file))
-                tool_results = format_tool_results(state, TOOL_TEMPLATES)
-                instructions += f"{file_info}\n{tool_results}\n{OUTPUT_INSTRUCTIONS}"
+                file_name = file.file_name
+                file_content = file.file_content
+                file_path = file.file_path
+                file_desc = file.file_desc
+                file_instructions = f"*上传文件名*: {file_name} \n" + \
+                                    f"*上传的文件描述*: {file_desc} \n" + \
+                                    f"*上传的文件路径*: {file_path} \n" + \
+                                    f"*上传的文件内容*: {file_content} \n"
+                patient_info += file_instructions
+    system_prompt = PatientCaseReportAnalysisPrompt.format(
+        patient_info = patient_info,
+    )
+    logger.info(f"patient analysis prompt: {system_prompt}")
+    writer = get_stream_writer()
     
-    model_runnable = wrap_model(m,instructions)
+    model_runnable = wrap_model(
+        model, 
+        system_prompt, 
+        structure_model = True, 
+        structure_output = PatientCaseSummaryReport
+    )
+    writer("### 正在综合评估当前病例数据📊，确定是否满足antigen筛选条件💉✅。\n")
+    writer("```json\n")
     response = await model_runnable.ainvoke(state, config)
-    # print(state)
-    return {"messages": [response]}
+    writer("\n```\n ### 根据病例分析📊，该患者符合antigen筛选条件✅。我们将立即启动antigen筛选流程💉🔬，请您耐心等候⏳，我们会尽快完成这项精准antigen筛选✨。")
+    # TODO, debug
+    action = response.action
+    logger.info(f"patient analysis llm response: {response}, {action}")
+    if action == "NO":
+        return Command(
+            update = {
+                "messages": AIMessage(content="当前病人不适合做antigen研究")
+            },
+            goto = END
+        )
+    mhc_allele = response.mhc_allele
+    cdr3 = response.cdr3
+    input_fsa_filepath = response.input_fsa_filepath
+    summary = response.summary
 
-async def should_continue(state: AgentState, config: RunnableConfig):
-    messages = state["messages"]
-    last_message = messages[-1]
-    tmp_tool_msg = []
-    netmhcpan_result=""
-    pmtnet_result=""
-    netchop_result=""
-    prime_result=""
-    nettcr_result=""
-    netctlpan_result=""
-    piste_result=""
-    immuneapp_result=""
-    bigmhc_el_result=""
-    bigmhc_im_result=""
-    transphla_aomp_result=""
-    immuneapp_neo_result=""
-    unipmt_result=""
-    netchop_cleavage_result=""
-    neoantigenselection_result=""
-    if isinstance(last_message, AIMessage) and last_message.tool_calls:
-        # 处理所有工具调用
-        for tool_call in last_message.tool_calls:
-            tool_name = tool_call["name"]
-            tool_call_id = tool_call["id"]
-            
+    # 返回结果
+    return Command(
+        update = {
+            "mhc_allele": mhc_allele,
+            "cdr3": cdr3,
+            "input_fsa_filepath": input_fsa_filepath,
+            "patient_case_summary": summary
+        },
+        goto = "mrna_design_node"
+    )
 
-            # 检查是否已经存在相同 tool_call_id 的 ToolMessage
-            if any(isinstance(msg, ToolMessage) and msg.tool_call_id == tool_call_id for msg in messages):
-                continue  # 如果已经存在，跳过添加
-            if tool_name == "NetMHCpan":
-                input_file = tool_call["args"].get("input_file")
-                mhc_allele=tool_call["args"].get("mhc_allele","HLA-A02:01")
-                high_threshold_of_bp=tool_call["args"].get("high_threshold_of_bp",0.5)
-                low_threshold_of_bp=tool_call["args"].get("low_threshold_of_bp",2.0)
-                peptide_length=tool_call["args"].get("peptide_length","9")
-                func_result = await NetMHCpan.ainvoke(
-                    {
-                        "input_file": input_file,
-                        "mhc_allele": mhc_allele,
-                        "high_threshold_of_bp": high_threshold_of_bp,
-                        "low_threshold_of_bp": low_threshold_of_bp,
-                        "peptide_length":peptide_length
-                    }
-                )
-                netmhcpan_result=func_result
+async def antigenDesignNode(state: AgentState, config: RunnableConfig):
+    
+    input_fsa_filepath = state["input_fsa_filepath"]
+    mhc_allele = state["mhc_allele"]
+    cdr3 = state["cdr3"]
 
-                logger.info(f"NetMHCpan result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-
-            elif tool_name == "FastaFileProcessor":
-                input_file=tool_call["args"].get("input_file")
-                func_result = await FastaFileProcessor.ainvoke(
-                    {
-                        "input_file": input_file
-                    }
-                )
-                logger.info(f"FastaFileProcessor result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)            
-            elif tool_name == "ExtractPeptides":
-                input_content = tool_call["args"].get("peptide_sequence")
-                func_result = await ExtractPeptides.ainvoke(
-                    {
-                        "peptide_sequence": input_content
-                    }
-                )
-                logger.info(f"ExtractPeptides result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-
-
-            elif tool_name == "pMTnet":
-                cdr3_list = tool_call["args"].get("cdr3_list")
-                antigen_input = tool_call["args"].get("antigen_input")
-                hla_list = tool_call["args"].get("hla_list")
-                antigen_hla_pairs = tool_call["args"].get("antigen_hla_pairs")
-                uploaded_file = tool_call["args"].get("uploaded_file")
-                func_result = await pMTnet.ainvoke(
-                    {
-                        "cdr3_list": cdr3_list,
-                        "antigen_input": antigen_input,
-                        "hla_list": hla_list,
-                        "antigen_hla_pairs": antigen_hla_pairs,
-                        "uploaded_file": uploaded_file
-                        
-                    }
-                )
-                logger.info(f"pMTnet result: {func_result}")
-                pmtnet_result=func_result
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-                
-            elif tool_name == "PISTE":
-                input_file_dir = tool_call["args"].get("input_file_dir")
-                model_name = tool_call["args"].get("model_name","random")
-                threshold = tool_call["args"].get("threshold", 0.5)
-                antigen_type = tool_call["args"].get("antigen_type","MT")
-                func_result = await PISTE.ainvoke(
-                    {
-                        "input_file_dir": input_file_dir,
-                        "model_name": model_name,
-                        "threshold": threshold,
-                        "antigen_type": antigen_type
-                    }
-                )
-                logger.info(f"piste result: {func_result}")
-                piste_result=func_result
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-
-            elif tool_name == "NetChop":
-                input_file = tool_call["args"].get("input_file")
-                cleavage_site_threshold=tool_call["args"].get("cleavage_site_threshold",0.5)
-                func_result = await NetChop.ainvoke(
-                    {
-                        "input_file": input_file,
-                        "cleavage_site_threshold": cleavage_site_threshold,
-                    }
-                )
-                netchop_result=func_result
-
-                logger.info(f"NetChop result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)         
-            elif tool_name == "Prime":
-                input_file = tool_call["args"].get("input_file")
-                mhc_allele=tool_call["args"].get("mhc_allele","A0101")
-                func_result = await Prime.ainvoke(
-                    {
-                        "input_file": input_file,
-                        "mhc_allele": mhc_allele,
-                    }
-                )
-                prime_result=func_result
-
-                logger.info(f"Prime result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=prime_result,
-                    tool_call_id=tool_call_id,
-                )                
-                tmp_tool_msg.append(tool_msg)                 
-                
-            elif tool_name == "NetCTLpan":
-                input_file = tool_call["args"].get("input_file")
-                mhc_allele=tool_call["args"].get("mhc_allele","HLA-A02:01")
-                weight_of_clevage=tool_call["args"].get("weight_of_clevage",0.225)
-                weight_of_tap=tool_call["args"].get("weight_of_tap",0.025)
-                peptide_length=tool_call["args"].get("peptide_length","9")
-                func_result = await NetCTLpan.ainvoke(
-                    {
-                        "input_file": input_file,
-                        "mhc_allele": mhc_allele,
-                        "weight_of_clevage": weight_of_clevage,
-                        "weight_of_tap": weight_of_tap,
-                        "peptide_length":peptide_length
-                    }
-                )
-                netctlpan_result=func_result
-                logger.info(f"NetCTLpan result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)       
-            elif tool_name == "NetTCR":
-                input_file = tool_call["args"].get("input_file")
-                func_result = await NetTCR.ainvoke(
-                    {
-                        "input_file": input_file,
-                    }
-                )
-                nettcr_result=func_result
-
-                logger.info(f"NetTCR result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=nettcr_result,
-                    tool_call_id=tool_call_id,
-                )                        
-                tmp_tool_msg.append(tool_msg)
-
-            elif tool_name == "ImmuneApp":
-                input_file_dir = tool_call["args"].get("input_file_dir")
-                alleles=tool_call["args"].get("alleles","HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02")
-                use_binding_score=tool_call["args"].get("use_binding_score",True)
-                peptide_lengths=tool_call["args"].get("peptide_lengths",[8,9])
-                func_result = await ImmuneApp.ainvoke(
-                    {
-                        "input_file_dir": input_file_dir,
-                        "alleles": alleles,
-                        "use_binding_score": use_binding_score,
-                        "peptide_lengths": peptide_lengths,
-                    }
-                )
-                immuneapp_result=func_result
-                logger.info(f"ImmuneApp result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-            elif tool_name == "ImmuneApp_Neo":
-                input_file = tool_call["args"].get("input_file")
-                alleles=tool_call["args"].get("alleles","HLA-A*01:01,HLA-A*02:01,HLA-A*03:01,HLA-B*07:02")
-                func_result = await ImmuneApp_Neo.ainvoke(
-                    {
-                        "input_file": input_file,
-                        "alleles": alleles,
-                    }
-                )
-                immuneapp_neo_result=func_result
-                logger.info(f"ImmuneApp_Neo result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=immuneapp_neo_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-            elif tool_name == "BigMHC_EL":
-                peptide_input = tool_call["args"].get("peptide_input")
-                hla_input = tool_call["args"].get("hla_input")
-                input_file = tool_call["args"].get("input_file")
-                func_result = await BigMHC_EL(
-                    peptide_input=peptide_input,
-                    hla_input=hla_input,
-                    input_file=input_file
-                )
-                logger.info(f"BigMHC_EL result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-            elif tool_name == "BigMHC_IM":
-                peptide_input = tool_call["args"].get("peptide_input")
-                hla_input = tool_call["args"].get("hla_input")
-                input_file = tool_call["args"].get("input_file")
-                func_result = await BigMHC_IM(
-                    peptide_input=peptide_input,
-                    hla_input=hla_input,
-                    input_file=input_file
-                )
-                logger.info(f"BigMHC_IM result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-
-            elif tool_name == "TransPHLA_AOMP":
-                peptide_file = tool_call["args"].get("peptide_file")
-                hla_file = tool_call["args"].get("hla_file")
-                threshold = tool_call["args"].get("threshold", 0.5)
-                cut_length = tool_call["args"].get("cut_length", 10)
-                cut_peptide = tool_call["args"].get("cut_peptide", True)
-                func_result = await TransPHLA_AOMP.ainvoke(
-                    {
-                        "peptide_file": peptide_file,
-                        "hla_file": hla_file,
-                        "threshold": threshold,
-                        "cut_length": cut_length,
-                        "cut_peptide": cut_peptide
-                    }
-                )
-                transphla_aomp_result=func_result
-                logger.info(f"TransPHLA_AOMP result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=transphla_aomp_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-            elif tool_name == "UniPMT":
-                input_file = tool_call["args"].get("input_file")
-                func_result = await UniPMT.ainvoke(
-                    {
-                        "input_file": input_file,
-                    }
-                )
-                unipmt_result=func_result
-                logger.info(f"UniPMT result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=unipmt_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-            elif tool_name == "NetChop_Cleavage":
-                input_file = tool_call["args"].get("input_file")
-                lengths=tool_call["args"].get("lengths",[8,9,10])
-                output_format=tool_call["args"].get("output_format","fasta")
-                func_result = await NetChop_Cleavage.ainvoke(
-                    {
-                        "input_file": input_file,
-                        "lengths": lengths,
-                        "output_format": output_format
-                    }
-                )
-                netchop_cleavage_result=func_result
-                logger.info(f"NetChop_Cleavage result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=netchop_cleavage_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-
-            elif tool_name == "NeoAntigenSelection":
-                input_file = tool_call["args"].get("input_file")
-                mhc_allele=tool_call["args"].get("mhc_allele",["HLA-A02:01"])
-                cdr3_sequence=tool_call["args"].get("cdr3_sequence",None)
-                func_result = await NeoAntigenSelection.ainvoke(
-                    {
-                        "input_file": input_file,
-                        "mhc_allele": mhc_allele,
-                        "cdr3_sequence": cdr3_sequence
-                    }
-                )
-                neoantigenselection_result=func_result
-                logger.info(f"NeoAntigenSelection result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=neoantigenselection_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
-    return {
-        "messages": tmp_tool_msg,
-        "netmhcpan_result":netmhcpan_result,
-        "pmtnet_result":pmtnet_result,
-        "netchop_result":netchop_result,
-        "prime_result":prime_result,
-        "nettcr_result":nettcr_result,
-        "piste_result": piste_result,
-        "netctlpan_result":netctlpan_result,
-        "immuneapp_result": immuneapp_result,
-        "bigmhc_el_result": bigmhc_el_result,
-        "bigmhc_im_result": bigmhc_im_result,
-        "transphla_aomp_result": transphla_aomp_result,
-        "immuneapp_neo_result": immuneapp_neo_result,
-        "unipmt_result": unipmt_result,
-        "netchop_cleavage_result": netchop_cleavage_result,
-        "neoantigenselection_result":neoantigenselection_result,
+    logger.info(f"mRNADesignNode args: fsa filename: {input_fsa_filepath}, mhc_allele: {mhc_allele}, cdr3: {cdr3}")
+    # 1. 通过state参数构建NeoAntigenResearch工具输入参数
+    mrna_design_process_result= await NeoAntigenSelection.ainvoke(
+        {
+            "input_file": input_fsa_filepath,
+            "mhc_allele": [mhc_allele],
+            "cdr3_sequence": [cdr3]
         }
+    )
+    return Command(
+        update = {
+            "mrna_design_process_result": mrna_design_process_result
+        },
+        goto = "patient_case_report"
+    )
 
+async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
+    logger.info(f"patient case report node")
+    mrna_design_process_result = state["mrna_design_process_result"]
+    model = get_model(
+        config["configurable"].get("model", None),
+        config["configurable"].get("temperature", None),
+        config["configurable"].get("max_tokens", None),
+        config["configurable"].get("base_url", None),
+        config["configurable"].get("frequency_penalty", None),
+    )
+    #添加文件到system token里面
+    file_list = config["configurable"].get("file_list", None)
+    # 处理文件列表
+    patient_info = ""
+    if file_list:
+        for conversation_file in file_list:
+            for file in conversation_file.files:
+                file_name = file.file_name
+                file_content = file.file_content
+                file_path = file.file_path
+                file_desc = file.file_desc
+                file_instructions = f"*上传文件名*: {file_name} \n" + \
+                                    f"*上传的文件描述*: {file_desc} \n" + \
+                                    f"*上传的文件路径*: {file_path} \n" + \
+                                    f"*上传的文件内容*: {file_content} \n"
+                patient_info += file_instructions
+    logger.info(f"patient case report node, pi: {patient_info}")
+    human_input = PatientCaseReportSummaryPrompt.format(
+        patient_info = patient_info,
+        process_info = mrna_design_process_result
+    )
+    messages = [
+        HumanMessage(content=human_input),
+    ]
+    logger.info(f"patient case report prompt: {messages}")
+    response = await model.ainvoke(messages)
+    logger.info(f"patient case report response: {response}")
+    writer = get_stream_writer()
+    writer("\n#### 📝 正在进行结果报告生成\n")
+    pdf_minio_path = neo_md2pdf(response.content)
+    #pdf_download_url = DOWNLOADER_URL_PREFIX + pdf_minio_path
+    pdf_download_url = pdf_minio_path
+    writer("\n🏥 已完成mRNA个体化疫苗设计结果报告生成，📥 请下载: ")
+    writer("#NEO_RESPONSE#")
+    fdtime = datetime.now().strftime('%Y-%m-%d')
+    writer(f"[mRNA疫苗设计报告-张先生-{fdtime}]({pdf_download_url})")
+    writer("#NEO_RESPONSE#")
+    return Command(
+        goto = END
+    )
 
 # Define the graph
 NeoAntigenAgent = StateGraph(AgentState)
-NeoAntigenAgent.add_node("modelNode", modelNode)
-NeoAntigenAgent.add_node("should_continue", should_continue)
-NeoAntigenAgent.set_entry_point("modelNode")
+NeoAntigenAgent.add_node("patient_case_analysis", PatientCaseAnalysisNode)
+NeoAntigenAgent.add_node("mrna_design_node", antigenDesignNode)
+NeoAntigenAgent.add_node("patient_case_report", PatientCaseReportNode)
 
-NeoAntigenAgent.add_edge("should_continue", END)
-
-def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
-    last_message = state["messages"][-1]
-    if not isinstance(last_message, AIMessage):
-        raise TypeError(f"Expected AIMessage, got {type(last_message)}")
-    if last_message.tool_calls:
-        return "tools"
-    return "done"
-
-
-NeoAntigenAgent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
-
+NeoAntigenAgent.set_entry_point("patient_case_analysis")
+NeoAntigenAgent.add_edge("patient_case_analysis", "mrna_design_node")
+NeoAntigenAgent.add_edge("mrna_design_node", "patient_case_report")
+NeoAntigenAgent.add_edge("patient_case_report", END)
 
 async def compile_neo_antigen_research():
     neo_antigen_research_conn = await aiosqlite.connect("checkpoints.sqlite")
     neo_antigen_research = NeoAntigenAgent.compile(checkpointer=AsyncSqliteSaver(neo_antigen_research_conn))
     return neo_antigen_research, neo_antigen_research_conn
+
+

@@ -27,10 +27,11 @@ from src.model.agents.core.tool_summary_prompts import (
     RNAFOLD_PROMPT,
     PMTNET_PROMPT
 )
-from src.model.agents.tools.NeoAntigenSelection.step1_protein_cleavage import step1_protein_cleavage
-from src.model.agents.tools.NeoAntigenSelection.step2_pmhc_binding_affinity import step2_pmhc_binding_affinity
-from src.model.agents.tools.NeoAntigenSelection.step3_pmhc_immunogenicity import step3_pmhc_immunogenicity
-from src.model.agents.tools.NeoAntigenSelection.step4_pmhc_tcr_interaction import step4_pmhc_tcr_interaction
+from src.model.agents.tools.NeoMRNASelection.step1_protein_cleavage import step1_protein_cleavage
+from src.model.agents.tools.NeoMRNASelection.step2_pmhc_binding_affinity import step2_pmhc_binding_affinity
+from src.model.agents.tools.NeoMRNASelection.step3_pmhc_immunogenicity import step3_pmhc_immunogenicity
+from src.model.agents.tools.NeoMRNASelection.step4_pmhc_tcr_interaction import step4_pmhc_tcr_interaction
+from src.model.agents.tools.NeoMRNASelection.step5_mrna_design import step5_mrna_design
 from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 load_dotenv()
 current_file = Path(__file__).resolve()
@@ -171,6 +172,10 @@ async def run_neoanigenselection(
             bigmhc_im_result_file_path, cdr3_sequence, writer, mrna_design_process_result,minio_client
         )
         
+        # 第五步：mRNA疫苗设计
+        result_dict = await step5_mrna_design(
+            mrna_input_file_path, writer, mrna_design_process_result
+        )
         
         
     except Exception as e:
@@ -187,13 +192,13 @@ async def run_neoanigenselection(
         }, ensure_ascii=False)
 
 @tool
-def NeoAntigenSelection(
+def NeomRNASelection(
     input_file: str,
     mhc_allele: Optional[List[str]] = None, 
     cdr3_sequence: Optional[List[str]] = None
 ) -> str:
     """                                    
-    NeoAntigenSelection是基于用户输入的患者信息，结合已有的工具库，完成个体化neo-antigen筛选。
+    NeomRNASelection是基于用户输入的患者信息，结合已有的工具库，完成个体化neo-antigen筛选，并辅助后续的mRNA疫苗设计。  工具。
     Args:                                  
         input_file (str): 输入的肽段序例fasta文件路径           
         mhc_allele (Optional[List[str]]): MHC比对的等位基因。
@@ -207,7 +212,7 @@ def NeoAntigenSelection(
     except Exception as e:
         result = {
             "type": "text",
-            "content": f"调用NeoAntigenSelection工具失败: {e}"
+            "content": f"调用NeomRNASelection工具失败: {e}"
         }
         return json.dumps(result, ensure_ascii=False)
     
@@ -215,6 +220,6 @@ if __name__ == "__main__":
     input_file = "minio://molly/ab58067f-162f-49af-9d42-a61c30d227df_test_netchop.fsa"
     
     # 最佳调用方式
-    tool_result = NeoAntigenSelection.invoke({
+    tool_result = NeomRNASelection.invoke({
         "input_file": input_file,
         "mhc_allele": ["HLA-A02:01"],})
