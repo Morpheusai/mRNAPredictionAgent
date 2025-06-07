@@ -16,7 +16,7 @@ def NeoantigenSelectionIntroduce() -> str:
     process_steps = """
 ## 🔍 个体化 neoantigen 筛选流程简介
 Neo 平台通过自动化的流程，帮助您从突变肽段中筛选出**具有潜力的个体化新抗原候选（neoantigen）**，用于后续多肽或mRNA疫苗开发。
-我们集成了一套默认流程（NeoAntigenSelection），包含以下关键阶段：
+我们集成了一套默认流程（**NeoAntigenSelection**），包含以下关键阶段：
 
 ---
 
