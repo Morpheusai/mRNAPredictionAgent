@@ -202,13 +202,13 @@ async def run_neoanigenselection(
         }, ensure_ascii=False)
 
 @tool
-def NeoAntigenSelection(
+def NeoantigenSelection(
     input_file: str,
     mhc_allele: Optional[List[str]] = None, 
     cdr3_sequence: Optional[List[str]] = None
 ) -> str:
     """                                    
-    NeoAntigenSelection是基于用户输入的患者信息，结合已有的工具库，完成个体化neo-antigen筛选。
+    NeoantigenSelection是基于用户输入的患者信息，结合已有的工具库，完成个体化neo-antigen筛选。
     Args:                                  
         input_file (str): 输入的肽段序例fasta文件路径           
         mhc_allele (Optional[List[str]]): MHC比对的等位基因。
@@ -222,7 +222,7 @@ def NeoAntigenSelection(
     except Exception as e:
         result = {
             "type": "text",
-            "content": f"调用NeoAntigenSelection工具失败: {e}"
+            "content": f"调用NeoantigenSelection工具失败: {e}"
         }
         return json.dumps(result, ensure_ascii=False)
     
@@ -230,6 +230,6 @@ if __name__ == "__main__":
     input_file = "minio://molly/ab58067f-162f-49af-9d42-a61c30d227df_test_netchop.fsa"
     
     # 最佳调用方式
-    tool_result = NeoAntigenSelection.invoke({
+    tool_result = NeoantigenSelection.invoke({
         "input_file": input_file,
         "mhc_allele": ["HLA-A02:01"],})

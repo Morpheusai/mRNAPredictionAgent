@@ -17,7 +17,7 @@ from .TransPHLA.transphla import TransPHLA_AOMP
 from .ImmuneAppNeo.immuneapp_neo import ImmuneApp_Neo
 from .UniPMT.unipmt import UniPMT
 from .CleavagePeptide.cleavage_peptide import NetChop_Cleavage
-from .NeoAntigenSelection.neoanigenselection import NeoAntigenSelection
+from .NeoAntigenSelection.neoanigenselection import NeoantigenSelection
 from .LinearDesign.lineardesign import LinearDesign
 from .RNAFold.rnafold import RNAFold 
 from .RNAPlot.rnaplot import RNAPlot 
