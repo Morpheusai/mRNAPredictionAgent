@@ -42,6 +42,12 @@ async def step3_pmhc_immunogenicity(
     STEP3_DESC1 = """
 ## 第3部分-pMHC免疫原性预测
 基于BigMHC_IM工具对上述内容进行pMHC免疫原性预测 
+
+\n参数设置说明：
+- MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
+
+当前使用配置：
+- 选用MHC allele: HLA-A02:01
 """
     writer(STEP3_DESC1)
     mrna_design_process_result.append(STEP3_DESC1)

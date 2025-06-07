@@ -58,8 +58,15 @@ f"""
     # 步骤开始描述
     STEP4_DESC2 = f"""
 ## 第4部分-pMHC-TCR相互作用预测
-对上述内容进行pMHC-TCR相互作用预测
-设置参数,  cdr3序列：{cdr3_sequence}
+对上述内容使用pMTnet工具进行pMHC-TCR相互作用预测
+
+\n参数设置说明:
+- MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
+- cdr3序列(cdr3): T细胞受体(TCR)的互补决定区3序列，用于评估TCR-pMHC相互作用潜力
+
+当前使用配置：
+- 选用MHC allele: HLA-A02:01
+- 选用cdr3: {cdr3_sequence}
 """
     writer(STEP4_DESC2)
     mrna_design_process_result.append(STEP4_DESC2)

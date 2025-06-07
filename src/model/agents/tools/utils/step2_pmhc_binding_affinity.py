@@ -52,7 +52,17 @@ async def step2_pmhc_binding_affinity(
 ```
 {netchop_final_result_str}
 ```
-\n设置参数中，mhc allele选用: {mhc_allele_str}
+\n参数设置说明：
+- MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
+- 高亲和力阈值(high_threshold_of_bp): (结合亲和力百分位数≤此值判定为强结合)
+- 低亲和力阈值(low_threshold_of_bp): (结合亲和力百分位数≤此值判定为弱结合)
+- 肽段长度(peptide_length): (预测时考虑的肽段长度范围)
+
+当前使用配置：
+- 选用MHC allele: {mhc_allele_str}
+- 高亲和力阈值: 0.5%
+- 低亲和力阈值: 2%
+- 分析肽段长度: 8,9,10,11
 """
     writer(STEP2_DESC1)
     mrna_design_process_result.append(STEP2_DESC1)
@@ -142,7 +152,13 @@ f"""
 ```
 {netmhcpan_fasta_str}
 ```
-接下来利用BigMHC_EL工具将对这些高亲和力肽段进行细胞内的抗原呈递概率预测，请稍后。
+接下来利用BigMHC_EL工具将对这些高亲和力肽段进行细胞内的抗原呈递概率预测
+
+\n参数设置说明：
+- MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
+
+当前使用配置：
+- 选用MHC allele: {mhc_allele}
 """   
     writer(STEP2_DESC4)
     mrna_design_process_result.append(STEP2_DESC4)
