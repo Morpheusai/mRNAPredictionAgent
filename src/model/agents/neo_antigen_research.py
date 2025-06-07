@@ -15,15 +15,15 @@ from typing import Literal, Any,Optional
 from config import CONFIG_YAML
 
 from src.model.agents.tools import (
-    NeoAntigenSelection
+    NeoantigenSelection
 )
 from src.utils.log import logger
-from src.utils.pdf_generator import neo_md2pdf
 
 from .core import get_model  # 相对导入
-from .core.patient_case_mrna_prompts import (
-    PatientCaseReportAnalysisPrompt,
-    PatientCaseReportSummaryPrompt
+from .core.neoantigen_reserch_prompt import (
+    ATIGIGEN_ROUTE_PROMPT,
+    PLATFORM_INTRO,
+    PATIENT_CASE_ANALYSIS_PROMPT
 )
 
 DOWNLOADER_URL_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["markdown_download_url_prefix"]
@@ -38,14 +38,11 @@ class AgentState(MessagesState, total=False):
     input_fsa_filepath: str
     patient_case_summary: str
     mrna_design_process_result: str
+    patient_neoantigen_report: str
 
 # Data model
 class PatientCaseSummaryReport(BaseModel):
     """病例数据分析后的总结输出结果."""
-    action: Literal["YES", "NO"] = Field(
-        ...,
-        description="结合病人的病例分析，是否适合mRNA疫苗治疗",
-    )
     mhc_allele: Optional[str] = Field(
         None,
         description="病例中测结果中检测到的MHC allele",
@@ -57,10 +54,6 @@ class PatientCaseSummaryReport(BaseModel):
     input_fsa_filepath: Optional[str] = Field(
         None,
         description="病人上传的fsa文件路径",
-    )
-    summary: Optional[str] = Field(
-        None,
-        description="病例分析后的总结",
     )
 
 def wrap_model(
@@ -78,7 +71,7 @@ def wrap_model(
     )
     return preprocessor | model
 
-async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> AgentState:
+async def NeoantigenRouteNode(state: AgentState, config: RunnableConfig) -> AgentState:
     model = get_model(
         config["configurable"].get("model", None),
         config["configurable"].get("temperature", None),
@@ -102,57 +95,85 @@ async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> 
                                     f"*上传的文件路径*: {file_path} \n" + \
                                     f"*上传的文件内容*: {file_content} \n"
                 patient_info += file_instructions
-    system_prompt = PatientCaseReportAnalysisPrompt.format(
+    if not patient_info:
+        patient_info = "当前没有上传任何数据。"
+
+    patient_neoantigen_report = state.get("neoantigen_patient_report", "")
+    system_prompt = ATIGIGEN_ROUTE_PROMPT.format(
+        patient_info = patient_info,
+        prompt_intro = PLATFORM_INTRO,
+        patient_neoantigen_report = patient_neoantigen_report
+    )
+    logger.info(f"patient analysis prompt: {system_prompt}")
+    model_runnable = wrap_model(
+        model, 
+        system_prompt, 
+        structure_model = False, 
+    )
+    response = await model_runnable.ainvoke(state, config)
+
+    # 检查最后一条消息是否包含关键内容
+    next_node = END
+    if "platform_intro" in response.content:
+        next_node = "platform_intro"
+    elif "neoantigen_select" in response.content:
+        next_node = "neoantigen_select_node"
+
+    return Command(
+        update = {
+            "messages": [response]
+        },
+        goto = next_node
+    )
+
+async def PlatformIntroNode(state: AgentState, config: RunnableConfig):
+    writer = get_stream_writer()
+    writer(PLATFORM_INTRO)
+    return END
+async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
+    model = get_model(
+        config["configurable"].get("model", None),
+        config["configurable"].get("temperature", None),
+        config["configurable"].get("max_tokens", None),
+        config["configurable"].get("base_url", None),
+        config["configurable"].get("frequency_penalty", None),
+    )
+    #添加文件到system token里面
+    file_list = config["configurable"].get("file_list", None)
+    # 处理文件列表
+    patient_info = ""
+    if file_list:
+        for conversation_file in file_list:
+            for file in conversation_file.files:
+                file_name = file.file_name
+                file_content = file.file_content
+                file_path = file.file_path
+                file_desc = file.file_desc
+                file_instructions = f"*上传文件名*: {file_name} \n" + \
+                                    f"*上传的文件描述*: {file_desc} \n" + \
+                                    f"*上传的文件路径*: {file_path} \n" + \
+                                    f"*上传的文件内容*: {file_content} \n"
+                patient_info += file_instructions
+    system_prompt = PATIENT_CASE_ANALYSIS_PROMPT.format(
         patient_info = patient_info,
     )
     logger.info(f"patient analysis prompt: {system_prompt}")
-    writer = get_stream_writer()
-    
     model_runnable = wrap_model(
         model, 
         system_prompt, 
         structure_model = True, 
         structure_output = PatientCaseSummaryReport
     )
-    writer("### 正在综合评估当前病例数据📊，确定是否满足antigen筛选条件💉✅。\n")
-    writer("```json\n")
     response = await model_runnable.ainvoke(state, config)
-    writer("\n```\n ### 根据病例分析📊，该患者符合antigen筛选条件✅。我们将立即启动antigen筛选流程💉🔬，请您耐心等候⏳，我们会尽快完成这项精准antigen筛选✨。")
     # TODO, debug
-    action = response.action
-    logger.info(f"patient analysis llm response: {response}, {action}")
-    if action == "NO":
-        return Command(
-            update = {
-                "messages": AIMessage(content="当前病人不适合做antigen研究")
-            },
-            goto = END
-        )
+    logger.info(f"patient analysis llm response: {response}")
     mhc_allele = response.mhc_allele
     cdr3 = response.cdr3
     input_fsa_filepath = response.input_fsa_filepath
-    summary = response.summary
-
-    # 返回结果
-    return Command(
-        update = {
-            "mhc_allele": mhc_allele,
-            "cdr3": cdr3,
-            "input_fsa_filepath": input_fsa_filepath,
-            "patient_case_summary": summary
-        },
-        goto = "mrna_design_node"
-    )
-
-async def antigenDesignNode(state: AgentState, config: RunnableConfig):
-    
-    input_fsa_filepath = state["input_fsa_filepath"]
-    mhc_allele = state["mhc_allele"]
-    cdr3 = state["cdr3"]
 
     logger.info(f"mRNADesignNode args: fsa filename: {input_fsa_filepath}, mhc_allele: {mhc_allele}, cdr3: {cdr3}")
-    # 1. 通过state参数构建NeoAntigenResearch工具输入参数
-    mrna_design_process_result= await NeoAntigenSelection.ainvoke(
+    # 1. 通过state参数构建NeoantigenResearch工具输入参数
+    mrna_design_process_result= await NeoantigenSelection.ainvoke(
         {
             "input_file": input_fsa_filepath,
             "mhc_allele": [mhc_allele],
@@ -161,96 +182,29 @@ async def antigenDesignNode(state: AgentState, config: RunnableConfig):
     )
     return Command(
         update = {
+            "mhc_allele": mhc_allele,
+            "cdr3": cdr3,
+            "input_fsa_filepath": input_fsa_filepath,
             "mrna_design_process_result": mrna_design_process_result
         },
         goto = "patient_case_report"
     )
 
 async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
-    logger.info(f"patient case report node")
-    mrna_design_process_result = state["mrna_design_process_result"]
-    model = get_model(
-        config["configurable"].get("model", None),
-        config["configurable"].get("temperature", None),
-        config["configurable"].get("max_tokens", None),
-        config["configurable"].get("base_url", None),
-        config["configurable"].get("frequency_penalty", None),
-    )
-    #添加文件到system token里面
-    file_list = config["configurable"].get("file_list", None)
-    # 处理文件列表
-    patient_info = ""
-    if file_list:
-        for conversation_file in file_list:
-            for file in conversation_file.files:
-                file_name = file.file_name
-                file_content = file.file_content
-                file_path = file.file_path
-                file_desc = file.file_desc
-                file_instructions = f"*上传文件名*: {file_name} \n" + \
-                                    f"*上传的文件描述*: {file_desc} \n" + \
-                                    f"*上传的文件路径*: {file_path} \n" + \
-                                    f"*上传的文件内容*: {file_content} \n"
-                patient_info += file_instructions
-    logger.info(f"patient case report node, pi: {patient_info}")
-    human_input = PatientCaseReportSummaryPrompt.format(
-        patient_info = patient_info,
-        process_info = mrna_design_process_result
-    )
-    messages = [
-        HumanMessage(content=human_input),
-    ]
-    logger.info(f"patient case report prompt: {messages}")
-    response = await model.ainvoke(messages)
-    logger.info(f"patient case report response: {response}")
-    writer = get_stream_writer()
-    writer("\n#### 📝 正在进行结果报告生成\n")
-    pdf_minio_path = neo_md2pdf(response.content)
-    #pdf_download_url = DOWNLOADER_URL_PREFIX + pdf_minio_path
-    pdf_download_url = pdf_minio_path
-    writer("\n🏥 已完成mRNA个体化疫苗设计结果报告生成，📥 请下载: ")
-    writer("#NEO_RESPONSE#")
-    fdtime = datetime.now().strftime('%Y-%m-%d')
-    writer(f"[mRNA疫苗设计报告-张先生-{fdtime}]({pdf_download_url})")
-    writer("#NEO_RESPONSE#")
-    return Command(
-        goto = END
-    )
-
-# 定义条件判断函数
-def route_based_on_action(state: AgentState) -> str:
-    messages = state.get("messages", [])  # 安全获取，默认为空列表
-    
-    # 检查最后一条消息是否包含关键内容
-    if messages and isinstance(messages[-1], AIMessage):
-        last_msg = messages[-1]
-        if "当前病人不适合做antigen研究" in last_msg.content:
-            return "END"
-    
-    return "antigen_design_node"
+    pass
 
 # 修改图结构
-NeoAntigenAgent = StateGraph(AgentState)
-NeoAntigenAgent.add_node("patient_case_analysis", PatientCaseAnalysisNode)
-NeoAntigenAgent.add_node("antigen_design_node", antigenDesignNode)
-NeoAntigenAgent.add_node("patient_case_report", PatientCaseReportNode)
+NeoantigenSelectAgent = StateGraph(AgentState)
+NeoantigenSelectAgent.add_node("neoantigen_route_node", NeoantigenRouteNode)
+NeoantigenSelectAgent.add_node("neoantigen_select_node", NeoantigenSelectNode)
+NeoantigenSelectAgent.add_node("platform_intro", PlatformIntroNode)
 
 # 设置入口和条件边
-NeoAntigenAgent.set_entry_point("patient_case_analysis")
-NeoAntigenAgent.add_conditional_edges(
-    "patient_case_analysis",
-    route_based_on_action,  # 条件判断函数
-    {
-        "antigen_design_node": "antigen_design_node",  # 条件为 False 时跳转
-        "END": END  # 条件为 True 时结束
-    }
-)
-NeoAntigenAgent.add_edge("antigen_design_node", "patient_case_report")
-NeoAntigenAgent.add_edge("patient_case_report", END)
+NeoantigenSelectAgent.set_entry_point("antigen_route_node")
+NeoantigenSelectAgent.add_edge("neoantigen_select_node", "patient_case_report")
+NeoantigenSelectAgent.add_edge("patient_case_report", END)
 
 async def compile_neo_antigen_research():
     neo_antigen_research_conn = await aiosqlite.connect("checkpoints.sqlite")
-    neo_antigen_research = NeoAntigenAgent.compile(checkpointer=AsyncSqliteSaver(neo_antigen_research_conn))
+    neo_antigen_research = NeoantigenSelectAgent.compile(checkpointer=AsyncSqliteSaver(neo_antigen_research_conn))
     return neo_antigen_research, neo_antigen_research_conn
-
-
