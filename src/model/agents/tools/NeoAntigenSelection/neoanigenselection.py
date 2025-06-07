@@ -31,6 +31,7 @@ from src.model.agents.tools.utils.step1_protein_cleavage import step1_protein_cl
 from src.model.agents.tools.utils.step2_pmhc_binding_affinity import step2_pmhc_binding_affinity
 from src.model.agents.tools.utils.step3_pmhc_immunogenicity import step3_pmhc_immunogenicity
 from src.model.agents.tools.utils.step4_pmhc_tcr_interaction import step4_pmhc_tcr_interaction
+from src.model.agents.tools.utils.step6_tap_transportation_prediction import step6_tap_transportation_prediction
 from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 load_dotenv()
 current_file = Path(__file__).resolve()
@@ -148,29 +149,43 @@ async def run_neoanigenselection(
     # 初始化变量
     mrna_design_process_result = []
     writer = get_stream_writer()
-    
+    STEP1_DESC1 = f"""
+## 🧪 正在体验示例分析流程…
+我们已加载平台内置示例数据（张先生，胰腺导管腺癌）并启动个体化 neoantigen 筛选流程。以下是筛选过程的阶段性进展：
+
+"""
     try:
+        writer(STEP1_DESC1)
         # 第一步：蛋白切割位点预测
         cleavage_result_file_path, netchop_final_result_str = await step1_protein_cleavage(
             input_file, writer, mrna_design_process_result,minio_client
         )
-        
-        # 第二步：pMHC结合亲和力预测
-        bigmhc_el_result_file_path, bigmhc_el_fasta_str = await step2_pmhc_binding_affinity(
+
+        # 第二步：TAP转运预测
+        netctlpan_file_path,netctlpan_fasta_str,tap_m= await step6_tap_transportation_prediction(
             cleavage_result_file_path, netchop_final_result_str,mhc_allele, writer, mrna_design_process_result,minio_client
         )
 
-        print(bigmhc_el_result_file_path)
-        # 第三步：pMHC免疫原性预测
-        bigmhc_im_result_file_path, bigmhc_im_fasta_str = await step3_pmhc_immunogenicity(
+        # 第三步：pMHC结合亲和力预测
+        bigmhc_el_result_file_path, bigmhc_el_fasta_str,pmhc_binding_m= await step2_pmhc_binding_affinity(
+            netctlpan_file_path, netctlpan_fasta_str,mhc_allele, writer, mrna_design_process_result,minio_client
+        )
+
+        # 第四步：pMHC免疫原性预测
+        bigmhc_im_result_file_path, bigmhc_im_fasta_str,pmhc_immunogenicity_m = await step3_pmhc_immunogenicity(
             bigmhc_el_result_file_path, writer, mrna_design_process_result,minio_client
         )
         
-        # 第四步：pMHC-TCR相互作用预测
-        mrna_input_file_path = await step4_pmhc_tcr_interaction(
+        # 第五步：pMHC-TCR相互作用预测
+        mrna_input_file_path,tcr_m = await step4_pmhc_tcr_interaction(
             bigmhc_im_result_file_path, cdr3_sequence, writer, mrna_design_process_result,minio_client
         )
         
+        STEP1_DESC2 = f"""
+✅ 综合结论：
+本次筛选流程中，系统最终识别出{tcr_m}条在抗原递呈、免疫激活与T细胞识别多个维度均表现优异的个体化 neoantigen 候选肽段，建议作为后续疫苗设计重点靶点。
+    """
+        writer(STEP1_DESC2)
         
         
     except Exception as e:

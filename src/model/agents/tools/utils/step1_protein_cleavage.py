@@ -23,15 +23,20 @@ async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_re
     
     # 步骤描述
     STEP1_DESC1 = f"""
-## 第1部分-蛋白切割位点预测\n
-### 第1部分-NetChop工具开始\n
-对输入的肽段序列进行蛋白切割位点预测
-参数设置说明：
-- 蛋白质切割位点的置信度阈值(cleavage_site_threshold): 留预测分值高于该阈值的可信切割位点
-
-当前使用配置：
-- 选用cleavage_site_threshold: {cleavage_site_threshold}
+## 🔍 步骤 1：突变肽段生成与切割
+目标：识别可能作为抗原呈递单位的8–11mer短肽段
 """
+
+#     STEP1_DESC1 = f"""
+# ## 第1部分-蛋白切割位点预测\n
+# ### 第1部分-NetChop工具开始\n
+# 对输入的肽段序列进行蛋白切割位点预测
+# 参数设置说明：
+# - 蛋白质切割位点的置信度阈值(cleavage_site_threshold): 留预测分值高于该阈值的可信切割位点
+
+# 当前使用配置：
+# - 选用cleavage_site_threshold: {cleavage_site_threshold}
+# """
     writer(STEP1_DESC1)
     mrna_design_process_result.append(STEP1_DESC1)
     
@@ -83,12 +88,12 @@ async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_re
     INSERT_SPLIT = \
     f"""
     """   
-    writer(INSERT_SPLIT)    
+    # writer(INSERT_SPLIT)    
     STEP1_DESC2 = """
 ### 第1部分-NetChop工具完成\n
 已经将您输入的肽段序列切割成一些有效的肽段。\n
 """
-    writer(STEP1_DESC2)
+    # writer(STEP1_DESC2)
     mrna_design_process_result.append(STEP1_DESC2)
 #model_runnable = await wrap_summary_llm_model_async_stream(
 #        summary_llm, 
@@ -105,6 +110,9 @@ async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_re
 #        #print(chunk)
 #        #writer(chunk.content) 
 #        continue
-    
+    STEP1_DESC2 = """
+✅ 系统已成功识别出多个候选短肽段，进入后续筛选阶段
+"""
+    writer(STEP1_DESC2)
 
     return cleavage_result_file_path, netchop_final_result_str

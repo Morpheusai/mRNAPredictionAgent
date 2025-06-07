@@ -39,16 +39,21 @@ async def step3_pmhc_immunogenicity(
         tuple: (bigmhc_im_result_file_path, fasta_str) 结果文件路径和FASTA内容
     """
     # 步骤开始描述
+#     STEP3_DESC1 = """
+# ## 第3部分-pMHC免疫原性预测
+# 基于BigMHC_IM工具对上述内容进行pMHC免疫原性预测 
+
+# \n参数设置说明：
+# - MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
+
+# 当前使用配置：
+# - 选用MHC allele: HLA-A02:01
+# """
     STEP3_DESC1 = """
-## 第3部分-pMHC免疫原性预测
-基于BigMHC_IM工具对上述内容进行pMHC免疫原性预测 
-
-\n参数设置说明：
-- MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
-
-当前使用配置：
-- 选用MHC allele: HLA-A02:01
+## 💥 步骤 4：免疫原性预测
+目标：评估肽段激发免疫反应的潜力
 """
+
     writer(STEP3_DESC1)
     mrna_design_process_result.append(STEP3_DESC1)
     
@@ -72,13 +77,13 @@ async def step3_pmhc_immunogenicity(
     INSERT_SPLIT = \
     f"""
     """   
-    writer(INSERT_SPLIT)    
+    # writer(INSERT_SPLIT)    
     STEP3_DESC2 = f"""
 ### 第3部分-pMHC免疫原性预测结束\n
 pMHC免疫原性预测预测结果已获取，结果如下：\n
 {bigmhc_im_result_dict['content']}。
 """
-    writer(STEP3_DESC2)
+    # writer(STEP3_DESC2)
     mrna_design_process_result.append(STEP3_DESC2)
     
     # 读取BigMHC_IM结果文件
@@ -96,7 +101,7 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
 ### 第3部分-pMHC免疫原性预测后筛选
 接下来为您筛选符合BigMHC_IM >={BIGMHC_IM_THRESHOLD}要求的高免疫原性的肽段
 """
-    writer(STEP3_DESC3)
+    # writer(STEP3_DESC3)
     mrna_design_process_result.append(STEP3_DESC3)
     
     # 筛选高免疫原性肽段
@@ -107,17 +112,19 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
 ### 第3部分-pMHC免疫原性预测后筛选
 未筛选到符合BigMHC_IM >= {BIGMHC_IM_THRESHOLD}要求的高免疫原性的肽段，筛选流程结束。
 """
-        writer(STEP3_DESC4)
+        # writer(STEP3_DESC4)
         mrna_design_process_result.append(STEP3_DESC4)
         raise Exception(f"未找到高免疫原性肽段(BigMHC_IM ≥ {BIGMHC_IM_THRESHOLD})")
     
     # 构建FASTA文件内容
     fasta_content = []
+    count =0
     for idx, row in high_affinity_peptides.iterrows():
         peptide = row['pep']
         mhc_allele = row['mhc']
         fasta_content.append(f">{peptide}|{mhc_allele}")
         fasta_content.append(peptide)
+        count +=1
     
     bigmhc_im_fasta_str = "\n".join(fasta_content)
     
@@ -146,7 +153,11 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
 {bigmhc_im_fasta_str}
 ```\n
 """
-    writer(STEP3_DESC5)
+    # writer(STEP3_DESC5)
     mrna_design_process_result.append(STEP3_DESC5)
+    STEP3_DESC5 = f"""
+✅ 在候选肽段中，系统筛选出{count}个具有较高免疫原性评分的肽段
+"""
+    writer(STEP3_DESC5)
     
-    return f"minio://molly/{bigmhc_im_result_fasta_filename}", bigmhc_im_fasta_str
+    return f"minio://molly/{bigmhc_im_result_fasta_filename}", bigmhc_im_fasta_str,count

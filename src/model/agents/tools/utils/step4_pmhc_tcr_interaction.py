@@ -40,11 +40,17 @@ async def step4_pmhc_tcr_interaction(
         str: mRNA输入文件路径
     """
     if not cdr3_sequence:
+#         STEP4_DESC1 = \
+# f"""
+# ## 第4部分-pMHC-TCR相互作用预测
+# 未检测到您提供了CDR3序列，无法进行pMHC-TCR预测。
+# """   
         STEP4_DESC1 = \
 f"""
-## 第4部分-pMHC-TCR相互作用预测
-未检测到您提供了CDR3序列，无法进行pMHC-TCR预测。
+## 🧩 步骤 5：TCR识别可能性评估（患者提供CDR3序列）
+目标：分析候选肽段是否可能被患者T细胞特异性识别
 """   
+
         writer(STEP4_DESC1)
         mrna_design_process_result.append(STEP4_DESC1)
         return json.dumps(
@@ -68,7 +74,7 @@ f"""
 - 选用MHC allele: HLA-A02:01
 - 选用cdr3: {cdr3_sequence}
 """
-    writer(STEP4_DESC2)
+    # writer(STEP4_DESC2)
     mrna_design_process_result.append(STEP4_DESC2)
     
     # 运行pMTnet工具
@@ -91,13 +97,13 @@ f"""
     INSERT_SPLIT = \
     f"""
     """   
-    writer(INSERT_SPLIT)    
+    # writer(INSERT_SPLIT)    
     STEP4_DESC3 = f"""
 ### 第4部分-pMHC-TCR相互作用预测结束\n
 结果如下:\n
 {pmtnet_result_dict['content']}\n
 """
-    writer(STEP4_DESC3)
+    # writer(STEP4_DESC3)
     mrna_design_process_result.append(STEP4_DESC3)
     
     # 读取pMTnet结果文件
@@ -115,7 +121,7 @@ f"""
 ### 第4部分-pMHC-TCR相互作用预测后筛选
 接下来为您筛选符合PMTNET_Rank >={PMTNET_RANK}要求的的肽段，请稍后。\n
 """
-    writer(STEP4_DESC4)
+    # writer(STEP4_DESC4)
     mrna_design_process_result.append(STEP4_DESC4)
     
     # 筛选高Rank肽段
@@ -126,11 +132,13 @@ f"""
     
     # 构建FASTA文件内容
     fasta_content = []
+    count =0 
     for idx, row in high_rank_peptides.iterrows():
         peptide = row['Antigen']
         mhc_allele = row['HLA']
         fasta_content.append(f">{peptide}|{mhc_allele}")
         fasta_content.append(peptide)
+        count +=1
     
     pmtnet_fasta_str = "\n".join(fasta_content)
     
@@ -159,7 +167,11 @@ f"""
 {pmtnet_fasta_str}
 ```\n
 """
-    writer(STEP4_DESC5)
+    # writer(STEP4_DESC5)
     mrna_design_process_result.append(STEP4_DESC5)
+    STEP4_DESC5 = f"""
+✅ 已识别出{count}条与患者TCR具有较高匹配可能性的肽段，作为优选候选
+"""
+    writer(STEP4_DESC5)
     
-    return f"minio://molly/{pmtnet_filtered_fasta_filename}"
+    return f"minio://molly/{pmtnet_filtered_fasta_filename}",count

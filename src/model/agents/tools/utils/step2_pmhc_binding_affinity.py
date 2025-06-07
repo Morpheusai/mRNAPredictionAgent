@@ -45,24 +45,28 @@ async def step2_pmhc_binding_affinity(
     mhc_allele_str = ",".join(mhc_allele)
     
     # 步骤开始描述
-    STEP2_DESC1 = f"""
-## 第2部分-pMHC结合亲和力预测
-基于NetMHCpan工具对下述内容进行pMHC亲和力预测 
-当前输入文件内容: \n
-```
-{netchop_final_result_str}
-```
-\n参数设置说明：
-- MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
-- 高亲和力阈值(high_threshold_of_bp): (结合亲和力百分位数≤此值判定为强结合)
-- 低亲和力阈值(low_threshold_of_bp): (结合亲和力百分位数≤此值判定为弱结合)
-- 肽段长度(peptide_length): (预测时考虑的肽段长度范围)
+#     STEP2_DESC1 = f"""
+# ## 第2部分-pMHC结合亲和力预测
+# 基于NetMHCpan工具对下述内容进行pMHC亲和力预测 
+# 当前输入文件内容: \n
+# ```
+# {netchop_final_result_str}
+# ```
+# \n参数设置说明：
+# - MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
+# - 高亲和力阈值(high_threshold_of_bp): (结合亲和力百分位数≤此值判定为强结合)
+# - 低亲和力阈值(low_threshold_of_bp): (结合亲和力百分位数≤此值判定为弱结合)
+# - 肽段长度(peptide_length): (预测时考虑的肽段长度范围)
 
-当前使用配置：
-- 选用MHC allele: {mhc_allele_str}
-- 高亲和力阈值: 0.5%
-- 低亲和力阈值: 2%
-- 分析肽段长度: 8,9,10,11
+# 当前使用配置：
+# - 选用MHC allele: {mhc_allele_str}
+# - 高亲和力阈值: 0.5%
+# - 低亲和力阈值: 2%
+# - 分析肽段长度: 8,9,10,11
+# """
+    STEP2_DESC1 = f"""
+## 🎯 步骤 3：pMHC结合亲和力预测
+目标：筛选与患者MHC分型（HLA-A*02:01）具有良好结合能力的肽段
 """
     writer(STEP2_DESC1)
     mrna_design_process_result.append(STEP2_DESC1)
@@ -89,24 +93,26 @@ async def step2_pmhc_binding_affinity(
         response = minio_client.get_object(bucket_name, object_name)
         excel_data = BytesIO(response.read())
         df = pd.read_excel(excel_data)
+        df['BindLevel'] = df['BindLevel'].astype(str).replace('nan', '')
+        
     except S3Error as e:
         raise Exception(f"无法从MinIO读取NetMHCpan结果文件: {str(e)}")
-    
+
     # 筛选高亲和力肽段
     sb_peptides = df[df['BindLevel'].str.strip().isin(BIND_LEVEL_ALTERNATIVE)]
-    
+
     # 步骤中间描述
     INSERT_SPLIT = \
     f"""
     """   
-    writer(INSERT_SPLIT)        
+    # writer(INSERT_SPLIT)        
     STEP2_DESC2 = f"""
 ### 第2部分-pMHC结合亲和力预测结束\n
 pMHC结合亲和力预测结果已获取，结果如下：\n
 {netmhcpan_result_dict['content']}\n
 \n接下来筛选符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，请稍后\n
 """
-    writer(STEP2_DESC2)
+    # writer(STEP2_DESC2)
     mrna_design_process_result.append(STEP2_DESC2)
     
     if sb_peptides.empty:
@@ -114,7 +120,7 @@ pMHC结合亲和力预测结果已获取，结果如下：\n
 ### 第2部分-pMHC结合亲和力预测结束
 未筛选到符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，筛选流程结束。
 """
-        writer(STEP2_DESC3)
+        # writer(STEP2_DESC3)
         mrna_design_process_result.append(STEP2_DESC3)
         raise Exception("pMHC结合亲和力预测阶段结束，NetMHCpan工具未找到高亲和力肽段")
     
@@ -160,7 +166,7 @@ f"""
 当前使用配置：
 - 选用MHC allele: {mhc_allele}
 """   
-    writer(STEP2_DESC4)
+    # writer(STEP2_DESC4)
     mrna_design_process_result.append(STEP2_DESC4)
 
     # 运行BigMHC_EL工具
@@ -194,7 +200,7 @@ f"""
     INSERT_SPLIT = \
     f"""
     """   
-    writer(INSERT_SPLIT)    
+    # writer(INSERT_SPLIT)    
     STEP2_DESC5 = f"""
 ### 第2部分-pMHC细胞内抗原呈递概率预测结束\n
 已完成细胞内的抗原呈递概率预测，结果如下：\n
@@ -202,7 +208,7 @@ f"""
 
 接下来为您筛选为BigMHC_EL >= {BIGMHC_EL_THRESHOLD}的抗原呈递概率的肽段
 """
-    writer(STEP2_DESC5)
+    # writer(STEP2_DESC5)
     mrna_design_process_result.append(STEP2_DESC5)
     
     # 筛选高抗原呈递概率肽段
@@ -213,12 +219,13 @@ f"""
 ### 第2部分-pMHC结合亲和力预测结束
 未筛选到符合BigMHC_EL >= {BIGMHC_EL_THRESHOLD}要求的高抗原呈递概率的肽段，筛选流程结束。
 """
-        writer(STEP2_DESC6)
+        # writer(STEP2_DESC6)
         mrna_design_process_result.append(STEP2_DESC6)
         raise Exception(f"未找到高亲和力肽段(BigMHC_EL ≥ {BIGMHC_EL_THRESHOLD})")
     
     # 构建FASTA文件内容
     fasta_content = []
+    count=0
     for idx, row in high_affinity_peptides.iterrows():
         peptide = row['pep']
         mhc_allele = row['mhc']
@@ -233,6 +240,7 @@ f"""
         
         fasta_content.append(f">{peptide}|{mhc_allele}")
         fasta_content.append(peptide)
+        count+=1
     
     bigmhc_el_fasta_str = "\n".join(fasta_content)
     
@@ -257,7 +265,7 @@ f"""
     INSERT_SPLIT = \
     f"""
     """   
-    writer(INSERT_SPLIT)    
+    # writer(INSERT_SPLIT)    
     STEP2_DESC7 = f"""
 ### 第2部分-pMHC细胞内抗原呈递概率预测结束并完成筛选
 已完成细胞内的抗原呈递概率筛选，结果如下：
@@ -265,7 +273,7 @@ f"""
 {bigmhc_el_fasta_str}
 ```
 """
-    writer(STEP2_DESC7)
+    # writer(STEP2_DESC7)
     mrna_design_process_result.append(STEP2_DESC7)
 #    model_runnable = await wrap_summary_llm_model_async_stream(summary_llm, NETMHCPAN_PROMPT)
 #    # 模拟输入
@@ -275,5 +283,8 @@ f"""
 #        # print(chunk)
 #        # writer(chunk.content) 
 #        continue
-    
-    return f"minio://molly/{bigmhc_el_result_fasta_filename}", bigmhc_el_fasta_str
+    STEP2_DESC7 = f"""
+✅ 已识别出{count}个亲和力较强的候选肽段，符合进一步免疫原性筛选条件
+"""
+    writer(STEP2_DESC7)
+    return f"minio://molly/{bigmhc_el_result_fasta_filename}", bigmhc_el_fasta_str,count

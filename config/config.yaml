@@ -94,8 +94,9 @@ TOOL:
     input_tmp_dir: "/mnt/tmp/NetChop_Cleavage/input"
     output_tmp_dir: "/mnt/tmp/NetChop_Cleavage/output"
   NEOANTIGEN_SELECTION:
-    bind_level_alternative: ["<= SB"]  # 如果只需要 "<= SB"
+    bind_level_alternative: ["<= SB", "<= WB"]  # 如果只需要 "<= SB"
     # bind_level_alternative: ["<= SB", "<= WB"]  # 如果需要 "<= SB" 或 "<= WB"
+    netctlpan_threshold: 0.0
     bigmhc_el_threshold: 0.0
     bigmhc_im_threshold: 0.0
     pmtnet_rank: 0.1
