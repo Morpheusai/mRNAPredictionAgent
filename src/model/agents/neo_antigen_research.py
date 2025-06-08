@@ -21,9 +21,10 @@ from src.utils.log import logger
 
 from .core import get_model  # 相对导入
 from .core.neoantigen_reserch_prompt import (
-    ATIGIGEN_ROUTE_PROMPT,
+    NEOATIGIGEN_ROUTE_PROMPT,
     PLATFORM_INTRO,
-    PATIENT_CASE_ANALYSIS_PROMPT
+    NEOANTIGEN_CHAT_PROMPT,
+    PATIENT_CASE_ANALYSIS_PROMPT,
 )
 
 DOWNLOADER_URL_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["markdown_download_url_prefix"]
@@ -79,32 +80,8 @@ async def NeoantigenRouteNode(state: AgentState, config: RunnableConfig) -> Agen
         config["configurable"].get("base_url", None),
         config["configurable"].get("frequency_penalty", None),
     )
-    #添加文件到system token里面
-    file_list = config["configurable"].get("file_list", None)
-    # 处理文件列表
-    patient_info = ""
-    if file_list:
-        for conversation_file in file_list:
-            for file in conversation_file.files:
-                file_name = file.file_name
-                file_content = file.file_content
-                file_path = file.file_path
-                file_desc = file.file_desc
-                file_instructions = f"*上传文件名*: {file_name} \n" + \
-                                    f"*上传的文件描述*: {file_desc} \n" + \
-                                    f"*上传的文件路径*: {file_path} \n" + \
-                                    f"*上传的文件内容*: {file_content} \n"
-                patient_info += file_instructions
-    if not patient_info:
-        patient_info = "当前没有上传任何数据。"
-
-    patient_neoantigen_report = state.get("patient_neoantigen_report", "")
-    system_prompt = ATIGIGEN_ROUTE_PROMPT.format(
-        patient_info = patient_info,
-        prompt_intro = PLATFORM_INTRO,
-        patient_neoantigen_report = patient_neoantigen_report
-    )
-    logger.info(f"patient analysis prompt: {system_prompt}")
+    system_prompt = NEOATIGIGEN_ROUTE_PROMPT
+    logger.info(f"neoantigen route prompt: {system_prompt}")
     model_runnable = wrap_model(
         model, 
         system_prompt, 
@@ -114,10 +91,14 @@ async def NeoantigenRouteNode(state: AgentState, config: RunnableConfig) -> Agen
 
     # 检查最后一条消息是否包含关键内容
     next_node = END
-    if "platform_intro" in response.content:
+    if "了解平台" in response.content:
         next_node = "platform_intro"
-    elif "neoantigen_select" in response.content:
+    elif "示例体验" in response.content:
         next_node = "neoantigen_select_node"
+    elif "用户数据处理" in response.content:
+        next_node = "neoantigen_select_node"
+    else:
+        next_node = "neoantigen_select_chat"
 
     return Command(
         update = {
@@ -131,7 +112,41 @@ async def PlatformIntroNode(state: AgentState, config: RunnableConfig):
     writer(PLATFORM_INTRO)
     return END
 
+async def NeoantigenSelectChat(state: AgentState, config: RunnableConfig):
+    model = get_model(
+        config["configurable"].get("model", None),
+        config["configurable"].get("temperature", None),
+        config["configurable"].get("max_tokens", None),
+        config["configurable"].get("base_url", None),
+        config["configurable"].get("frequency_penalty", None),
+    )
+    patient_neoantigen_report = state.get("patient_neoantigen_report", "")
+    system_prompt = NEOANTIGEN_CHAT_PROMPT.format(
+        prompt_intro = PLATFORM_INTRO,
+        patient_neoantigen_report = patient_neoantigen_report
+    )
+    logger.info(f"neoantigen chat prompt: {system_prompt}")
+    model_runnable = wrap_model(
+        model, 
+        system_prompt, 
+    )
+    response = await model_runnable.ainvoke(state, config)
+    logger.info(f"neoantigen chat response: {response}")
+    return Command(
+        update = {
+            "messages": [response]
+        },
+        goto = END
+    )
+
 async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
+    messages = state.get("messages", [])
+    mode = "demo"
+    if messages and isinstance(messages[-1], AIMessage):
+        last_msg = messages[-1]
+        if "用户数据处理" in last_msg.content:
+            mode = "user"
+
     model = get_model(
         config["configurable"].get("model", None),
         config["configurable"].get("temperature", None),
@@ -155,6 +170,17 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
                                     f"*上传的文件路径*: {file_path} \n" + \
                                     f"*上传的文件内容*: {file_content} \n"
                 patient_info += file_instructions
+    else:
+        writer = get_stream_writer()
+        if mode == "demo":
+            writer("请使用平台提供的默认示例数据进行平台体验。\n")
+        else:
+            writer("请上传以下两类文件：\n"
+                   "1. 患者病例信息（TXT）\n"
+                   "   ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等\n"
+                   "2. 突变肽段序列文件（FASTA格式）\n"
+                   "   ◦ 示例文件名：mutation_peptides.fasta\n")
+        return END
     system_prompt = PATIENT_CASE_ANALYSIS_PROMPT.format(
         patient_info = patient_info,
     )
@@ -197,8 +223,9 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
 # 修改图结构
 NeoantigenSelectAgent = StateGraph(AgentState)
 NeoantigenSelectAgent.add_node("neoantigen_route_node", NeoantigenRouteNode)
-NeoantigenSelectAgent.add_node("neoantigen_select_node", NeoantigenSelectNode)
 NeoantigenSelectAgent.add_node("platform_intro", PlatformIntroNode)
+NeoantigenSelectAgent.add_node("neoantigen_select_node", NeoantigenSelectNode)
+NeoantigenSelectAgent.add_node("neoantigen_select_chat", NeoantigenSelectChat)
 NeoantigenSelectAgent.add_node("patient_case_report", PatientCaseReportNode)
 
 # 设置入口和条件边
