@@ -100,6 +100,8 @@ async def NeoantigenRouteNode(state: AgentState, config: RunnableConfig) -> Agen
     else:
         next_node = "neoantigen_select_chat"
 
+    WRITER = get_stream_writer()
+    WRITER('\n')
     return Command(
         update = {
             "messages": [response]
