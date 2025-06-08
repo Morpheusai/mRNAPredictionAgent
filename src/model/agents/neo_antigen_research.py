@@ -207,7 +207,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     system_prompt = PATIENT_KEYINFO_EXTRACT_PROMPT.format(
         patient_info = patient_info,
     )
-    logger.info(f"patient analysis prompt: {system_prompt}")
+    logger.info(f"patient key info extract prompt: {system_prompt}")
     model_runnable = wrap_model(
         model, 
         system_prompt, 
@@ -217,7 +217,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     response = await model_runnable.ainvoke(state, config)
     WRITER("\n```\n 关键信息分析完毕，我们即将开始Neoantigen筛选过程⏳，我们会尽快完成这项精准医疗方案✨。\n")
     # TODO, debug
-    logger.info(f"patient analysis llm response: {response}")
+    logger.info(f"patient key info llm response: {response}")
     mhc_allele = response.mhc_allele
     cdr3 = response.cdr3
     input_fsa_filepath = response.input_fsa_filepath
@@ -268,7 +268,7 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
                                     f"*上传的文件内容*: {file_content} \n"
                 patient_info += file_instructions
     STEP1_DESC1 = f"""
-## 生成个性化neoantigen筛选报告。
+## 生成个性化neoantigen筛选报告
 ### 📝 病例数据分析
 """
     WRITER(STEP1_DESC1)
@@ -278,11 +278,9 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     )
     model_runnable = wrap_model(
         model, 
-        system_prompt, 
-        structure_model = True, 
-        structure_output = PatientCaseSummaryReport
+        system_prompt
     )
-    logger.info(f"patient analysis prompt: {system_prompt}")
+    logger.info(f"patient case analysis prompt: {system_prompt}")
     response = await model_runnable.ainvoke(state, config)
     writer = get_stream_writer()
     writer("\n```\n ✅ 病例数据分析完成，结合筛选过程生成病例报告...\n")
