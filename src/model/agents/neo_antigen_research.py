@@ -191,7 +191,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
                 patient_info += file_instructions
     else:
         if mode == "demo":
-            WRITER("\n请使用平台提供的默认示例数据进行平台体验。\n")
+            WRITER("\n请选中平台提供的默认示例数据进行平台体验。\n")
         else:
             WRITER("\n请上传以下两类文件：\n"
                    "1. 患者病例信息（TXT）\n"
@@ -331,7 +331,6 @@ NeoantigenSelectAgent.add_node("patient_case_report", PatientCaseReportNode)
 
 # 设置入口和条件边
 NeoantigenSelectAgent.set_entry_point("neoantigen_route_node")
-NeoantigenSelectAgent.add_edge("neoantigen_select_node", "patient_case_report")
 NeoantigenSelectAgent.add_edge("patient_case_report", END)
 
 async def compile_neo_antigen_research():
