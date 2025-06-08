@@ -81,6 +81,8 @@ async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_re
         
         if len(netchop_final_result_str) == 0:
             raise Exception("蛋白切割位点阶段未找到符合长度和剪切条件的肽段")
+        # 统计以 '>' 开头的行数
+        count = sum(1 for line in netchop_final_result_str.splitlines() if line.startswith('>'))
     except S3Error as e:
         raise Exception(f"蛋白切割位点阶段NetChop_Cleavage工具执行失败: {str(e)}")
     
@@ -115,4 +117,4 @@ async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_re
 """
     writer(STEP1_DESC2)
 
-    return cleavage_result_file_path, netchop_final_result_str
+    return cleavage_result_file_path, netchop_final_result_str,count

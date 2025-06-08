@@ -27,7 +27,9 @@ async def step2_pmhc_binding_affinity(
     mhc_allele: List[str],
     writer,
     mrna_design_process_result: list,
-    minio_client: Minio
+    minio_client: Minio,
+    neoantigen_message,
+    tap_m
 ) -> tuple:
     """
     第二步：pMHC结合亲和力预测
@@ -126,14 +128,15 @@ pMHC结合亲和力预测结果已获取，结果如下：\n
     
     # 构建FASTA内容
     fasta_content = []
+    mhcpan_count = 0
     for idx, row in sb_peptides.iterrows():
         identity = row['Identity']
         peptide = row['Peptide']
         fasta_content.append(f">{identity}")
         fasta_content.append(peptide)
-    
+        mhcpan_count += 1
     netmhcpan_fasta_str = "\n".join(fasta_content)
-    
+    neoantigen_message.append(f"{mhcpan_count}/{tap_m}")
     # 上传FASTA文件到MinIO
     uuid_name = str(uuid.uuid4())
     netmhcpan_result_fasta_filename = f"{uuid_name}_netmhcpan.fasta"
@@ -171,6 +174,7 @@ f"""
 
     # 运行BigMHC_EL工具
     netmhcpan_result_file_path = f"minio://molly/{netmhcpan_result_fasta_filename}"
+    neoantigen_message.append(netmhcpan_result_file_path)
     bigmhc_el_result = await BigMHC_EL.arun({
         "peptide_input": netmhcpan_result_file_path,
         "hla_input": mhc_allele
@@ -287,4 +291,4 @@ f"""
 ✅ 已识别出{count}个亲和力较强的候选肽段，符合进一步免疫原性筛选条件
 """
     writer(STEP2_DESC7)
-    return f"minio://molly/{bigmhc_el_result_fasta_filename}", bigmhc_el_fasta_str,count
+    return f"minio://molly/{bigmhc_el_result_fasta_filename}", bigmhc_el_fasta_str,f"{count}/{mhcpan_count}",count

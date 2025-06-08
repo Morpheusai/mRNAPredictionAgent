@@ -174,4 +174,4 @@ f"""
 """
     writer(STEP4_DESC5)
     
-    return f"minio://molly/{pmtnet_filtered_fasta_filename}",count
+    return f"minio://molly/{pmtnet_filtered_fasta_filename}",count,pmtnet_result_dict['content']

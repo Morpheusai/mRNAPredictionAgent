@@ -29,6 +29,7 @@ from .core.neoantigen_research_prompt import (
     PATIENT_KEYINFO_EXTRACT_PROMPT,
     PATIENT_CASE_ANALYSIS_PROMPT,
 )
+from .core.neoantigen_report_template import PATIENT_REPORT
 
 DOWNLOADER_URL_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["markdown_download_url_prefix"]
 MINIO_BUCKET = CONFIG_YAML["MINIO"]["molly_bucket"]
@@ -42,8 +43,9 @@ class AgentState(MessagesState, total=False):
     cdr3: str
     input_fsa_filepath: str
     patient_case_summary: str
-    mrna_design_process_result: str
+    # mrna_design_process_result: str
     patient_neoantigen_report: str
+    neoantigen_message: str
 
 # Data model
 class PatientCaseSummaryReport(BaseModel):
@@ -225,19 +227,21 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
 
     logger.info(f"mRNADesignNode args: fsa filename: {input_fsa_filepath}, mhc_allele: {mhc_allele}, cdr3: {cdr3}")
     # 1. 通过state参数构建NeoantigenResearch工具输入参数
-    mrna_design_process_result= await NeoantigenSelection.ainvoke(
+    neoantigen_message= await NeoantigenSelection.ainvoke(
         {
             "input_file": input_fsa_filepath,
             "mhc_allele": [mhc_allele],
             "cdr3_sequence": [cdr3]
         }
     )
+    print(neoantigen_message)
     return Command(
         update = {
             "mhc_allele": mhc_allele,
             "cdr3": cdr3,
             "input_fsa_filepath": input_fsa_filepath,
-            "mrna_design_process_result": mrna_design_process_result
+            "neoantigen_message": neoantigen_message
+
         },
         goto = "patient_case_report"
     )
@@ -268,6 +272,7 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
                                     f"*上传的文件路径*: {file_path} \n" + \
                                     f"*上传的文件内容*: {file_content} \n"
                 patient_info += file_instructions
+
     STEP1_DESC1 = f"""
 ## 生成个性化neoantigen筛选报告
 ### 📝 病例数据分析
@@ -288,10 +293,33 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     patient_case_report = f"""
 {response.content}
     """
+
+    neoantigen_message_str = state.get("neoantigen_message", "")
+    neoantigen_array = neoantigen_message_str.split("#NEO#") if neoantigen_message_str else []
+    report_data = {
+        'patient_case_report': patient_case_report,
+        'cleavage_count':  neoantigen_array[0],
+        'cleavage_link': f"[肽段切割]({DOWNLOADER_URL_PREFIX}{neoantigen_array[1]})",
+        'tap_count':  neoantigen_array[2],
+        'tap_link': f"[TAP 转运预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[3]})",
+        'affinity_count':  neoantigen_array[4],
+        'affinity_link': f"[亲和力预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[5]})",
+        'binding_count':  neoantigen_array[6],
+        'binding_link': f"[抗原呈递预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[7]})",
+        'immunogenicity_count':  neoantigen_array[8],
+        'immunogenicity_link': f"[免疫原性预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[9]})",
+        'tcr_count':  neoantigen_array[10],
+        'tcr_link':  f"[TCR 识别预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[11]})",
+        'tcr_content':  neoantigen_array[12]
+    }
+
+    patient_report = PATIENT_REPORT.format(**report_data)
+    
+
     # 输出到minio
     temp_report_file = f"/mnt/data/temp/neoantigen_report_{uuid.uuid4().hex}.md"
     with open(temp_report_file, "w") as fout:
-        fout.write(patient_case_report)
+        fout.write(patient_report)
     final_report_filepath = upload_file_to_minio(
         temp_report_file,
         MINIO_BUCKET
