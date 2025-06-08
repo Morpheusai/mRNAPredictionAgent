@@ -165,10 +165,12 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         config["configurable"].get("max_tokens", None),
         config["configurable"].get("base_url", None),
         config["configurable"].get("frequency_penalty", None),
+        stream_mode = False
     )
     #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
     # 处理文件列表
+    WRITER = get_stream_writer()
     patient_info = ""
     if file_list:
         for conversation_file in file_list:
@@ -194,7 +196,6 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         return Command(
             goto = END
         )
-    WRITER = get_stream_writer()
     STEP1_DESC1 = f"""
 ## 🧪 正在体验示例分析流程…
 我们已加载平台内置示例数据（张先生，胰腺导管腺癌）并启动个体化 neoantigen 筛选流程。先提取筛选过程中的关键信息：

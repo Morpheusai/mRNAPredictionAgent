@@ -15,7 +15,7 @@ from typing import Literal, Any,Optional
 from config import CONFIG_YAML
 
 from src.model.agents.tools import (
-    NeoAntigenSelection
+    NeoantigenSelection
 )
 from src.utils.log import logger
 from src.utils.pdf_generator import neo_md2pdf
@@ -152,8 +152,8 @@ async def mRNADesignNode(state: AgentState, config: RunnableConfig):
     cdr3 = state["cdr3"]
 
     logger.info(f"mRNADesignNode args: fsa filename: {input_fsa_filepath}, mhc_allele: {mhc_allele}, cdr3: {cdr3}")
-    # 1. 通过state参数构建NeoAntigenResearch工具输入参数
-    mrna_design_process_result= await NeoAntigenSelection.ainvoke(
+    # 1. 通过state参数构建NeoantigenResearch工具输入参数
+    mrna_design_process_result= await NeoantigenSelection.ainvoke(
         {
             "input_file": input_fsa_filepath,
             "mhc_allele": [mhc_allele],
