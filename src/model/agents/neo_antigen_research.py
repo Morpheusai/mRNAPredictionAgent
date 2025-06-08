@@ -20,7 +20,7 @@ from src.model.agents.tools import (
 from src.utils.log import logger
 
 from .core import get_model  # 相对导入
-from .core.neoantigen_reserch_prompt import (
+from .core.neoantigen_research_prompt import (
     NEOATIGIGEN_ROUTE_PROMPT,
     PLATFORM_INTRO,
     NEOANTIGEN_CHAT_PROMPT,
