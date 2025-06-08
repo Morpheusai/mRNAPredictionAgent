@@ -33,7 +33,8 @@ def get_model(model_name: AllModelEnum,
               model_temperature: AllModelEnum, 
               model_max_tokens: AllModelEnum,
               model_base_url: AllModelEnum, 
-              model_frequency_penalty: AllModelEnum,/) -> ModelT:
+              model_frequency_penalty: AllModelEnum,
+              stream_mode: bool = True) -> ModelT:
     # NOTE: models with streaming=True will send tokens as they are generated
     # if the /stream endpoint is called with stream_tokens=True (the default)
     api_model_name = _MODEL_TABLE.get(model_name)
@@ -51,5 +52,5 @@ def get_model(model_name: AllModelEnum,
             max_completion_tokens=max_completion_tokens,
             base_url=api_model_base_url,
             frequency_penalty=api_model_frequency_penalty,
-            streaming=True
+            streaming=stream_mode
         )

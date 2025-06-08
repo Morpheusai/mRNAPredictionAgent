@@ -82,6 +82,7 @@ async def NeoantigenRouteNode(state: AgentState, config: RunnableConfig) -> Agen
         config["configurable"].get("max_tokens", None),
         config["configurable"].get("base_url", None),
         config["configurable"].get("frequency_penalty", None),
+        stream_mode = False,  # 不使用流式输出
     )
     system_prompt = NEOATIGIGEN_ROUTE_PROMPT
     logger.info(f"neoantigen route prompt: {system_prompt}")
