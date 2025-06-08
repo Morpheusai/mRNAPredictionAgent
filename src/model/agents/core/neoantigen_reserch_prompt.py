@@ -103,7 +103,7 @@ ATIGIGEN_ROUTE_PROMPT = \
 1. 平台介绍
 {prompt_intro}
 2. 当前病人neoantigen筛选报告
-{neoantigen_patient_report}
+{patient_neoantigen_report}
 """
 
 PATIENT_CASE_ANALYSIS_PROMPT = \

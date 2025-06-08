@@ -98,7 +98,7 @@ async def NeoantigenRouteNode(state: AgentState, config: RunnableConfig) -> Agen
     if not patient_info:
         patient_info = "当前没有上传任何数据。"
 
-    patient_neoantigen_report = state.get("neoantigen_patient_report", "")
+    patient_neoantigen_report = state.get("patient_neoantigen_report", "")
     system_prompt = ATIGIGEN_ROUTE_PROMPT.format(
         patient_info = patient_info,
         prompt_intro = PLATFORM_INTRO,
@@ -130,6 +130,7 @@ async def PlatformIntroNode(state: AgentState, config: RunnableConfig):
     writer = get_stream_writer()
     writer(PLATFORM_INTRO)
     return END
+
 async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     model = get_model(
         config["configurable"].get("model", None),
@@ -198,9 +199,10 @@ NeoantigenSelectAgent = StateGraph(AgentState)
 NeoantigenSelectAgent.add_node("neoantigen_route_node", NeoantigenRouteNode)
 NeoantigenSelectAgent.add_node("neoantigen_select_node", NeoantigenSelectNode)
 NeoantigenSelectAgent.add_node("platform_intro", PlatformIntroNode)
+NeoantigenSelectAgent.add_node("patient_case_report", PatientCaseReportNode)
 
 # 设置入口和条件边
-NeoantigenSelectAgent.set_entry_point("antigen_route_node")
+NeoantigenSelectAgent.set_entry_point("neoantigen_route_node")
 NeoantigenSelectAgent.add_edge("neoantigen_select_node", "patient_case_report")
 NeoantigenSelectAgent.add_edge("patient_case_report", END)
 
