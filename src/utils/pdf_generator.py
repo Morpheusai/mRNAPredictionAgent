@@ -1,6 +1,6 @@
 import os                                                                                                                                                                                    
-import sys 
 import subprocess
+import uuid
 
 from PyPDF2 import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
@@ -37,8 +37,9 @@ def neo_md2pdf(
         watermark_text (str): 水印文字
         header_text, 页脚
     """
-    temp_md_file = "/mnt/data/temp/temp_watermark.md"
-    temp_pdf_file = "/mnt/data/temp/case_report.pdf"
+    tmp_postfix = uuid.uuid4().hex
+    temp_md_file = f"/mnt/data/temp/temp_watermark_{tmp_postfix}.md"
+    temp_pdf_file = f"/mnt/data/temp/case_report_{tmp_postfix}.pdf"
 
     with open(temp_md_file, 'w', encoding='utf-8') as f:
         f.write(md_content)

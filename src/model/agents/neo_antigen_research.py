@@ -19,6 +19,7 @@ from src.model.agents.tools import (
     NeoantigenSelection
 )
 from src.utils.log import logger
+from src.utils.pdf_generator import neo_md2pdf
 from utils.minio_utils import upload_file_to_minio
 
 from .core import get_model  # 相对导入
@@ -290,14 +291,12 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     response = await model_runnable.ainvoke(state, config)
     writer = get_stream_writer()
     writer("\n```\n ✅ 病例数据分析完成，结合筛选过程生成病例报告...\n")
-    patient_case_report = f"""
-{response.content}
-    """
+    patient_case_analysis_summary = response.content
 
     neoantigen_message_str = state.get("neoantigen_message", "")
     neoantigen_array = neoantigen_message_str.split("#NEO#") if neoantigen_message_str else []
     report_data = {
-        'patient_case_report': patient_case_report,
+        'patient_case_report': patient_case_analysis_summary,
         'cleavage_count':  neoantigen_array[0],
         'cleavage_link': f"[肽段切割]({DOWNLOADER_URL_PREFIX}{neoantigen_array[1]})",
         'tap_count':  neoantigen_array[2],
@@ -312,21 +311,12 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
         'tcr_link':  f"[TCR 识别预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[11]})",
         'tcr_content':  neoantigen_array[12]
     }
-
-    patient_report = PATIENT_REPORT.format(**report_data)
-    
-
-    # 输出到minio
-    temp_report_file = f"/mnt/data/temp/neoantigen_report_{uuid.uuid4().hex}.md"
-    with open(temp_report_file, "w") as fout:
-        fout.write(patient_report)
-    final_report_filepath = upload_file_to_minio(
-        temp_report_file,
-        MINIO_BUCKET
-    )
+    patient_report_md = PATIENT_REPORT.format(**report_data)
+    #输出为pdf，并提供下载link
+    pdf_download_link = neo_md2pdf(patient_report_md)
     writer("📄 完整分析细节、候选肽段列表与评分均已整理至报告中，可点击查看：")
     fdtime = datetime.now().strftime('%Y-%m-%d') 
-    writer(f"👉 📥 下载报告：[Neoantigen筛选报告-张先生-{fdtime}]({final_report_filepath})")
+    writer(f"👉 📥 下载报告：[Neoantigen筛选报告-张先生-{fdtime}]({pdf_download_link})")
     return Command(
         goto = END
     )
