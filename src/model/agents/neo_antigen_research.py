@@ -189,6 +189,13 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
             goto = END
         )
     WRITER = get_stream_writer()
+    STEP1_DESC1 = f"""
+## 🧪 正在体验示例分析流程…
+我们已加载平台内置示例数据（张先生，胰腺导管腺癌）并启动个体化 neoantigen 筛选流程。先提取筛选过程中的关键信息：
+
+"""
+    WRITER(STEP1_DESC1)
+    WRITER("```json\n")
     system_prompt = PATIENT_CASE_ANALYSIS_PROMPT.format(
         patient_info = patient_info,
     )
@@ -200,6 +207,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         structure_output = PatientCaseSummaryReport
     )
     response = await model_runnable.ainvoke(state, config)
+    WRITER("\n```\n 关键信息分析完毕，我们即将开始Neoantigen筛选过程⏳，我们会尽快完成这项精准医疗方案✨。\n")
     # TODO, debug
     logger.info(f"patient analysis llm response: {response}")
     mhc_allele = response.mhc_allele

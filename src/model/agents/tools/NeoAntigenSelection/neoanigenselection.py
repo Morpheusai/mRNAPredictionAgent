@@ -149,13 +149,7 @@ async def run_neoanigenselection(
     # 初始化变量
     mrna_design_process_result = []
     writer = get_stream_writer()
-    STEP1_DESC1 = f"""
-## 🧪 正在体验示例分析流程…
-我们已加载平台内置示例数据（张先生，胰腺导管腺癌）并启动个体化 neoantigen 筛选流程。以下是筛选过程的阶段性进展：
-
-"""
     try:
-        writer(STEP1_DESC1)
         # 第一步：蛋白切割位点预测
         cleavage_result_file_path, netchop_final_result_str = await step1_protein_cleavage(
             input_file, writer, mrna_design_process_result,minio_client
