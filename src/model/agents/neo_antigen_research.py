@@ -268,9 +268,8 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
                                     f"*上传的文件内容*: {file_content} \n"
                 patient_info += file_instructions
     STEP1_DESC1 = f"""
-## 📝 病例数据分析
-对上传的病例进行分析，提取关键信息并生成个性化neoantigen筛选报告。
-
+## 生成个性化neoantigen筛选报告。
+### 📝 病例数据分析
 """
     WRITER(STEP1_DESC1)
     WRITER("```json\n")
@@ -286,7 +285,7 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     logger.info(f"patient analysis prompt: {system_prompt}")
     response = await model_runnable.ainvoke(state, config)
     writer = get_stream_writer()
-    writer("``` \n ✅ 病例数据分析完成，结合筛选过程生成病例报告...\n")
+    writer("\n```\n ✅ 病例数据分析完成，结合筛选过程生成病例报告...\n")
     patient_case_report = f"""
 {response.content}
     """
