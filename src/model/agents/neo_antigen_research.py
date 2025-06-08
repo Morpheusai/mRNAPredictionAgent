@@ -26,6 +26,7 @@ from .core.neoantigen_research_prompt import (
     NEOATIGIGEN_ROUTE_PROMPT,
     PLATFORM_INTRO,
     NEOANTIGEN_CHAT_PROMPT,
+    PATIENT_KEYINFO_EXTRACT_PROMPT,
     PATIENT_CASE_ANALYSIS_PROMPT,
 )
 
@@ -203,7 +204,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
 """
     WRITER(STEP1_DESC1)
     WRITER("```json\n")
-    system_prompt = PATIENT_CASE_ANALYSIS_PROMPT.format(
+    system_prompt = PATIENT_KEYINFO_EXTRACT_PROMPT.format(
         patient_info = patient_info,
     )
     logger.info(f"patient analysis prompt: {system_prompt}")
@@ -241,10 +242,53 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     )
 
 async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
+    model = get_model(
+        config["configurable"].get("model", None),
+        config["configurable"].get("temperature", None),
+        config["configurable"].get("max_tokens", None),
+        config["configurable"].get("base_url", None),
+        config["configurable"].get("frequency_penalty", None),
+        stream_mode = False
+    )
+    #添加文件到system token里面
+    file_list = config["configurable"].get("file_list", None)
+    # 处理文件列表
+    WRITER = get_stream_writer()
+    patient_info = ""
+    if file_list:
+        for conversation_file in file_list:
+            for file in conversation_file.files:
+                file_name = file.file_name
+                file_content = file.file_content
+                file_path = file.file_path
+                file_desc = file.file_desc
+                file_instructions = f"*上传文件名*: {file_name} \n" + \
+                                    f"*上传的文件描述*: {file_desc} \n" + \
+                                    f"*上传的文件路径*: {file_path} \n" + \
+                                    f"*上传的文件内容*: {file_content} \n"
+                patient_info += file_instructions
+    STEP1_DESC1 = f"""
+## 📝 病例数据分析
+对上传的病例进行分析，提取关键信息并生成个性化neoantigen筛选报告。
+
+"""
+    WRITER(STEP1_DESC1)
+    WRITER("```json\n")
+    system_prompt = PATIENT_CASE_ANALYSIS_PROMPT.format(
+        patient_info = patient_info,
+    )
+    model_runnable = wrap_model(
+        model, 
+        system_prompt, 
+        structure_model = True, 
+        structure_output = PatientCaseSummaryReport
+    )
+    logger.info(f"patient analysis prompt: {system_prompt}")
+    response = await model_runnable.ainvoke(state, config)
     writer = get_stream_writer()
-    writer("\n### 📝 病例分析报告生成中...\n")
+    writer("``` \n ✅ 病例数据分析完成，结合筛选过程生成病例报告...\n")
     patient_case_report = f"""
-这是一个测试病例分析报告
+{response.content}
     """
     # 输出到minio
     temp_report_file = f"/mnt/data/temp/neoantigen_report_{uuid.uuid4().hex}.md"
