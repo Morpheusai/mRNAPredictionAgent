@@ -118,7 +118,8 @@ async def PlatformIntroNode(state: AgentState, config: RunnableConfig):
     logger.info("Into Platform introduction")
     WRITER = get_stream_writer()
     WRITER('\n')
-    WRITER(PLATFORM_INTRO)
+    for pi in PLATFORM_INTRO.split("\n"):
+        WRITER(f"{pi}\n")
     WRITER('\n')
     logger.info("Platform introduction end")
     return Command(
