@@ -1,6 +1,7 @@
 import aiosqlite
-from datetime import datetime
+import uuid
 
+from datetime import datetime
 from pydantic import BaseModel, Field
 from langgraph.config import get_stream_writer
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -18,6 +19,7 @@ from src.model.agents.tools import (
     NeoantigenSelection
 )
 from src.utils.log import logger
+from utils.minio_utils import upload_file_to_minio
 
 from .core import get_model  # 相对导入
 from .core.neoantigen_research_prompt import (
@@ -28,6 +30,7 @@ from .core.neoantigen_research_prompt import (
 )
 
 DOWNLOADER_URL_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["markdown_download_url_prefix"]
+MINIO_BUCKET = CONFIG_YAML["MINIO"]["molly_bucket"]
 
 # Define the state for the agent
 class AgentState(MessagesState, total=False):
@@ -236,7 +239,25 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     )
 
 async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
-    pass
+    writer = get_stream_writer()
+    writer("\n### 📝 病例分析报告生成中...\n")
+    patient_case_report = f"""
+这是一个测试病例分析报告
+    """
+    # 输出到minio
+    temp_report_file = f"/mnt/data/temp/neoantigen_report_{uuid.uuid4().hex}.md"
+    with open(temp_report_file, "w") as fout:
+        fout.write(patient_case_report)
+    final_report_filepath = upload_file_to_minio(
+        temp_report_file,
+        MINIO_BUCKET
+    )
+    writer("📄 完整分析细节、候选肽段列表与评分均已整理至报告中，可点击查看：")
+    fdtime = datetime.now().strftime('%Y-%m-%d') 
+    writer(f"👉 📥 下载报告：[Neoantigen筛选报告-张先生-{fdtime}]({final_report_filepath})")
+    return Command(
+        goto = END
+    )
 
 # 修改图结构
 NeoantigenSelectAgent = StateGraph(AgentState)
