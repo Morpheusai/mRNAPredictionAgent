@@ -108,9 +108,15 @@ async def NeoantigenRouteNode(state: AgentState, config: RunnableConfig) -> Agen
     )
 
 async def PlatformIntroNode(state: AgentState, config: RunnableConfig):
-    writer = get_stream_writer()
-    writer(PLATFORM_INTRO)
-    return END
+    logger.info("Into Platform introduction")
+    WRITER = get_stream_writer()
+    WRITER('\n')
+    WRITER(PLATFORM_INTRO)
+    WRITER('\n')
+    logger.info("Platform introduction end")
+    return Command(
+        goto = END
+    )
 
 async def NeoantigenSelectChat(state: AgentState, config: RunnableConfig):
     model = get_model(
@@ -171,16 +177,18 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
                                     f"*上传的文件内容*: {file_content} \n"
                 patient_info += file_instructions
     else:
-        writer = get_stream_writer()
         if mode == "demo":
-            writer("请使用平台提供的默认示例数据进行平台体验。\n")
+            WRITER("\n请使用平台提供的默认示例数据进行平台体验。\n")
         else:
-            writer("请上传以下两类文件：\n"
+            WRITER("\n请上传以下两类文件：\n"
                    "1. 患者病例信息（TXT）\n"
                    "   ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等\n"
                    "2. 突变肽段序列文件（FASTA格式）\n"
                    "   ◦ 示例文件名：mutation_peptides.fasta\n")
-        return END
+        return Command(
+            goto = END
+        )
+    WRITER = get_stream_writer()
     system_prompt = PATIENT_CASE_ANALYSIS_PROMPT.format(
         patient_info = patient_info,
     )
