@@ -43,10 +43,9 @@ class AgentState(MessagesState, total=False):
     mhc_allele: str
     cdr3: str
     input_fsa_filepath: str
-    patient_case_summary: str
-    # mrna_design_process_result: str
-    patient_neoantigen_report: str
+    mode: int #0-user, 1-demo
     neoantigen_message: str
+    patient_neoantigen_report: str
 
 # Data model
 class PatientCaseSummaryReport(BaseModel):
@@ -158,11 +157,11 @@ async def NeoantigenSelectChat(state: AgentState, config: RunnableConfig):
 
 async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     messages = state.get("messages", [])
-    mode = "demo"
+    mode = 1
     if messages and isinstance(messages[-1], AIMessage):
         last_msg = messages[-1]
         if "用户数据处理" in last_msg.content:
-            mode = "user"
+            mode = 0
 
     model = get_model(
         config["configurable"].get("model", None),
@@ -185,14 +184,17 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
                 file_path = file.file_path
                 file_desc = file.file_desc
                 file_origin = file.file_origin
+                # 判断文件来源, 对应不同的模式
+                if mode != file_origin:
+                    continue
                 file_instructions = f"*上传文件名*: {file_name} \n" + \
                                     f"*上传的文件描述*: {file_desc} \n" + \
                                     f"*上传的文件路径*: {file_path} \n" + \
                                     f"*上传的文件内容*: {file_content} \n" + \
                                     f"*上传的文件来源（0表示用户上传文件，1表示系统上传文件）*: {file_origin} \n"
                 patient_info += file_instructions
-    else:
-        if mode == "demo":
+    if len(patient_info) == 0:
+        if mode == 1:
             WRITER("\n好的，请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。\n确认上传文件后，请告知我后可以即刻开始预测。\n")
         else:
             WRITER("\n请上传以下两类文件：\n"
@@ -243,6 +245,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
             "mhc_allele": mhc_allele,
             "cdr3": cdr3,
             "input_fsa_filepath": input_fsa_filepath,
+            "mode": mode,
             "neoantigen_message": neoantigen_message
 
         },
@@ -258,8 +261,8 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
         config["configurable"].get("frequency_penalty", None),
         stream_mode = False
     )
-    #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
+    mode = state.get("mode", 1)
     # 处理文件列表
     WRITER = get_stream_writer()
     patient_info = ""
@@ -270,6 +273,9 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
                 file_content = file.file_content
                 file_path = file.file_path
                 file_desc = file.file_desc
+                file_origin = file.file_origin
+                if mode != file_origin:
+                    continue
                 file_instructions = f"*上传文件名*: {file_name} \n" + \
                                     f"*上传的文件描述*: {file_desc} \n" + \
                                     f"*上传的文件路径*: {file_path} \n" + \
@@ -318,7 +324,7 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     pdf_download_link = neo_md2pdf(patient_report_md)
     writer("📄 完整分析细节、候选肽段列表与评分均已整理至报告中，可点击查看：")
     fdtime = datetime.now().strftime('%Y-%m-%d') 
-    writer(f"👉 📥 下载报告：[Neoantigen筛选报告-张先生-{fdtime}]({pdf_download_link})")
+    writer(f"👉 📥 下载报告：[Neoantigen筛选报告-{fdtime}]({pdf_download_link})")
     return Command(
         goto = END
     )
