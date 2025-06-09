@@ -27,7 +27,9 @@ async def step6_tap_transportation_prediction(
     mhc_allele: List[str],
     writer,
     mrna_design_process_result: list,
-    minio_client: Minio
+    minio_client: Minio,
+    neoantigen_message,
+    cleavage_m
 ) -> tuple:
     """
     第二步：TAP转运预测阶段
@@ -108,12 +110,14 @@ async def step6_tap_transportation_prediction(
     high_affinity_peptides = df[df['TAP'] >= NETCTLPAN_THRESHOLD]
     
     if high_affinity_peptides.empty:
+        # print("11111111111111111")
         STEP2_DESC6 = f"""
-### 第2部分-TAP转运预测阶段结束
 未筛选到符合TAP >= {NETCTLPAN_THRESHOLD}要求的高转运效率概率的肽段，筛选流程结束。
 """
-        # writer(STEP2_DESC6)
+        writer(STEP2_DESC6)
         mrna_design_process_result.append(STEP2_DESC6)
+        neoantigen_message[2]=f"0/{cleavage_m}"
+        neoantigen_message[3]=netctlpan_result_file_path
         raise Exception(f"未找到高亲和力肽段(TAP ≥ {NETCTLPAN_THRESHOLD})")
     
     # 构建FASTA文件内容
@@ -144,6 +148,8 @@ async def step6_tap_transportation_prediction(
             content_type='text/plain'
         )
     except Exception as e:
+        neoantigen_message[2]=f"0/{cleavage_m}"
+        neoantigen_message[3]=f"上传FASTA文件失败: {str(e)}"
         raise Exception(f"上传FASTA文件失败: {str(e)}")
     
     # 步骤完成描述
@@ -172,4 +178,4 @@ async def step6_tap_transportation_prediction(
 ✅ 已完成转运评估，剔除部分效率较低肽段，保留{count}个有效候选
 """    
     writer(STEP2_DESC7)
-    return f"minio://molly/{netctlpan_result_fasta_filename}", netctlpan_fasta_str,count
+    return f"minio://molly/{netctlpan_result_fasta_filename}", netctlpan_fasta_str,count,netctlpan_result_file_path

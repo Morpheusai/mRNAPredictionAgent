@@ -25,7 +25,9 @@ async def step4_pmhc_tcr_interaction(
     cdr3_sequence: List[str],
     writer,
     mrna_design_process_result: list,
-    minio_client: Minio
+    minio_client: Minio,
+    neoantigen_message,
+    pmhc_immunogenicity_m
 ) -> str:
     """
     第四步：pMHC-TCR相互作用预测
@@ -86,9 +88,13 @@ f"""
     try:
         pmtnet_result_dict = json.loads(pmtnet_result)
     except json.JSONDecodeError:
+        neoantigen_message[10]=f"0/{pmhc_immunogenicity_m}"
+        neoantigen_message[11]="pMHC-TCR相互作用预测阶段pMTnet工具执行失败"
         raise Exception("pMHC-TCR相互作用预测阶段pMTnet工具执行失败")
     
     if pmtnet_result_dict.get("type") != "link":
+        neoantigen_message[10]=f"0/{pmhc_immunogenicity_m}"
+        neoantigen_message[11]="pMHC-TCR相互作用预测阶段pMTnet工具执行失败"
         raise Exception(pmtnet_result_dict.get("content", "pMHC-TCR相互作用预测阶段pMTnet工具执行失败"))
     
     pmtnet_result_file_path = pmtnet_result_dict["url"]
@@ -114,6 +120,8 @@ f"""
         csv_data = BytesIO(response.read())
         df = pd.read_csv(csv_data)
     except Exception as e:
+        neoantigen_message[10]=f"0/{pmhc_immunogenicity_m}"
+        neoantigen_message[11]=f"读取pMTnet结果文件失败: {str(e)}"
         raise Exception(f"读取pMTnet结果文件失败: {str(e)}")
     
     # 步骤筛选描述
@@ -128,6 +136,13 @@ f"""
     high_rank_peptides = df[df['Rank'] >= PMTNET_RANK]
     
     if high_rank_peptides.empty:
+        STEP4_DESC5 = f"""
+未找到Rank ≥ {PMTNET_RANK}的高亲和力肽段，筛选流程结束。
+"""
+        writer(STEP4_DESC5)
+        mrna_design_process_result.append(STEP4_DESC5)
+        neoantigen_message[10]=f"0/{pmhc_immunogenicity_m}"
+        neoantigen_message[11]=pmtnet_result_file_path
         raise Exception(f"未找到Rank ≥ {PMTNET_RANK}的高亲和力肽段")
     
     # 构建FASTA文件内容
@@ -157,21 +172,23 @@ f"""
             content_type='text/plain'
         )
     except Exception as e:
+        neoantigen_message[10]=f"0/{pmhc_immunogenicity_m}"
+        neoantigen_message[11]=f"上传FASTA文件失败: {str(e)}"
         raise Exception(f"上传FASTA文件失败: {str(e)}")
     
     # 步骤完成描述
-    STEP4_DESC5 = f"""
+    STEP4_DESC6 = f"""
 ### 第4部分-pMHC-TCR相互作用预测后筛选
 已完成筛选pMHC-TCR相互作用预测的肽段，结果如下：
 ```
 {pmtnet_fasta_str}
 ```\n
 """
-    # writer(STEP4_DESC5)
-    mrna_design_process_result.append(STEP4_DESC5)
-    STEP4_DESC5 = f"""
+    # writer(STEP4_DESC6)
+    mrna_design_process_result.append(STEP4_DESC6)
+    STEP4_DESC6 = f"""
 ✅ 已识别出{count}条与患者TCR具有较高匹配可能性的肽段，作为优选候选
 """
-    writer(STEP4_DESC5)
+    writer(STEP4_DESC6)
     
-    return f"minio://molly/{pmtnet_filtered_fasta_filename}",count,pmtnet_result_dict['content']
+    return f"minio://molly/{pmtnet_filtered_fasta_filename}",count,pmtnet_result_dict['content'],pmtnet_result_file_path

@@ -81,9 +81,13 @@ async def step2_pmhc_binding_affinity(
     try:
         netmhcpan_result_dict = json.loads(netmhcpan_result)
     except json.JSONDecodeError:
+        neoantigen_message[4]=f"0/{tap_m}"
+        neoantigen_message[5]="pMHC结合亲和力预测阶段NetMHCpan工具执行失败"
         raise Exception("pMHC结合亲和力预测阶段NetMHCpan工具执行失败")
     
     if netmhcpan_result_dict.get("type") != "link":
+        neoantigen_message[4]=f"0/{tap_m}"
+        neoantigen_message[5]="pMHC结合亲和力预测阶段NetMHCpan工具执行失败"
         raise Exception(netmhcpan_result_dict.get("content", "pMHC结合亲和力预测阶段NetMHCpan工具执行失败"))
     
     netmhcpan_result_file_path = netmhcpan_result_dict["url"]
@@ -98,6 +102,8 @@ async def step2_pmhc_binding_affinity(
         df['BindLevel'] = df['BindLevel'].astype(str).replace('nan', '')
         
     except S3Error as e:
+        neoantigen_message[4]=f"0/{tap_m}"
+        neoantigen_message[5]=f"无法从MinIO读取NetMHCpan结果文件: {str(e)}"
         raise Exception(f"无法从MinIO读取NetMHCpan结果文件: {str(e)}")
 
     # 筛选高亲和力肽段
@@ -119,11 +125,12 @@ pMHC结合亲和力预测结果已获取，结果如下：\n
     
     if sb_peptides.empty:
         STEP2_DESC3 = f"""
-### 第2部分-pMHC结合亲和力预测结束
-未筛选到符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，筛选流程结束。
+未筛选到符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，筛选流程结束
 """
-        # writer(STEP2_DESC3)
+        writer(STEP2_DESC3)
         mrna_design_process_result.append(STEP2_DESC3)
+        neoantigen_message[4]=f"0/{tap_m}"
+        neoantigen_message[5]=netmhcpan_result_file_path
         raise Exception("pMHC结合亲和力预测阶段结束，NetMHCpan工具未找到高亲和力肽段")
     
     # 构建FASTA内容
@@ -136,7 +143,8 @@ pMHC结合亲和力预测结果已获取，结果如下：\n
         fasta_content.append(peptide)
         mhcpan_count += 1
     netmhcpan_fasta_str = "\n".join(fasta_content)
-    neoantigen_message.append(f"{mhcpan_count}/{tap_m}")
+    neoantigen_message[4]=f"{mhcpan_count}/{tap_m}"
+    neoantigen_message[5]=netmhcpan_result_file_path
     # 上传FASTA文件到MinIO
     uuid_name = str(uuid.uuid4())
     netmhcpan_result_fasta_filename = f"{uuid_name}_netmhcpan.fasta"
@@ -152,6 +160,8 @@ pMHC结合亲和力预测结果已获取，结果如下：\n
             content_type='text/plain'
         )
     except Exception as e:
+        neoantigen_message[6]=f"0/{mhcpan_count}"
+        neoantigen_message[7]=f"上传FASTA文件失败: {str(e)}"
         raise Exception(f"上传FASTA文件失败: {str(e)}")
     
     STEP2_DESC4 = \
@@ -173,19 +183,23 @@ f"""
     mrna_design_process_result.append(STEP2_DESC4)
 
     # 运行BigMHC_EL工具
-    netmhcpan_result_file_path = f"minio://molly/{netmhcpan_result_fasta_filename}"
-    neoantigen_message.append(netmhcpan_result_file_path)
+    netmhcpan_result_filter_file_path = f"minio://molly/{netmhcpan_result_fasta_filename}"
+    
     bigmhc_el_result = await BigMHC_EL.arun({
-        "peptide_input": netmhcpan_result_file_path,
+        "peptide_input": netmhcpan_result_filter_file_path,
         "hla_input": mhc_allele
     })
     
     try:
         bigmhc_el_result_dict = json.loads(bigmhc_el_result)
     except json.JSONDecodeError:
+        neoantigen_message[6]=f"0/{mhcpan_count}"
+        neoantigen_message[7]=f"结合亲和力预测阶段BigMHC_el工具执行失败"
         raise Exception("结合亲和力预测阶段BigMHC_el工具执行失败")
     
     if bigmhc_el_result_dict.get("type") != "link":
+        neoantigen_message[6]=f"0/{mhcpan_count}"
+        neoantigen_message[7]="pMHC结合亲和力预测阶段BigMHC_el工具执行失败"
         raise Exception(bigmhc_el_result_dict.get("content", "pMHC结合亲和力预测阶段BigMHC_el工具执行失败"))
     
     bigmhc_el_result_file_path = bigmhc_el_result_dict["url"]
@@ -198,6 +212,8 @@ f"""
         excel_data = BytesIO(response.read())
         df = pd.read_excel(excel_data)
     except S3Error as e:
+        neoantigen_message[6]=f"0/{mhcpan_count}"
+        neoantigen_message[7]=f"无法从MinIO读取BigMHC_EL结果文件: {str(e)}"
         raise Exception(f"无法从MinIO读取BigMHC_EL结果文件: {str(e)}")
     
     # 步骤中间描述2
@@ -220,11 +236,12 @@ f"""
     
     if high_affinity_peptides.empty:
         STEP2_DESC6 = f"""
-### 第2部分-pMHC结合亲和力预测结束
-未筛选到符合BigMHC_EL >= {BIGMHC_EL_THRESHOLD}要求的高抗原呈递概率的肽段，筛选流程结束。
+未筛选到符合BigMHC_EL >= {BIGMHC_EL_THRESHOLD}要求的高抗原呈递概率的肽段，筛选流程结束
 """
-        # writer(STEP2_DESC6)
+        writer(STEP2_DESC6)
         mrna_design_process_result.append(STEP2_DESC6)
+        neoantigen_message[6]=f"0/{mhcpan_count}"
+        neoantigen_message[7]=bigmhc_el_result_file_path
         raise Exception(f"未找到高亲和力肽段(BigMHC_EL ≥ {BIGMHC_EL_THRESHOLD})")
     
     # 构建FASTA文件内容
@@ -263,6 +280,8 @@ f"""
             content_type='text/plain'
         )
     except Exception as e:
+        neoantigen_message[6]=f"0/{mhcpan_count}"
+        neoantigen_message[7]=f"上传FASTA文件失败: {str(e)}"
         raise Exception(f"上传FASTA文件失败: {str(e)}")
     
     # 步骤完成描述
@@ -291,4 +310,4 @@ f"""
 ✅ 已识别出{count}个亲和力较强的候选肽段，符合进一步免疫原性筛选条件
 """
     writer(STEP2_DESC7)
-    return f"minio://molly/{bigmhc_el_result_fasta_filename}", bigmhc_el_fasta_str,f"{count}/{mhcpan_count}",count
+    return f"minio://molly/{bigmhc_el_result_fasta_filename}", bigmhc_el_fasta_str,f"{count}/{mhcpan_count}",count,bigmhc_el_result_file_path

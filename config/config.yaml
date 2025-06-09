@@ -97,9 +97,9 @@ TOOL:
     bind_level_alternative: ["<= SB", "<= WB"]  # 如果只需要 "<= SB"
     # bind_level_alternative: ["<= SB", "<= WB"]  # 如果需要 "<= SB" 或 "<= WB"
     netctlpan_threshold: 0.0
-    bigmhc_el_threshold: 0.0
-    bigmhc_im_threshold: 0.0
-    pmtnet_rank: 0.1
+    bigmhc_el_threshold: 0.0    #100
+    bigmhc_im_threshold: 0.0  #100
+    pmtnet_rank: 0.1           #100
     rnafold_energy_threshold : 0.0
 
   LINEARDESIGN:

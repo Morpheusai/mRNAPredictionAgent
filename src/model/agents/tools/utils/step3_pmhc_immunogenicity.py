@@ -25,7 +25,9 @@ async def step3_pmhc_immunogenicity(
     bigmhc_el_result_file_path: str,
     writer,
     mrna_design_process_result: list,
-    minio_client: Minio
+    minio_client: Minio,
+    neoantigen_message,
+    pmhc_binding_m
 ) -> tuple:
     """
     第三步：pMHC免疫原性预测
@@ -65,9 +67,13 @@ async def step3_pmhc_immunogenicity(
     try:
         bigmhc_im_result_dict = json.loads(bigmhc_im_result)
     except json.JSONDecodeError:
+        neoantigen_message[8]=f"0/{pmhc_binding_m}"
+        neoantigen_message[9]="pMHC免疫原性预测阶段BigMHC_im工具执行失败"
         raise Exception("pMHC免疫原性预测阶段BigMHC_im工具执行失败")
     
     if bigmhc_im_result_dict.get("type") != "link":
+        neoantigen_message[8]=f"0/{pmhc_binding_m}"
+        neoantigen_message[9]="pMHC免疫原性预测阶段BigMHC_im工具执行失败"
         raise Exception(bigmhc_im_result_dict.get("content", "pMHC免疫原性预测阶段BigMHC_im工具执行失败"))
     
     # 获取结果文件路径
@@ -94,6 +100,8 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
         excel_data = BytesIO(response.read())
         df = pd.read_excel(excel_data)
     except S3Error as e:
+        neoantigen_message[8]=f"0/{pmhc_binding_m}"
+        neoantigen_message[9]=f"无法从MinIO读取BigMHC_IM结果文件: {str(e)}"
         raise Exception(f"无法从MinIO读取BigMHC_IM结果文件: {str(e)}")
     
     # 步骤筛选描述
@@ -109,11 +117,12 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
     
     if high_affinity_peptides.empty:
         STEP3_DESC4 = f"""
-### 第3部分-pMHC免疫原性预测后筛选
 未筛选到符合BigMHC_IM >= {BIGMHC_IM_THRESHOLD}要求的高免疫原性的肽段，筛选流程结束。
 """
-        # writer(STEP3_DESC4)
+        writer(STEP3_DESC4)
         mrna_design_process_result.append(STEP3_DESC4)
+        neoantigen_message[8]=f"0/{pmhc_binding_m}"
+        neoantigen_message[9]=bigmhc_im_result_file_path
         raise Exception(f"未找到高免疫原性肽段(BigMHC_IM ≥ {BIGMHC_IM_THRESHOLD})")
     
     # 构建FASTA文件内容
@@ -143,6 +152,8 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
             content_type='text/plain'
         )
     except Exception as e:
+        neoantigen_message[8]=f"0/{pmhc_binding_m}"
+        neoantigen_message[9]=f"上传FASTA文件失败: {str(e)}"
         raise Exception(f"上传FASTA文件失败: {str(e)}")
     
     # 步骤完成描述
@@ -160,4 +171,4 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
 """
     writer(STEP3_DESC5)
     
-    return f"minio://molly/{bigmhc_im_result_fasta_filename}", bigmhc_im_fasta_str,count
+    return f"minio://molly/{bigmhc_im_result_fasta_filename}", bigmhc_im_fasta_str,count,bigmhc_im_result_file_path

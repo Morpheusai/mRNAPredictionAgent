@@ -7,7 +7,7 @@ from src.model.agents.tools.CleavagePeptide.cleavage_peptide import NetChop_Clea
 import pandas as pd
 from minio.error import S3Error
 
-async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_result: list, minio_client: Minio) -> tuple:
+async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_result: list, minio_client: Minio,neoantigen_message) -> tuple:
     """
     第一步：蛋白切割位点预测
     
@@ -49,9 +49,13 @@ async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_re
     try:
         netchop_result_dict = json.loads(netchop_result)
     except json.JSONDecodeError:
+        neoantigen_message[0] = f"0/0"
+        neoantigen_message[1] =  "蛋白切割位点阶段NetChop工具执行失败"   
         raise Exception("蛋白切割位点阶段NetChop工具执行失败")
     
     if netchop_result_dict.get("type") != "link":
+        neoantigen_message[0] = f"0/0"
+        neoantigen_message[1] =  "蛋白切割位点阶段NetChop工具执行失败"   
         raise Exception(netchop_result_dict.get("content", "蛋白切割位点阶段NetChop工具执行失败"))
     
     netchop_result_file_path = netchop_result_dict["url"]
@@ -64,9 +68,13 @@ async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_re
     try:
         cleavage_result_dict = json.loads(netchop_cleavage_result)
     except json.JSONDecodeError:
+        neoantigen_message[0] = f"0/0"
+        neoantigen_message[1] =  "蛋白切割位点阶段NetChop_Cleavage工具执行失败"
         raise Exception("蛋白切割位点阶段NetChop_Cleavage工具执行失败")
     
     if cleavage_result_dict.get("type") != "link":
+        neoantigen_message[0] = f"0/0"
+        neoantigen_message[1] =  "蛋白切割位点阶段未生成有效结果文件"
         raise Exception("蛋白切割位点阶段未生成有效结果文件")
     
     cleavage_result_file_path = cleavage_result_dict["url"]
@@ -80,10 +88,14 @@ async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_re
         netchop_final_result_str = bytes_io.getvalue().decode('utf-8')
         
         if len(netchop_final_result_str) == 0:
+            neoantigen_message[0] = f"0/0"
+            neoantigen_message[1] =  "蛋白切割位点阶段未找到符合长度和剪切条件的肽段,筛选流程结束"
             raise Exception("蛋白切割位点阶段未找到符合长度和剪切条件的肽段")
         # 统计以 '>' 开头的行数
         count = sum(1 for line in netchop_final_result_str.splitlines() if line.startswith('>'))
     except S3Error as e:
+        neoantigen_message[0] = f"0/0"
+        neoantigen_message[1] =  f"蛋白切割位点阶段NetChop_Cleavage工具执行失败: {str(e)}"
         raise Exception(f"蛋白切割位点阶段NetChop_Cleavage工具执行失败: {str(e)}")
     
     # 步骤完成描述

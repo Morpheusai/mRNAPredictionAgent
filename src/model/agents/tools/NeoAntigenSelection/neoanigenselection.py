@@ -130,6 +130,40 @@ def filter_rnafold(input_file_path: str, rnafold_energy_threshold: float) -> tup
     except Exception as e:
         raise Exception(f"处理失败: {e}")
 
+def normalize_hla_alleles(allele_list):
+    normalized = []
+    for allele in allele_list:
+        # 去除所有空格和可能的*
+        allele = allele.replace(" ", "").replace("*", "")
+        
+        # 处理没有HLA前缀的情况（如A0201或A02:01）
+        if not allele.startswith("HLA-"):
+            # 检查是否以A/B/C开头，后面跟着数字（可能没有冒号）
+            if allele[0] in ["A", "B", "C"]:
+                # 处理A0201（无冒号）的情况
+                if ":" not in allele:
+                    # 确保格式是A0201 -> A02:01（假设前两位是基因，后两位是编号）
+                    allele = f"{allele[:1]}{allele[1:3]}:{allele[3:]}"
+                # 添加HLA-前缀
+                allele = "HLA-" + allele
+            else:
+                # 其他格式可能需要额外处理
+                pass
+        
+        # 确保冒号后的编号是两位（如HLA-A02:01而不是HLA-A02:1）
+        if ":" in allele:
+            parts = allele.split(":")
+            if len(parts) == 2:
+                # 补全冒号后的数字为两位
+                parts[1] = parts[1].zfill(2)
+                allele = ":".join(parts)
+        
+        normalized.append(allele)
+    
+    return normalized
+
+
+
 async def run_neoanigenselection(
     input_file: str,
     mhc_allele: Optional[List[str]] = None,
@@ -148,7 +182,7 @@ async def run_neoanigenselection(
     """
     # 初始化变量
     mrna_design_process_result = []
-    neoantigen_message = []
+    neoantigen_message = ["--"] * 13
     cleavage_m=0
     tap_m=0
     pmhc_binding_m=0
@@ -156,39 +190,42 @@ async def run_neoanigenselection(
     tcr_m=0
 
     writer = get_stream_writer()
+    mhc_allele=normalize_hla_alleles(mhc_allele)
     try:
         # 第一步：蛋白切割位点预测
         
         cleavage_result_file_path, netchop_final_result_str,cleavage_m = await step1_protein_cleavage(
-            input_file, writer, mrna_design_process_result,minio_client
+            input_file, writer, mrna_design_process_result,minio_client,neoantigen_message
         )
-        neoantigen_message.append(f"{cleavage_m}/{cleavage_m}")
-        neoantigen_message.append(cleavage_result_file_path)
+        neoantigen_message[0] = f"{cleavage_m}/{cleavage_m}"
+        neoantigen_message[1] = cleavage_result_file_path
+
         # 第二步：TAP转运预测
-        netctlpan_file_path,netctlpan_fasta_str,tap_m= await step6_tap_transportation_prediction(
-            cleavage_result_file_path, netchop_final_result_str,mhc_allele, writer, mrna_design_process_result,minio_client
+        netctlpan_file_path,netctlpan_fasta_str,tap_m,netctlpan_tool_url= await step6_tap_transportation_prediction(
+            cleavage_result_file_path, netchop_final_result_str,mhc_allele, writer, mrna_design_process_result,minio_client,neoantigen_message,cleavage_m
         )
-        neoantigen_message.append(f"{tap_m}/{cleavage_m}")
-        neoantigen_message.append(netctlpan_file_path)
+        neoantigen_message[2]=f"{tap_m}/{cleavage_m}"
+        neoantigen_message[3]=netctlpan_tool_url
         # 第三步：pMHC结合亲和力预测
-        bigmhc_el_result_file_path, bigmhc_el_fasta_str,pmhc_binding_ratio,pmhc_binding_m= await step2_pmhc_binding_affinity(
+        bigmhc_el_result_file_path, bigmhc_el_fasta_str,pmhc_binding_ratio,pmhc_binding_m,bigmhc_el_tool_url= await step2_pmhc_binding_affinity(
             netctlpan_file_path, netctlpan_fasta_str,mhc_allele, writer, mrna_design_process_result,minio_client,neoantigen_message,tap_m
         )
-        neoantigen_message.append(pmhc_binding_ratio)
-        neoantigen_message.append(bigmhc_el_result_file_path)
+        neoantigen_message[6]=pmhc_binding_ratio
+        neoantigen_message[7]=bigmhc_el_tool_url
         # 第四步：pMHC免疫原性预测
-        bigmhc_im_result_file_path, bigmhc_im_fasta_str,pmhc_immunogenicity_m = await step3_pmhc_immunogenicity(
-            bigmhc_el_result_file_path, writer, mrna_design_process_result,minio_client
+        bigmhc_im_result_file_path, bigmhc_im_fasta_str,pmhc_immunogenicity_m, bigmhc_im_tool_url= await step3_pmhc_immunogenicity(
+            bigmhc_el_result_file_path, writer, mrna_design_process_result,minio_client,neoantigen_message,pmhc_binding_m
         )
-        neoantigen_message.append(f"{pmhc_immunogenicity_m}/{pmhc_binding_m}")
-        neoantigen_message.append(bigmhc_im_result_file_path)
+        neoantigen_message[8]=f"{pmhc_immunogenicity_m}/{pmhc_binding_m}"
+        neoantigen_message[9]=bigmhc_im_tool_url
         # 第五步：pMHC-TCR相互作用预测
-        mrna_input_file_path,tcr_m,tcr_content = await step4_pmhc_tcr_interaction(
-            bigmhc_im_result_file_path, cdr3_sequence, writer, mrna_design_process_result,minio_client
+        mrna_input_file_path,tcr_m,tcr_content,pmtnet_result_tool_url= await step4_pmhc_tcr_interaction(
+            bigmhc_im_result_file_path, cdr3_sequence, writer, mrna_design_process_result,minio_client,neoantigen_message,pmhc_immunogenicity_m
+        
         )
-        neoantigen_message.append(f"{tcr_m}/{pmhc_immunogenicity_m}")
-        neoantigen_message.append(mrna_input_file_path)
-        neoantigen_message.append(tcr_content)
+        neoantigen_message[10]=f"{tcr_m}/{pmhc_immunogenicity_m}"
+        neoantigen_message[11]=pmtnet_result_tool_url
+        neoantigen_message[12]=tcr_content
         STEP1_DESC2 = f"""
 ✅ 综合结论：
 本次筛选流程中，系统最终识别出{tcr_m}条在抗原递呈、免疫激活与T细胞识别多个维度均表现优异的个体化 neoantigen 候选肽段，建议作为后续疫苗设计重点靶点。

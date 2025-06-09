@@ -306,17 +306,17 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     report_data = {
         'patient_case_report': patient_case_analysis_summary,
         'cleavage_count':  neoantigen_array[0],
-        'cleavage_link': f"[肽段切割]({DOWNLOADER_URL_PREFIX}{neoantigen_array[1]})",
+        'cleavage_link': f"[肽段切割]({DOWNLOADER_URL_PREFIX}{neoantigen_array[1]})" if neoantigen_array[1].startswith("minio://") else f"{neoantigen_array[1]}",
         'tap_count':  neoantigen_array[2],
-        'tap_link': f"[TAP 转运预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[3]})",
+        'tap_link': f"[TAP 转运预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[3]})" if neoantigen_array[3].startswith("minio://") else f"{neoantigen_array[3]}",
         'affinity_count':  neoantigen_array[4],
-        'affinity_link': f"[亲和力预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[5]})",
+        'affinity_link': f"[亲和力预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[5]})" if neoantigen_array[5].startswith("minio://") else f"{neoantigen_array[5]}",
         'binding_count':  neoantigen_array[6],
-        'binding_link': f"[抗原呈递预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[7]})",
+        'binding_link': f"[抗原呈递预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[7]})" if neoantigen_array[7].startswith("minio://") else f"{neoantigen_array[7]}",
         'immunogenicity_count':  neoantigen_array[8],
-        'immunogenicity_link': f"[免疫原性预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[9]})",
+        'immunogenicity_link': f"[免疫原性预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[9]})" if neoantigen_array[9].startswith("minio://") else f"{neoantigen_array[9]}",
         'tcr_count':  neoantigen_array[10],
-        'tcr_link':  f"[TCR 识别预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[11]})",
+        'tcr_link':  f"[TCR 识别预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[11]})" if neoantigen_array[11].startswith("minio://") else f"{neoantigen_array[11]}",
         'tcr_content':  neoantigen_array[12]
     }
     patient_report_md = PATIENT_REPORT.format(**report_data)
@@ -324,7 +324,9 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     pdf_download_link = neo_md2pdf(patient_report_md)
     writer("📄 完整分析细节、候选肽段列表与评分均已整理至报告中，可点击查看：")
     fdtime = datetime.now().strftime('%Y-%m-%d') 
+    writer("#NEO_RESPONSE#")
     writer(f"👉 📥 下载报告：[Neoantigen筛选报告-{fdtime}]({pdf_download_link})")
+    writer("#NEO_RESPONSE#\n")
     return Command(
         goto = END
     )
