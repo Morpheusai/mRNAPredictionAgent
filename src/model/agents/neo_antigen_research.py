@@ -176,6 +176,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     # 处理文件列表
     WRITER = get_stream_writer()
     patient_info = ""
+    file_used = 0
     if file_list:
         for conversation_file in file_list:
             for file in conversation_file.files:
@@ -193,16 +194,59 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
                                     f"*上传的文件内容*: {file_content} \n" + \
                                     f"*上传的文件来源（0表示用户上传文件，1表示系统上传文件）*: {file_origin} \n"
                 patient_info += file_instructions
+                file_used += 1
+    FILE_CHECK_INFO = ""
     if len(patient_info) == 0:
         if mode == 1:
-            WRITER("\n好的，请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。\n确认上传文件后，请告知我后可以即刻开始预测。\n")
+            FILE_CHECK_INFO = \
+"""
+\n好的，请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
+确认使用文件后，请告知我，即刻可以开始示例预测。\n
+"""
+            WRITER(FILE_CHECK_INFO)
         else:
-            WRITER("\n请上传以下两类文件：\n"
-                   "1. 患者病例信息（TXT）\n"
-                   "   ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等\n"
-                   "2. 突变肽段序列文件（FASTA格式）\n"
-                   "   ◦ 示例文件名：mutation_peptides.fasta\n")
+            FILE_CHECK_INFO = \
+"""
+\n请上传以下两类文件：
+    1. 患者病例信息（TXT）
+       ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
+    2. 突变肽段序列文件（FASTA格式）
+       ◦ 示例文件名：mutation_peptides.fasta \n
+"""
+            WRITER(FILE_CHECK_INFO)
         return Command(
+            update = {
+                "messages": [
+                    AIMessage(content = FILE_CHECK_INFO)
+                ]
+            },
+            goto = END
+        )
+    elif file_used == 1:
+        if mode == 1:
+            FILE_CHECK_INFO = \
+"""
+\n系统感知到只使用了一个示例文件。
+请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
+确认使用两个文件后，请告知我，再开始示例预测。\n
+"""
+            WRITER(FILE_CHECK_INFO)
+        else:
+            FILE_CHECK_INFO = \
+"""
+\n系统只感知到一个您上传的文件，请确认上传以下两类文件：
+    1. 患者病例信息（TXT）
+        ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
+    2. 突变肽段序列文件（FASTA格式）
+        ◦ 示例文件名：mutation_peptides.fasta \n
+"""
+            WRITER(FILE_CHECK_INFO)
+        return Command(
+            update = {
+                "messages": [
+                    AIMessage(content = FILE_CHECK_INFO)
+                ]
+            },
             goto = END
         )
     STEP1_DESC1 = f"""
