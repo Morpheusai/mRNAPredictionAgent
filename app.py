@@ -487,8 +487,8 @@ async def chat(user_input: UserInput, agent_id: str = NEO_ANTIGEN) -> StreamingR
 
     Set `stream_tokens=false` to return intermediate messages but not token-by-token.
     """
-
-
+    logger.info(f"Received user_input: {user_input.dict()}")
+    logger.info(f"Agent ID: {agent_id}")
     return StreamingResponse(
         message_generator(user_input, agent_id),
         media_type="text/event-stream",

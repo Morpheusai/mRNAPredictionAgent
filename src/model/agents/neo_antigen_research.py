@@ -184,14 +184,16 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
                 file_content = file.file_content
                 file_path = file.file_path
                 file_desc = file.file_desc
+                file_origin = file.file_origin
                 file_instructions = f"*上传文件名*: {file_name} \n" + \
                                     f"*上传的文件描述*: {file_desc} \n" + \
                                     f"*上传的文件路径*: {file_path} \n" + \
-                                    f"*上传的文件内容*: {file_content} \n"
+                                    f"*上传的文件内容*: {file_content} \n" + \
+                                    f"*上传的文件来源（0表示用户上传文件，1表示系统上传文件）*: {file_origin} \n"
                 patient_info += file_instructions
     else:
         if mode == "demo":
-            WRITER("\n请选中平台提供的默认示例数据进行平台体验。\n")
+            WRITER("\n好的，请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。\n确认上传文件后，请告知我后可以即刻开始预测。\n")
         else:
             WRITER("\n请上传以下两类文件：\n"
                    "1. 患者病例信息（TXT）\n"
@@ -203,7 +205,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         )
     STEP1_DESC1 = f"""
 ## 🧪 正在体验示例分析流程…
-我们已加载平台内置示例数据（张先生，胰腺导管腺癌）并启动个体化 neoantigen 筛选流程。先提取筛选过程中的关键信息：
+我们已加载平台内置示例数据（张先生，胰腺导管腺癌）并启动个体化 Neoantigen 筛选流程。先提取筛选过程中的关键信息：
 
 """
     WRITER(STEP1_DESC1)

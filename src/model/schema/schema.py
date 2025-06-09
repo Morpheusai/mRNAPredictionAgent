@@ -38,6 +38,7 @@ class FileInfo(BaseModel):
     file_content: str = Field(description="文件内容")
     file_path: str = Field(description="文件地址")
     file_desc: str = Field(description="文件描述")
+    file_origin: int  = Field(description="文件来源，0表示用户上传，1表示系统文件")
 
 class FileGroup(BaseModel):
     conversation_id: str = Field(description="会话 ID，UUID 格式，长度 36", max_length=36, min_length=36)
