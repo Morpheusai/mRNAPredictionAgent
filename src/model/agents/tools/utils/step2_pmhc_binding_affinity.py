@@ -307,7 +307,7 @@ f"""
 #        # writer(chunk.content) 
 #        continue
     STEP2_DESC7 = f"""
-✅ 已识别出{count}个亲和力较强的候选肽段，符合进一步免疫原性筛选条件
+✅ 已识别出**{count}**个亲和力较强的候选肽段，符合进一步免疫原性筛选条件
 """
     writer(STEP2_DESC7)
     return f"minio://molly/{bigmhc_el_result_fasta_filename}", bigmhc_el_fasta_str,f"{count}/{mhcpan_count}",count,bigmhc_el_result_file_path

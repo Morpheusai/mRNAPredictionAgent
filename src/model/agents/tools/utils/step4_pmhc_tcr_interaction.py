@@ -49,10 +49,8 @@ async def step4_pmhc_tcr_interaction(
 # """   
         STEP4_DESC1 = \
 f"""
-## 🧩 步骤 5：TCR识别可能性评估（患者提供CDR3序列）
-目标：分析候选肽段是否可能被患者T细胞特异性识别
+**未在病历中检测到CDR3序列，不能进行pMHC-TCR相互作用预测，筛选流程结束**
 """   
-
         writer(STEP4_DESC1)
         mrna_design_process_result.append(STEP4_DESC1)
         return json.dumps(
@@ -187,7 +185,7 @@ f"""
     # writer(STEP4_DESC6)
     mrna_design_process_result.append(STEP4_DESC6)
     STEP4_DESC6 = f"""
-✅ 已识别出{count}条与患者TCR具有较高匹配可能性的肽段，作为优选候选
+✅ 已识别出**{count}**条与患者TCR具有较高匹配可能性的肽段，作为优选候选
 """
     writer(STEP4_DESC6)
     

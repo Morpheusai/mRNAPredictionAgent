@@ -20,7 +20,7 @@ from src.model.agents.tools import (
 )
 from src.utils.log import logger
 from src.utils.pdf_generator import neo_md2pdf
-from utils.minio_utils import upload_file_to_minio
+from src.utils.valid_fasta import validate_minio_fasta
 
 from .core import get_model  # 相对导入
 from .core.neoantigen_research_prompt import (
@@ -30,7 +30,7 @@ from .core.neoantigen_research_prompt import (
     PATIENT_KEYINFO_EXTRACT_PROMPT,
     PATIENT_CASE_ANALYSIS_PROMPT,
 )
-from .core.neoantigen_report_template import PATIENT_REPORT
+from .core.neoantigen_report_template import PATIENT_REPORT_ONE,PATIENT_REPORT_TWO
 
 DOWNLOADER_URL_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["markdown_download_url_prefix"]
 MINIO_BUCKET = CONFIG_YAML["MINIO"]["molly_bucket"]
@@ -40,9 +40,9 @@ class AgentState(MessagesState, total=False):
     """`total=False` is PEP589 specs.
     documentation: https://typing.readthedocs.io/en/latest/spec/typeddict.html#totality
     """
-    mhc_allele: str
-    cdr3: str
-    input_fsa_filepath: str
+    mhc_allele: Optional[str]
+    cdr3: Optional[str] 
+    input_fsa_filepath: Optional[str]
     mode: int #0-user, 1-demo
     neoantigen_message: str
     patient_neoantigen_report: str
@@ -177,6 +177,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     WRITER = get_stream_writer()
     patient_info = ""
     file_used = 0
+    opposite_file_used = 0
     if file_list:
         for conversation_file in file_list:
             for file in conversation_file.files:
@@ -187,6 +188,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
                 file_origin = file.file_origin
                 # 判断文件来源, 对应不同的模式
                 if mode != file_origin:
+                    opposite_file_used += 1
                     continue
                 file_instructions = f"*上传文件名*: {file_name} \n" + \
                                     f"*上传的文件描述*: {file_desc} \n" + \
@@ -198,22 +200,41 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     FILE_CHECK_INFO = ""
     if len(patient_info) == 0:
         if mode == 1:
-            FILE_CHECK_INFO = \
-"""
-\n好的，请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
-确认使用文件后，请告知我，即刻可以开始示例预测。\n
-"""
-            WRITER(FILE_CHECK_INFO)
+            if opposite_file_used == 0:
+                FILE_CHECK_INFO = \
+    """
+    \n好的，请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
+    确认使用文件后，请告知我，即刻可以开始示例预测\n
+    """
+                WRITER(FILE_CHECK_INFO)
+            else :    
+                FILE_CHECK_INFO = f"""
+        \n好的，检测到您从本地上传了{opposite_file_used}个文件，请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
+        确认使用文件后，请告知我，即刻可以开始**示例体验流程**\n
+        """
+                WRITER(FILE_CHECK_INFO)
         else:
-            FILE_CHECK_INFO = \
-"""
-\n请上传以下两类文件：
+            if opposite_file_used == 0:
+                FILE_CHECK_INFO = \
+    """
+    \n请上传以下两类文件：
+        1. 患者病例信息（TXT）
+        ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
+        2. 突变肽段序列文件（FASTA格式）
+        ◦ 示例文件名：mutation_peptides.fasta \n
+    """
+                WRITER(FILE_CHECK_INFO)
+            else :    
+                FILE_CHECK_INFO = f"""
+\n检测到您上传了{opposite_file_used}个案例文件\n
+\n请从您本地上传以下两类文件：
     1. 患者病例信息（TXT）
-       ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
+    ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
     2. 突变肽段序列文件（FASTA格式）
-       ◦ 示例文件名：mutation_peptides.fasta \n
+    ◦ 示例文件名：mutation_peptides.fasta \n
+\n才能进行**用户数据处理流程** \n   
 """
-            WRITER(FILE_CHECK_INFO)
+                WRITER(FILE_CHECK_INFO)
         return Command(
             update = {
                 "messages": [
@@ -231,16 +252,46 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
 确认使用两个文件后，请告知我，再开始示例预测。\n
 """
             WRITER(FILE_CHECK_INFO)
+
+            if opposite_file_used == 0:
+                FILE_CHECK_INFO = \
+    """
+    \n系统感知到只使用了一个示例文件。
+    请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
+    确认使用两个文件后，请告知我，再开始示例预测。\n
+    """
+                WRITER(FILE_CHECK_INFO)
+            else :    
+                FILE_CHECK_INFO = f"""
+    \n系统感知到只使用了一个示例文件,另外{opposite_file_used}个不是示例文件。
+    请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
+    确认使用两个文件后，请告知我，再开始示例预测。\n
+    """
+
+                WRITER(FILE_CHECK_INFO)
+
         else:
-            FILE_CHECK_INFO = \
-"""
-\n系统只感知到一个您上传的文件，请确认上传以下两类文件：
-    1. 患者病例信息（TXT）
-        ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
-    2. 突变肽段序列文件（FASTA格式）
-        ◦ 示例文件名：mutation_peptides.fasta \n
-"""
-            WRITER(FILE_CHECK_INFO)
+            if opposite_file_used == 0:
+                FILE_CHECK_INFO = \
+    """
+    \n系统只感知到一个您上传的文件，请确认上传以下两类文件：
+        1. 患者病例信息（TXT）
+            ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
+        2. 突变肽段序列文件（FASTA格式）
+            ◦ 示例文件名：mutation_peptides.fasta \n
+    """
+                WRITER(FILE_CHECK_INFO)
+            else :    
+                FILE_CHECK_INFO = f"""
+    \n系统只感知到一个您上传的文件，另外{opposite_file_used}是您上传的案例文件\n
+    \n请确认上传以下两类文件：
+        1. 患者病例信息（TXT）
+            ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
+        2. 突变肽段序列文件（FASTA格式）
+            ◦ 示例文件名：mutation_peptides.fasta \n
+    """
+                WRITER(FILE_CHECK_INFO)
+
         return Command(
             update = {
                 "messages": [
@@ -267,7 +318,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         structure_output = PatientCaseSummaryReport
     )
     response = await model_runnable.ainvoke(state, config)
-    WRITER("\n```\n 关键信息分析完毕，我们即将开始Neoantigen筛选过程⏳，我们会尽快完成这项精准医疗方案✨。\n")
+    WRITER("\n```")
     # TODO, debug
     logger.info(f"patient key info llm response: {response}")
     mhc_allele = response.mhc_allele
@@ -275,26 +326,52 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     input_fsa_filepath = response.input_fsa_filepath
 
     logger.info(f"mRNADesignNode args: fsa filename: {input_fsa_filepath}, mhc_allele: {mhc_allele}, cdr3: {cdr3}")
-    # 1. 通过state参数构建NeoantigenResearch工具输入参数
-    neoantigen_message= await NeoantigenSelection.ainvoke(
-        {
-            "input_file": input_fsa_filepath,
-            "mhc_allele": [mhc_allele],
-            "cdr3_sequence": [cdr3]
-        }
-    )
-    print(neoantigen_message)
-    return Command(
-        update = {
-            "mhc_allele": mhc_allele,
-            "cdr3": cdr3,
-            "input_fsa_filepath": input_fsa_filepath,
-            "mode": mode,
-            "neoantigen_message": neoantigen_message
+    if mhc_allele ==None:
+        # INSERT_SPACER=""
+        STEP1_DESC2 = f"""
+    \n ### ⚠️未能在病例中发现病人的HLA分型，请您在病历中提供病人的HLA分型
+    """
+        # WRITER(INSERT_SPACER)
+        WRITER(STEP1_DESC2)
+    elif input_fsa_filepath ==None:
+        # INSERT_SPACER=""
+        STEP1_DESC3 = f"""
+    \n ### ⚠️未检测到您发送的fasta文件，请仔细检查您的肽段文件是否符合国际标准的fasta文件格式要求
+    """
+        # WRITER(INSERT_SPACER)
+        WRITER(STEP1_DESC3)
+        return Command(
+            goto = END
+        )
+    elif (is_valid := validate_minio_fasta(input_fsa_filepath)) and not is_valid[0]:
+        STEP1_DESC4 = f"""
+    \n ### ⚠️请您仔细核对您上传的fasta文件是否符合格式要求，我们为您检测到的是:{is_valid[1]}
+    """
+        WRITER(STEP1_DESC4)
+        return Command(
+            goto = END
+        )
+    else:    
+        WRITER("\n关键信息分析完毕，我们即将开始Neoantigen筛选过程⏳，我们会尽快完成这项精准医疗方案✨。\n")
+        # 1. 通过state参数构建NeoantigenResearch工具输入参数
+        neoantigen_message= await NeoantigenSelection.ainvoke(
+            {
+                "input_file": input_fsa_filepath,
+                "mhc_allele": [mhc_allele],
+                "cdr3_sequence": [cdr3] if cdr3 is not None else cdr3
+            }
+        )
+        return Command(
+            update = {
+                "mhc_allele": mhc_allele,
+                "cdr3": cdr3,
+                "input_fsa_filepath": input_fsa_filepath,
+                "mode": mode,
+                "neoantigen_message": neoantigen_message
 
-        },
-        goto = "patient_case_report"
-    )
+            },
+            goto = "patient_case_report"
+        )
 
 async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     model = get_model(
@@ -307,6 +384,7 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     )
     file_list = config["configurable"].get("file_list", None)
     mode = state.get("mode", 1)
+    cdr3 = state.get("cdr3", None)
     # 处理文件列表
     WRITER = get_stream_writer()
     patient_info = ""
@@ -361,9 +439,12 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
         'immunogenicity_link': f"[免疫原性预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[9]})" if neoantigen_array[9].startswith("minio://") else f"{neoantigen_array[9]}",
         'tcr_count':  neoantigen_array[10],
         'tcr_link':  f"[TCR 识别预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[11]})" if neoantigen_array[11].startswith("minio://") else f"{neoantigen_array[11]}",
-        'tcr_content':  neoantigen_array[12]
+        'tcr_content':  neoantigen_array[12] if cdr3 is not None else "\n在病人病例中未提供cdr3序列，不能得到最终的筛选结论"
     }
-    patient_report_md = PATIENT_REPORT.format(**report_data)
+    if cdr3 is not None:
+        patient_report_md = PATIENT_REPORT_ONE.format(**report_data)
+    else:
+        patient_report_md = PATIENT_REPORT_TWO.format(**report_data)
     #输出为pdf，并提供下载link
     pdf_download_link = neo_md2pdf(patient_report_md)
     writer("📄 完整分析细节、候选肽段列表与评分均已整理至报告中，可点击查看：")

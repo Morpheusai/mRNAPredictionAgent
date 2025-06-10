@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import uuid
+import re
 
 from dotenv import load_dotenv
 from minio import Minio
@@ -164,6 +165,9 @@ def normalize_hla_alleles(allele_list):
 
 
 
+
+
+
 async def run_neoanigenselection(
     input_file: str,
     mhc_allele: Optional[List[str]] = None,
@@ -191,9 +195,11 @@ async def run_neoanigenselection(
 
     writer = get_stream_writer()
     mhc_allele=normalize_hla_alleles(mhc_allele)
+
+
     try:
+
         # 第一步：蛋白切割位点预测
-        
         cleavage_result_file_path, netchop_final_result_str,cleavage_m = await step1_protein_cleavage(
             input_file, writer, mrna_design_process_result,minio_client,neoantigen_message
         )
@@ -223,14 +229,15 @@ async def run_neoanigenselection(
             bigmhc_im_result_file_path, cdr3_sequence, writer, mrna_design_process_result,minio_client,neoantigen_message,pmhc_immunogenicity_m
         
         )
-        neoantigen_message[10]=f"{tcr_m}/{pmhc_immunogenicity_m}"
-        neoantigen_message[11]=pmtnet_result_tool_url
-        neoantigen_message[12]=tcr_content
-        STEP1_DESC2 = f"""
-✅ 综合结论：
-本次筛选流程中，系统最终识别出{tcr_m}条在抗原递呈、免疫激活与T细胞识别多个维度均表现优异的个体化 neoantigen 候选肽段，建议作为后续疫苗设计重点靶点。
-    """
-        writer(STEP1_DESC2)
+        if cdr3_sequence is not None:
+            neoantigen_message[10]=f"{tcr_m}/{pmhc_immunogenicity_m}"
+            neoantigen_message[11]=pmtnet_result_tool_url
+            neoantigen_message[12]=tcr_content
+            STEP1_DESC2 = f"""
+    ✅ 综合结论：
+    本次筛选流程中，系统最终识别出{tcr_m}条在抗原递呈、免疫激活与T细胞识别多个维度均表现优异的个体化 neoantigen 候选肽段，建议作为后续疫苗设计重点靶点。
+        """
+            writer(STEP1_DESC2)
         
         
     except Exception as e:

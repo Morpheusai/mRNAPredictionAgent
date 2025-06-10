@@ -167,7 +167,7 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
     # writer(STEP3_DESC5)
     mrna_design_process_result.append(STEP3_DESC5)
     STEP3_DESC5 = f"""
-✅ 在候选肽段中，系统筛选出{count}个具有较高免疫原性评分的肽段
+✅ 在候选肽段中，系统筛选出**{count}**个具有较高免疫原性评分的肽段
 """
     writer(STEP3_DESC5)
     
