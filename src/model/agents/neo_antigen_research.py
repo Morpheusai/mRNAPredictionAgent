@@ -203,13 +203,18 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
             if opposite_file_used == 0:
                 FILE_CHECK_INFO = \
     """
-    \n好的，请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
-    确认使用文件后，请告知我，即刻可以开始示例预测\n
-    """
+        \n📌 请您查看并确认使用引导提示中我们为您准备的 
+           ▸ 1️⃣  模拟病历[PancreaticCase.txt]
+           ▸ 2️⃣  突变序列示例数据[PancreaticSeq.fsa]
+        确认使用文件后，请告知我，即刻可以开始**示例体验流程**\n
+        """
                 WRITER(FILE_CHECK_INFO)
             else :    
                 FILE_CHECK_INFO = f"""
-        \n好的，检测到您从本地上传了{opposite_file_used}个文件，请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
+        \n⚠️ **检测到您上传自己的{opposite_file_used}个数据文件** ⚠️\n
+        \n📌 请您查看并确认使用引导提示中我们为您准备的 
+          ▸ 1️⃣  模拟病历[PancreaticCase.txt]
+          ▸ 2️⃣  突变序列示例数据[PancreaticSeq.fsa]
         确认使用文件后，请告知我，即刻可以开始**示例体验流程**\n
         """
                 WRITER(FILE_CHECK_INFO)
@@ -217,22 +222,21 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
             if opposite_file_used == 0:
                 FILE_CHECK_INFO = \
     """
-    \n请上传以下两类文件：
-        1. 患者病例信息（TXT）
-        ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
-        2. 突变肽段序列文件（FASTA格式）
-        ◦ 示例文件名：mutation_peptides.fasta \n
-    """
+\n📌 请您上传自己的数据文件，文件需要满足以下要求：
+▸ 1️⃣  患者病例信息（TXT格式）
+　　▸  🏥 包含：患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
+▸ 2️⃣  突变肽段序列文件（FASTA格式）
+　　▸  🧬 示例文件名：`mutation_peptides.fasta` \n
+"""
                 WRITER(FILE_CHECK_INFO)
             else :    
                 FILE_CHECK_INFO = f"""
-\n检测到您上传了{opposite_file_used}个案例文件\n
-\n请从您本地上传以下两类文件：
-    1. 患者病例信息（TXT）
-    ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
-    2. 突变肽段序列文件（FASTA格式）
-    ◦ 示例文件名：mutation_peptides.fasta \n
-\n才能进行**用户数据处理流程** \n   
+\n⚠️ **检测到您上传了{opposite_file_used}个案例文件** ⚠️\n
+\n📌 请您上传自己的数据文件，文件需要满足以下要求：
+▸ 1️⃣  患者病例信息（TXT格式）
+　　▸  🏥 包含：患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
+▸ 2️⃣  突变肽段序列文件（FASTA格式）
+　　▸  🧬 示例文件名：`mutation_peptides.fasta` \n
 """
                 WRITER(FILE_CHECK_INFO)
         return Command(
@@ -245,51 +249,62 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         )
     elif file_used == 1:
         if mode == 1:
-            FILE_CHECK_INFO = \
-"""
-\n系统感知到只使用了一个示例文件。
-请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
-确认使用两个文件后，请告知我，再开始示例预测。\n
-"""
-            WRITER(FILE_CHECK_INFO)
-
             if opposite_file_used == 0:
                 FILE_CHECK_INFO = \
     """
-    \n系统感知到只使用了一个示例文件。
-    请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
-    确认使用两个文件后，请告知我，再开始示例预测。\n
-    """
+🔍 系统检测到当前情况：
+ ▸  ✅ 使用了1个示例文件  
+
+📌 请确认使用我们为您准备的完整示例文件包：
+ ▸ 🏥 模拟病历 [PancreaticCase.txt]  
+ ▸ 🧬 突变序列数据 [PancreaticSeq.fsa]
+
+💬 确认两个文件都已就绪后，请告诉我，我们将立即开始✨示例预测流程✨
+"""
                 WRITER(FILE_CHECK_INFO)
             else :    
                 FILE_CHECK_INFO = f"""
-    \n系统感知到只使用了一个示例文件,另外{opposite_file_used}个不是示例文件。
-    请您查看并确认使用引导提示中我们为您准备的 模拟病历[PancreaticCase.txt] 及 突变序列示例数据[PancreaticSeq.fsa] 文件。
-    确认使用两个文件后，请告知我，再开始示例预测。\n
-    """
+🔍 系统检测到当前情况：
+ ▸  ✅ 使用了1个示例文件  
+ ▸  ⚠️ 另有{opposite_file_used}个非示例文件
+
+📌 请确认使用我们为您准备的完整示例文件包：
+ ▸ 🏥 模拟病历 [PancreaticCase.txt]  
+ ▸ 🧬 突变序列数据 [PancreaticSeq.fsa]
+
+💬 确认两个文件都已就绪后，请告诉我，我们将立即开始✨示例预测流程✨
+"""
 
                 WRITER(FILE_CHECK_INFO)
 
         else:
             if opposite_file_used == 0:
-                FILE_CHECK_INFO = \
-    """
-    \n系统只感知到一个您上传的文件，请确认上传以下两类文件：
-        1. 患者病例信息（TXT）
-            ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
-        2. 突变肽段序列文件（FASTA格式）
-            ◦ 示例文件名：mutation_peptides.fasta \n
-    """
+                FILE_CHECK_INFO = f"""
+📊 系统检测结果：
+ ▸  ✅ 已识别到1个您上传的文件
+ ▸  📂 另有{opposite_file_used}个用户案例文件
+📌 请补充上传以下完整资料：
+ ▸   1️⃣ 【患者医疗档案】🏥 (TXT格式)
+　　▸  包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
+ ▸   2️⃣ 【突变肽段序列】🧬 (FASTA格式)
+　　▸  📝 文件名示例：mutation_peptides.fasta
+　　▸  ✅ 请确保符合FASTA格式规范
+💡 当两份文件都准备好后，请告知我立即开始分析！
+"""
                 WRITER(FILE_CHECK_INFO)
             else :    
                 FILE_CHECK_INFO = f"""
-    \n系统只感知到一个您上传的文件，另外{opposite_file_used}是您上传的案例文件\n
-    \n请确认上传以下两类文件：
-        1. 患者病例信息（TXT）
-            ◦ 包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
-        2. 突变肽段序列文件（FASTA格式）
-            ◦ 示例文件名：mutation_peptides.fasta \n
-    """
+📊 系统检测结果：
+ ▸  ✅ 已识别到1个您上传的文件
+ ▸  📂 另有{opposite_file_used}个用户案例文件
+📌 请补充上传以下完整资料：
+ ▸  1️⃣ 【患者医疗档案】🏥 (TXT格式)
+　　▸  包含患者基本信息、诊断、治疗背景、HLA分型、TCR序列等
+ ▸  2️⃣ 【突变肽段序列】🧬 (FASTA格式)
+　　▸  📝 文件名示例：mutation_peptides.fasta
+　　▸  ✅ 请确保符合FASTA格式规范
+💡 当两份文件都准备好后，请告知我立即开始分析！
+"""
                 WRITER(FILE_CHECK_INFO)
 
         return Command(
