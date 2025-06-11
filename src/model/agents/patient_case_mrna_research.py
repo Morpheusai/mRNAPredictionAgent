@@ -253,7 +253,7 @@ PatientCaseMrnaAgent.add_edge("patient_case_analysis", "mrna_design_node")
 PatientCaseMrnaAgent.add_edge("mrna_design_node", "patient_case_report")
 PatientCaseMrnaAgent.add_edge("patient_case_report", END)
 
-patient_case_mRNA_research_nodes = PatientCaseMrnaAgent.compile(
+patient_case_mRNA_research = PatientCaseMrnaAgent.compile(
     checkpointer = MemorySaver(), 
     store = InMemoryStore()
 )
