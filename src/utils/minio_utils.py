@@ -148,4 +148,4 @@ def download_from_minio_uri(uri: str, local_path: str = None) -> str:
     # 返回绝对路径
     return os.path.abspath(local_path)
 
-download_from_minio_uri("minio://molly/29959599-2e39-4a66-a22d-ccfb86dedd21_hlas.fasta","/mnt/workspace/dev/ltc/mRNAPredictionAgent/src/utils")
+# download_from_minio_uri("minio://molly/96083419-f950-43ea-99cf-35bc97b4cc17_bigmhc_im.fasta","/mnt/workspace/dev/ljs/dev_0.4/mRNAPredictionAgent/src/utils")

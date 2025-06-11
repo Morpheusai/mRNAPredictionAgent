@@ -29,83 +29,7 @@ NEO_ANTIGEN_PROMPT = \
     用户可以不提供，有默认值:0.5
              
 在确认上述参数信息后，可调用netmHcpan工具进行结合力的预测，并调用结果处理工具进行处理。
-
-       
-## pMTnet工具使用说明      
-   pMTnet 是一个用于预测 TCR-pMHC 结合亲和力的工具。在使用之前，请通过多轮对话与用户确认以下输入参数：
-
-   🔹 输入参数（至少提供一种）：
-   pMTnet 支持以下任意一种或组合的输入方式：
-   1. 上传输入文件（推荐方式）
-      字段名：uploaded_file
-      格式要求：CSV 文件（必须包含 CDR3、Antigen、HLA 三列）注意HLA的格式为 "A*02:01"
-      示例值：minio://molly/pmtnet_input.csv
-   2. 提供 TCR 和抗原信息，系统自动构造输入
-      字段名：
-      cdr3_list：CDR3 序列列表（如：["CASSLGTDTQYF", "CASSPPSGGYTF"]）
-      antigen_input：肽段序列列表或 MinIO 中的 FASTA 文件路径（如：["GILGFVFTL"] 或 minio://bucket/antigen.fasta）
-      hla_list（可选）：MHC 等位基因列表（如：["A*02:01"]）
-   3. 提供抗原-HLA 配对数据
-      字段名：antigen_hla_pairs（可作为 antigen_input + hla_list 的替代）
-      格式：
-      Python 对象示例：[{"Antigen": "GILGFVFTL", "HLA": "A*01:01"}]
-      或 MinIO CSV 文件路径：minio://bucket/pairs.csv
-   ⚠️ 至少应提供 uploaded_file，或同时提供 cdr3_list 与 antigen_input 以构造输入。
-
-## BigMHC_EL 工具使用说明
-   BigMHC-EL 是一个用于预测 MHC-I 表位肽段抗原递呈能力 的工具。在使用前，请通过多轮对话与用户确认以下输入参数。
-   🔹 输入参数（至少提供一种）
-   BigMHC_EL 支持以下任意一种或组合的输入方式：
-   1. 上传格式化输入文件（推荐方式）
-      字段名：input_file
-      格式要求：CSV 文件，必须包含 mhc、pep 两列（可选 tgt 标签列，默认填 1）
-      路径示例：minio://your-bucket/bigmhc_input.csv
-   2. 提供肽段与 HLA 类型，由系统构造输入
-      字段名：
-         peptide_input：肽段序列列表，如 ["GILGFVFTL", "LLFGYPVYV"] 或 MinIO 上 .txt/.fasta 文件路径，如 minio://bucket/peptides.txt
-         hla_input：MHC 等位基因列表，如 ["HLA-A*02:01", "HLA-B*07:02"]，也可为 MinIO 文本文件路径
-      匹配规则：
-         若 peptide 与 HLA 数量相等，则一一对应
-         否则进行笛卡尔积组合构建输入
-         支持的文件类型：
-         .txt：按行读取
-         .fasta：自动解析 FASTA 格式提取肽段
-   使用说明
-      用户 必须 提供 input_file，或同时提供 peptide_input 和 hla_input。
-      不允许同时传入 input_file 与 peptide/hla 参数。
-   返回结果
-      返回值为 JSON 字符串，包含每组 peptide-HLA 的预测分数等信息
-      若参数或请求出错，将返回结构化错误信息 JSON
-      
-## BigMHC_IM 工具使用说明
-   BigMHC-IM 是一个用于预测 MHC-I 肽段免疫原性（Immunogenicity） 的工具。在使用前，请通过多轮对话与用户确认以下输入参数。
-   🔹 输入参数（至少提供一种）
-   BigMHC_IM 支持以下任意一种或组合的输入方式：
-   1. 上传输入文件（推荐方式）
-      字段名：input_file
-      格式要求：
-         可为 CSV 文件，包含 mhc、pep（可选 tgt）列
-         或为特殊格式的 .fasta 文件，每条记录形如 >peptide|HLA，例如：
-         >GILGFVFTL|HLA-A*02:01
-         GILGFVFTL
-      路径示例：minio://your-bucket/input.fasta 或 input.csv
-      自动行为：
-         自动解析 FASTA 文件并补全 HLA- 前缀
-         生成标准 BigMHC 输入 CSV 文件并上传至 MinIO
-   2. 提供肽段与 HLA 类型，由系统构造输入
-      字段名：
-         peptide_input：肽段序列列表或 MinIO 文本/FASTA 文件路径
-         hla_input：MHC 等位基因列表或 MinIO 文件路径
-      匹配逻辑：同 BigMHC_EL，支持一一对应或笛卡尔积组合构建输入
-   ⚠️ 使用说明
-      用户必须提供：
-         input_file（.csv 或 FASTA），或
-         同时提供 peptide_input 和 hla_input
-      不允许同时传入 input_file 与 peptide/hla 参数
-   🔄 返回结果
-      返回值为 JSON 字符串，包含预测分数结果
-      若预测失败，将返回结构化错误信息 JSON
-
+ 
 
 ## netCTLpan工具使用说明
 你在使用 netCTLpan 工具前，需要和用户进行多轮对话以确认以下参数，请记住有些参数用户可以不提供，但在这之前需要告知用户你的使用情况。
@@ -115,13 +39,6 @@ NEO_ANTIGEN_PROMPT = \
  - TAP打分权重（Weight of TAP）：用户可以不提供，有默认值：0.025
  - 肽段预测长度：用户可以不提供（取值范围[8-11]），有默认值：9
 
-## PISTE工具使用说明
-你在使用 PISTE 工具前，需要和用户进行多轮对话以确认以下参数，请记住有些参数用户可以不提供，但在这之前需要告知用户你的使用情况。
- - 文件路径 (input_file_dir)：用户必须提供，当前的输入要求是用户需上传.csv文件，文件包含四列：'CDR3'，'MT_pep'，'HLA_type'和'HLA_sequence'，分别代表TCR CDR3序列，抗原序列，HLA-I等位基因和HLA伪序列。 如果'HLA_sequence'不在列中，程序将自动匹配与HLA-I等位基因相对应的HLA伪序列。
- - 预测模型名称 (model_name)：用户可以不提供，有默认值：random，使用不同负采样生成的数据集选择不同的训练模型：random, unipep, reftcr。
- - 抗原呈递评分阈值 (threshold)：用户可以不提供，有默认值：0.5，根据预测分数定义活页夹的阈值，范围从 0 - 1（默认值：0.5）
- - 抗原类型 (antigen_type)：用户可以不提供，有默认值：MT，说明：MT 表示肿瘤突变型抗原（Mutant Type），WT 表示正常野生型抗原（Wild Type）
- - 输出说明：文件包含六列：'CDR3'、'MT_pep'、'HLA_type'、'HLA_sequence'、'predicted_label' 和 'predicted_score'，分别代表 TCR CDR3 序列、抗原序列、HLA-I 等位基因、HLA 伪序列及其预测的结合标签和分数。所有 TCR-抗原-HLA 三元组都是输入文件中的三元组。
 
 ## ImmuneApp工具使用说明
 你在使用 ImmuneApp 工具前，需要和用户进行多轮对话以确认以下参数，请记住有些参数用户可以不提供，但在这之前需要告知用户你的使用情况。

@@ -304,3 +304,59 @@ def UniPMT(input_file: str):
 if __name__ == "__main__":
     input_file = "minio://molly/22173dfb-6454-4e52-a174-590f0e8edeb7_predict_unipmt.csv"
     print(asyncio.run(run_unipmt(input_file)))
+
+# import aiohttp
+# import asyncio
+# import json
+# import sys
+# import traceback
+
+
+# from langchain_core.tools import tool
+# from pathlib import Path
+# from typing import List, Dict, Optional
+
+# current_file = Path(__file__).resolve()
+# project_root = current_file.parents[5]                
+# sys.path.append(str(project_root))
+# from config import CONFIG_YAML
+
+# prime_url = CONFIG_YAML["TOOL"]["PRIME"]["url"]
+# @tool
+# async def UniPMT(
+#     input_file: str,
+# ) -> str:
+#     """
+#     UniPMT是一个三元复合体结构建模的工具。
+
+#     参数:
+#     - input_file: MinIO 中的肽段 fasta 文件路径（如 minio://bucket/file.fasta）
+
+#     返回:
+#     - JSON 字符串，包含预测结果或错误信息
+#     """
+
+#     payload = {
+#         "input_file": input_file,
+#     }
+
+#     timeout = aiohttp.ClientTimeout(total=60)
+#     try:
+#         async with aiohttp.ClientSession(timeout=timeout) as session:
+#             async with session.post(prime_url, json=payload) as response:
+#                 response.raise_for_status()
+#                 return await response.json()
+#     except Exception as e:
+#         print("发生异常类型：", type(e).__name__)
+#         print("异常信息：", str(e))
+#         traceback.print_exc()
+
+#         return json.dumps({
+#             "type": "text",
+#             "content": f" Prime工具调用失败: {type(e).__name__} - {str(e)}"
+#         }, ensure_ascii=False)
+
+# # 本地测试
+# if __name__ == "__main__":
+#     input_file = "minio://molly/22173dfb-6454-4e52-a174-590f0e8edeb7_predict_unipmt.csv"
+#     print(asyncio.run(run_unipmt(input_file)))

@@ -1,6 +1,8 @@
 import json
+import re
 import sys
 import uuid
+import tempfile
 
 from typing import Tuple, List
 from minio import Minio
@@ -10,6 +12,7 @@ from pathlib import Path
 from minio.error import S3Error
 from langgraph.config import get_stream_writer
 from src.model.agents.tools.BigMHC.bigmhc import BigMHC_IM
+from src.utils.minio_utils import download_from_minio_uri
 
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]
@@ -20,6 +23,43 @@ MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MOLLY_BUCKET = MINIO_CONFIG["molly_bucket"]
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
 BIGMHC_IM_THRESHOLD = NEOANTIGEN_CONFIG["bigmhc_im_threshold"]
+
+
+def extract_hla_and_peptides_from_fasta(
+    fasta_minio_path: str
+) -> Tuple[str, List[str]]:
+    """
+    解析 >peptide|HLA 格式的 FASTA 文件，返回原始FASTA的minio地址和所有HLA分型列表
+    
+    参数:
+    - fasta_minio_path: MinIO路径，例如 minio://bucket/file.fasta
+    
+    返回:
+    - tuple: (原始FASTA的minio地址, 所有HLA分型的列表)
+    """
+    local_path = tempfile.NamedTemporaryFile(delete=True).name
+    download_from_minio_uri(fasta_minio_path, local_path)
+
+    hla_list = []
+    HLA_REGEX = re.compile(r"^(HLA-)?[ABC]\*\d{2}:\d{2}$")
+
+    with open(local_path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith(">") and "|" in line:
+                parts = line[1:].split("|", 1)
+                if len(parts) == 2 and HLA_REGEX.fullmatch(parts[1].strip()):
+                    hla = parts[1].strip()
+                    if not hla.startswith("HLA-"):
+                        hla = "HLA-" + hla
+                    if hla not in hla_list:
+                        hla_list.append(hla)
+
+    if not hla_list:
+        raise ValueError("未能从FASTA中解析出合法的HLA分型")
+
+    return (fasta_minio_path, hla_list)
+
 
 async def step3_pmhc_immunogenicity(
     bigmhc_el_result_file_path: str,
@@ -42,19 +82,15 @@ async def step3_pmhc_immunogenicity(
     STEP3_DESC1 = """
 ## 第3部分-pMHC免疫原性预测
 基于BigMHC_IM工具对上述内容进行pMHC免疫原性预测 
-
-\n参数设置说明：
-- MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
-
-当前使用配置：
-- 选用MHC allele: HLA-A02:01
 """
     writer(STEP3_DESC1)
     mrna_design_process_result.append(STEP3_DESC1)
+
+    input_file,mhc_alleles = extract_hla_and_peptides_from_fasta(bigmhc_el_result_file_path)
     
     # 运行BigMHC_IM工具
     bigmhc_im_result = await BigMHC_IM.arun({
-        "input_file": bigmhc_el_result_file_path
+        "input_file": input_file,"mhc_alleles":mhc_alleles
     })
     
     try:

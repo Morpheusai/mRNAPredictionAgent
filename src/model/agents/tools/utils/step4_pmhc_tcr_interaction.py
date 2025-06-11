@@ -1,14 +1,18 @@
 import json
 import sys
 import uuid
+import re
+import os
 
 from typing import List, Optional
+from typing import List, Tuple
 from minio import Minio
 from io import BytesIO
 import pandas as pd
 from pathlib import Path
 from langgraph.config import get_stream_writer
 from src.model.agents.tools.PMTNet.pMTnet import pMTnet
+from src.utils.minio_utils import download_from_minio_uri
 
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]
@@ -19,6 +23,55 @@ MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MOLLY_BUCKET = MINIO_CONFIG["molly_bucket"]
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
 PMTNET_RANK = NEOANTIGEN_CONFIG["pmtnet_rank"]
+download_dir = CONFIG_YAML["TOOL"]["PMTNET"]["download_dir"]
+
+def extract_hla_from_fasta(
+    uploaded_fasta_path: str,
+) -> Tuple[str, List[str]]:
+    """
+    从FASTA文件中提取HLA分型列表
+    参数:
+        uploaded_fasta_path: MinIO文件路径 (格式: minio://bucket/path/to/file.fasta)
+    返回:
+        tuple: (原始文件路径, HLA分型列表)
+    异常:
+        ValueError: 当文件路径无效或FASTA格式不符合要求时抛出
+    """
+    # 输入验证
+    if not uploaded_fasta_path.startswith("minio://"):
+        raise ValueError("输入文件必须是MinIO路径 (以minio://开头)")
+    
+    if not uploaded_fasta_path.lower().endswith((".fa", ".fasta", ".fas")):
+        raise ValueError("文件不是FASTA格式 (.fa/.fasta/.fas)")
+
+    # HLA格式正则表达式
+    hla_pattern = re.compile(r"^[ABC]\*\d{2}:\d{2}$")
+    hla_list = []
+    # 下载文件（如果需要）
+    local_path = download_from_minio_uri(uploaded_fasta_path, download_dir)
+    
+    try:
+        with open(local_path, "r") as f:
+            current_hla = ""
+            for line in f:
+                line = line.strip()
+                if line.startswith(">") and "|" in line:
+                    # 解析HLA部分
+                    hla_part = line.split("|")[-1].strip()
+                    if hla_part.startswith("HLA-"):
+                        hla_part = hla_part[4:]
+                    
+                    # 验证并记录HLA分型
+                    if hla_pattern.fullmatch(hla_part):
+                        if hla_part not in hla_list:  # 避免重复
+                            hla_list.append(hla_part)
+    
+    finally:
+        if os.path.exists(local_path):
+            os.remove(local_path)
+    
+    return uploaded_fasta_path, hla_list
+
 
 async def step4_pmhc_tcr_interaction(
     bigmhc_im_result_file_path: str,
@@ -58,23 +111,18 @@ f"""
     # 步骤开始描述
     STEP4_DESC2 = f"""
 ## 第4部分-pMHC-TCR相互作用预测
-对上述内容使用pMTnet工具进行pMHC-TCR相互作用预测
-
-\n参数设置说明:
-- MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
-- cdr3序列(cdr3): T细胞受体(TCR)的互补决定区3序列，用于评估TCR-pMHC相互作用潜力
-
-当前使用配置：
-- 选用MHC allele: HLA-A02:01
-- 选用cdr3: {cdr3_sequence}
+对上述内容进行pMHC-TCR相互作用预测
+设置参数,  cdr3序列：{cdr3_sequence}
 """
     writer(STEP4_DESC2)
     mrna_design_process_result.append(STEP4_DESC2)
-    
+
+    input_file,mhc_alleles=extract_hla_from_fasta(bigmhc_im_result_file_path)
     # 运行pMTnet工具
     pmtnet_result = await pMTnet.arun({
         "cdr3_list": cdr3_sequence,
-        "uploaded_file": bigmhc_im_result_file_path
+        "input_file": input_file,
+        "mhc_alleles": mhc_alleles
     })
     
     try:
