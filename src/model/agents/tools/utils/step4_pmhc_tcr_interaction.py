@@ -185,7 +185,7 @@ f"""
     # writer(STEP4_DESC6)
     mrna_design_process_result.append(STEP4_DESC6)
     STEP4_DESC6 = f"""
-✅ 已识别出**{count}**条与患者TCR具有较高匹配可能性的肽段，作为优选候选
+✅ 已识别出**{count}条与患者TCR具有较高匹配可能性的肽段**，作为优选候选
 """
     writer(STEP4_DESC6)
     

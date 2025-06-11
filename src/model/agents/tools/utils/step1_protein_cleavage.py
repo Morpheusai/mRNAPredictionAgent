@@ -124,8 +124,8 @@ async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_re
 #        #print(chunk)
 #        #writer(chunk.content) 
 #        continue
-    STEP1_DESC2 = """
-✅ 系统已成功识别出多条候选短肽段，进入后续筛选阶段
+    STEP1_DESC2 = f"""
+✅ 系统已成功识别出**{count}条候选短肽段**，进入后续筛选阶段
 """
     writer(STEP1_DESC2)
 

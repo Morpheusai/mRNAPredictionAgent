@@ -175,7 +175,7 @@ async def step6_tap_transportation_prediction(
 #        # writer(chunk.content) 
 #        continue
     STEP2_DESC7 = f"""
-✅ 已完成转运评估，剔除部分效率较低肽段，保留**{count}**个有效候选
+✅ 已完成转运评估，剔除部分效率较低肽段，保留**{count}个有效候选肽段**
 """    
     writer(STEP2_DESC7)
     return f"minio://molly/{netctlpan_result_fasta_filename}", netctlpan_fasta_str,count,netctlpan_result_file_path

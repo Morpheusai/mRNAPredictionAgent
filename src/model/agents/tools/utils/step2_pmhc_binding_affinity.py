@@ -68,7 +68,7 @@ async def step2_pmhc_binding_affinity(
 # """
     STEP2_DESC1 = f"""
 ## 🎯 步骤 3：pMHC结合亲和力预测
-目标：筛选与患者MHC分型（HLA-A*02:01）具有良好结合能力的肽段
+目标：筛选与患者MHC分型{mhc_allele}具有良好结合能力的肽段
 """
     writer(STEP2_DESC1)
     mrna_design_process_result.append(STEP2_DESC1)
@@ -307,7 +307,7 @@ f"""
 #        # writer(chunk.content) 
 #        continue
     STEP2_DESC7 = f"""
-✅ 已识别出**{count}**个亲和力较强的候选肽段，符合进一步免疫原性筛选条件
+✅ 已识别出**{count}个亲和力较强的候选肽段**，符合进一步免疫原性筛选条件
 """
     writer(STEP2_DESC7)
     return f"minio://molly/{bigmhc_el_result_fasta_filename}", bigmhc_el_fasta_str,f"{count}/{mhcpan_count}",count,bigmhc_el_result_file_path
