@@ -2,7 +2,7 @@ from contextlib import AbstractAsyncContextManager
 
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-from memory.sqlite import get_sqlite_saver, get_sqlite_store
+from src.model.memory.sqlite import get_sqlite_saver, get_sqlite_store
 
 def initialize_database() -> AbstractAsyncContextManager[AsyncSqliteSaver]:
     """
