@@ -518,6 +518,7 @@ async def reset_thread(thread_id: str):
         agents = get_all_agents()
         for agent in agents:
             await agent.graph.checkpointer.adelete_thread(thread_id)
+        return {"status": "success", "message": f"Thread {thread_id} 已清除"}
     except Exception as e:
         import traceback
         traceback.print_exc()
