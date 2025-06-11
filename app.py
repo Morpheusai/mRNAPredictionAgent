@@ -22,6 +22,7 @@ from src.model.agents.agents import (
     PATIENT_CASE_MRNA_AGENT,
     NEO_ANTIGEN,
     get_all_agent_info,
+    get_all_agents,
     get_agent
 )
 from src.model.agents.file_description import fileDescriptionAgent
@@ -514,9 +515,9 @@ async def describe_text(request: MinioRequest):
 @app.delete("/delete_thread/{thread_id}")
 async def reset_thread(thread_id: str):
     try:
-        agents = get_all_agent_info()
+        agents = get_all_agents()
         for agent in agents:
-            await agent.delete_thread(thread_id)
+            await agent.graph.checkpointer.adelete_thread(thread_id)
     except Exception as e:
         import traceback
         traceback.print_exc()
