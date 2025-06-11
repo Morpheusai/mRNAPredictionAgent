@@ -279,18 +279,13 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 tmp_tool_msg.append(tool_msg)
             elif tool_name == "pMTnet":
                 cdr3_list = tool_call["args"].get("cdr3_list")
-                antigen_input = tool_call["args"].get("antigen_input")
-                hla_list = tool_call["args"].get("hla_list")
-                antigen_hla_pairs = tool_call["args"].get("antigen_hla_pairs")
-                uploaded_file = tool_call["args"].get("uploaded_file")
+                input_file = tool_call["args"].get("input_file")
+                mhc_alleles = tool_call["args"].get("mhc_alleles")
                 func_result = await pMTnet.ainvoke(
                     {
                         "cdr3_list": cdr3_list,
-                        "antigen_input": antigen_input,
-                        "hla_list": hla_list,
-                        "antigen_hla_pairs": antigen_hla_pairs,
-                        "uploaded_file": uploaded_file
-                        
+                        "input_file": input_file,
+                        "mhc_alleles": mhc_alleles,
                     }
                 )
                 logger.info(f"pMTnet result: {func_result}")
@@ -302,13 +297,17 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 tmp_tool_msg.append(tool_msg)
                 
             elif tool_name == "PISTE":
-                input_file_dir = tool_call["args"].get("input_file_dir")
+                cdr3_list = tool_call["args"].get("cdr3_list")
+                input_file = tool_call["args"].get("input_file")
+                mhc_alleles = tool_call["args"].get("mhc_alleles")
                 model_name = tool_call["args"].get("model_name","random")
                 threshold = tool_call["args"].get("threshold", 0.5)
                 antigen_type = tool_call["args"].get("antigen_type","MT")
                 func_result = await PISTE.ainvoke(
                     {
-                        "input_file_dir": input_file_dir,
+                        "cdr3_list": cdr3_list,
+                        "input_file": input_file,
+                        "mhc_alleles": mhc_alleles,
                         "model_name": model_name,
                         "threshold": threshold,
                         "antigen_type": antigen_type
@@ -381,11 +380,11 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 tmp_tool_msg.append(tool_msg)         
             elif tool_name == "Prime":
                 input_file = tool_call["args"].get("input_file")
-                mhc_allele=tool_call["args"].get("mhc_allele","A0101")
+                mhc_alleles=tool_call["args"].get("mhc_alleles",None)
                 func_result = await Prime.ainvoke(
                     {
                         "input_file": input_file,
-                        "mhc_allele": mhc_allele,
+                        "mhc_alleles": mhc_alleles,
                     }
                 )
                 prime_result=func_result
@@ -472,14 +471,12 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 )
                 tmp_tool_msg.append(tool_msg)
             elif tool_name == "BigMHC_EL":
-                peptide_input = tool_call["args"].get("peptide_input")
-                hla_input = tool_call["args"].get("hla_input")
                 input_file = tool_call["args"].get("input_file")
+                mhc_alleles = tool_call["args"].get("mhc_alleles")
                 func_result = await BigMHC_EL.ainvoke(
                     {
-                    "peptide_input":peptide_input,
-                    "hla_input":hla_input,
-                    "input_file":input_file
+                    "input_file":input_file,
+                    "mhc_alleles":mhc_alleles,
                     }
                 )
                 logger.info(f"BigMHC_EL result: {func_result}")
@@ -489,14 +486,12 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 )
                 tmp_tool_msg.append(tool_msg)
             elif tool_name == "BigMHC_IM":
-                peptide_input = tool_call["args"].get("peptide_input",None)
-                hla_input = tool_call["args"].get("hla_input",None)
-                input_file = tool_call["args"].get("input_file",None)
+                input_file = tool_call["args"].get("input_file")
+                mhc_alleles = tool_call["args"].get("mhc_alleles",None)
                 func_result = await BigMHC_IM.ainvoke(
                     {
-                    "peptide_input":peptide_input,
-                    "hla_input":hla_input,
-                    "input_file":input_file
+                    "input_file":input_file,
+                    "mhc_alleles":mhc_alleles,
                     }
                 )
                 logger.info(f"BigMHC_IM result: {func_result}")

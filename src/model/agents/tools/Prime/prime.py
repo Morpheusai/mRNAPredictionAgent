@@ -7,6 +7,7 @@ import traceback
 
 from langchain_core.tools import tool
 from pathlib import Path
+from typing import List, Dict, Optional
 
 current_file = Path(__file__).resolve()
 project_root = current_file.parents[5]                
@@ -17,22 +18,26 @@ prime_url = CONFIG_YAML["TOOL"]["PRIME"]["url"]
 @tool
 async def Prime(
     input_file: str,
-    mhc_allele: str = "A0101"
+    mhc_alleles: Optional[List[str]] = None
 ) -> str:
     """
     Prime 是一款用于预测 I 类免疫原性表位的工具，结合 MHC-I 亲和力与 TCR 识别倾向。
 
     参数:
     - input_file: MinIO 中的肽段 fasta 文件路径（如 minio://bucket/file.fasta）
-    - mhc_allele: MHC-I 等位基因字符串，用逗号分隔（如 "A0101,B0702"）
+    - mhc_alleles: 列表类型，默认为A0101"）
 
     返回:
     - JSON 字符串，包含预测结果或错误信息
     """
-    
+
+    if mhc_alleles:  # 检查列表是否非空
+        mhc_alleles_str = ",".join(allele.strip() for allele in mhc_alleles)
+    else:
+        mhc_alleles_str = "A0101"  # 如果列表是 None 或空，返回A0101
     payload = {
         "input_file": input_file,
-        "mhc_allele": mhc_allele
+        "mhc_allele": mhc_alleles_str
     }
 
     timeout = aiohttp.ClientTimeout(total=60)

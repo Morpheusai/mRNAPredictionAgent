@@ -186,8 +186,8 @@ f"""
     netmhcpan_result_filter_file_path = f"minio://molly/{netmhcpan_result_fasta_filename}"
     
     bigmhc_el_result = await BigMHC_EL.arun({
-        "peptide_input": netmhcpan_result_filter_file_path,
-        "hla_input": mhc_allele
+        "input_file": netmhcpan_result_filter_file_path,
+        "mhc_alleles": mhc_allele
     })
     
     try:
@@ -200,6 +200,8 @@ f"""
     if bigmhc_el_result_dict.get("type") != "link":
         neoantigen_message[6]=f"0/{mhcpan_count}"
         neoantigen_message[7]="pMHC结合亲和力预测阶段BigMHC_el工具执行失败"
+        print(".......................................................")
+        print(bigmhc_el_result_dict.get("content"))
         raise Exception(bigmhc_el_result_dict.get("content", "pMHC结合亲和力预测阶段BigMHC_el工具执行失败"))
     
     bigmhc_el_result_file_path = bigmhc_el_result_dict["url"]

@@ -16,7 +16,7 @@ from langchain_core.tools import tool
 from urllib.parse import urlparse
 from typing import List, Dict, Optional
 
-from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
+from src.utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 current_file = Path(__file__).resolve()
 current_script_dir = current_file.parent
 project_root = current_file.parents[5]
@@ -35,135 +35,149 @@ MINIO_BUCKET = MINIO_CONFIG["pmtnet_bucket"]
 
 
 
-def extract_antigen_sequences(antigen_input) -> List[str]:
-    if isinstance(antigen_input, list):
-        return antigen_input
-    elif isinstance(antigen_input, str) and antigen_input.startswith("minio://"):
-        local_path = download_from_minio_uri(antigen_input,download_dir)
+def extract_antigen_sequences(input_file) -> List[str]:
+
+    if not (isinstance(input_file, str) and input_file.startswith("minio://")):
+        raise ValueError("输入必须是MinIO路径 (格式: minio://bucket/path)")
+    local_path = None
+    try:
+        # 从MinIO下载文件
+        local_path = download_from_minio_uri(input_file, download_dir)
+        
         sequences = []
+        current_seq = ""
         with open(local_path, "r") as f:
-            current_seq = ""
             for line in f:
                 line = line.strip()
                 if line.startswith(">"):
-                    if current_seq:
+                    if current_seq:  # 保存上一个序列
                         sequences.append(current_seq)
                         current_seq = ""
                 else:
                     current_seq += line
-            if current_seq:
+            
+            if current_seq:  # 添加最后一个序列
                 sequences.append(current_seq)
+        
+        if not sequences:
+            raise ValueError("FASTA文件中未找到有效肽序列")
+            
         return sequences
-    else:
-        raise ValueError("Antigen 输入必须是列表或 MinIO FASTA 路径")
-
-def load_antigen_hla_pairs(input_source) -> List[Dict[str, str]]:
-    if isinstance(input_source, str) and input_source.startswith("minio://"):
-        local_path = download_from_minio_uri(input_source,download_dir)
-        df = pd.read_csv(local_path)
-        if not {"Antigen", "HLA"}.issubset(df.columns):
-            raise ValueError("CSV 文件必须包含 'Antigen' 和 'HLA' 两列")
-        return df[["Antigen", "HLA"]].to_dict(orient="records")
-    elif isinstance(input_source, list):
-        return input_source
-    else:
-        raise ValueError("antigen_hla_pairs 必须是 MinIO 路径或 List 格式")
-def process_uploaded_fasta_to_csv(
-    uploaded_fasta_path: str,
-    cdr3_list: List[str],
-) -> str:
-    if not uploaded_fasta_path.startswith("minio://"):
-        raise ValueError(" uploaded_file 必须是 MinIO 路径")
-    if not uploaded_fasta_path.lower().endswith((".fa", ".fasta", ".fas")):
-        raise ValueError(" 文件不是 .fasta 格式")
-    if not cdr3_list:
-        raise ValueError(" FASTA 格式时必须提供 cdr3_list")
-
-    # 下载
-    local_path = download_from_minio_uri(uploaded_fasta_path,download_dir)
-    hla_pattern = re.compile(r"^[ABC]\*\d{2}:\d{2}$")
-    sequences = []
-
-    with open(local_path, "r") as f:
-        current_pep = ""
-        current_hla = ""
-        for line in f:
-            line = line.strip()
-            if line.startswith(">") and "|" in line:
-                parts = line[1:].split("|", 1)
-                if len(parts) == 2:
-                    current_pep = parts[0].strip()
-                    current_hla = parts[1].strip()
-                    if current_hla.startswith("HLA-"):
-                        current_hla = current_hla[4:]
-                    if not hla_pattern.fullmatch(current_hla):
-                        continue
-            elif line and current_pep and current_hla:
-                sequences.append({
-                    "Antigen": line.strip(),
-                    "HLA": current_hla
-                })
-                current_pep, current_hla = "", ""
-
-    if not sequences:
-        raise ValueError(" FASTA 文件无有效 >peptide|HLA 项")
-
-    # 做笛卡尔积
-    rows = []
-    for cdr3 in cdr3_list:
-        for pair in sequences:
-            rows.append({
-                "CDR3": cdr3,
-                "Antigen": pair["Antigen"],
-                "HLA": pair["HLA"]
-            })
-
-    # 写 CSV
-    df = pd.DataFrame(rows)
-    tmp_file = f"{upload_dir}/{uuid.uuid4()}_pmtnet_input.csv"
-    df.to_csv(tmp_file, index=False)
-
-    try:
-        object_name = f"inputs/{uuid.uuid4()}.csv"
-        return upload_file_to_minio(tmp_file,MINIO_BUCKET,object_name)
+        
     finally:
-        if os.path.exists(tmp_file):
-            os.remove(tmp_file)
+        # 确保删除临时文件
+        if local_path and os.path.exists(local_path):
+            try:
+                os.remove(local_path)
+            except Exception as e:
+                raise(f"警告: 无法删除临时文件 {local_path}: {e}")
+    
+
+# def load_antigen_hla_pairs(input_source) -> List[Dict[str, str]]:
+#     if isinstance(input_source, str) and input_source.startswith("minio://"):
+#         local_path = download_from_minio_uri(input_source,download_dir)
+#         df = pd.read_csv(local_path)
+#         if not {"Antigen", "HLA"}.issubset(df.columns):
+#             raise ValueError("CSV 文件必须包含 'Antigen' 和 'HLA' 两列")
+#         return df[["Antigen", "HLA"]].to_dict(orient="records")
+#     elif isinstance(input_source, list):
+#         return input_source
+#     else:
+#         raise ValueError("antigen_hla_pairs 必须是 MinIO 路径或 List 格式")
+# def process_uploaded_fasta_to_csv(
+#     uploaded_fasta_path: str,
+#     cdr3_list: List[str],
+# ) -> str:
+#     if not uploaded_fasta_path.startswith("minio://"):
+#         raise ValueError(" uploaded_file 必须是 MinIO 路径")
+#     if not uploaded_fasta_path.lower().endswith((".fa", ".fasta", ".fas")):
+#         raise ValueError(" 文件不是 .fasta 格式")
+#     if not cdr3_list:
+#         raise ValueError(" FASTA 格式时必须提供 cdr3_list")
+
+#     # 下载
+#     local_path = download_from_minio_uri(uploaded_fasta_path,download_dir)
+#     hla_pattern = re.compile(r"^[ABC]\*\d{2}:\d{2}$")
+#     sequences = []
+
+#     with open(local_path, "r") as f:
+#         current_pep = ""
+#         current_hla = ""
+#         for line in f:
+#             line = line.strip()
+#             if line.startswith(">") and "|" in line:
+#                 parts = line[1:].split("|", 1)
+#                 if len(parts) == 2:
+#                     current_pep = parts[0].strip()
+#                     current_hla = parts[1].strip()
+#                     if current_hla.startswith("HLA-"):
+#                         current_hla = current_hla[4:]
+#                     if not hla_pattern.fullmatch(current_hla):
+#                         continue
+#             elif line and current_pep and current_hla:
+#                 sequences.append({
+#                     "Antigen": line.strip(),
+#                     "HLA": current_hla
+#                 })
+#                 current_pep, current_hla = "", ""
+
+#     if not sequences:
+#         raise ValueError(" FASTA 文件无有效 >peptide|HLA 项")
+
+#     # 做笛卡尔积
+#     rows = []
+#     for cdr3 in cdr3_list:
+#         for pair in sequences:
+#             rows.append({
+#                 "CDR3": cdr3,
+#                 "Antigen": pair["Antigen"],
+#                 "HLA": pair["HLA"]
+#             })
+
+#     # 写 CSV
+#     df = pd.DataFrame(rows)
+#     tmp_file = f"{upload_dir}/{uuid.uuid4()}_pmtnet_input.csv"
+#     df.to_csv(tmp_file, index=False)
+
+#     try:
+#         object_name = f"inputs/{uuid.uuid4()}.csv"
+#         return upload_file_to_minio(tmp_file,MINIO_BUCKET,object_name)
+#     finally:
+#         if os.path.exists(tmp_file):
+#             os.remove(tmp_file)
 
 def prepare_pmtnet_input(
     cdr3_list: List[str],
-    antigen_input=None,
-    hla_list: Optional[List[str]] = None,
-    antigen_hla_pairs=None,
-    uploaded_file: Optional[str] = None
+    input_file=str,
+    mhc_alleles: Optional[List[str]] = None,
 ) -> str:
-    if isinstance(uploaded_file, str) and uploaded_file.startswith("minio://"):
-        if uploaded_file.lower().endswith((".fa", ".fasta", ".fas")):
-            if not cdr3_list:
-                raise ValueError(" 当上传文件为 .fasta 且格式为 >peptide|HLA 时，必须提供 cdr3_list")
-            return process_uploaded_fasta_to_csv(uploaded_file, cdr3_list)
-        return uploaded_file
+    # if isinstance(uploaded_file, str) and uploaded_file.startswith("minio://"):
+    #     if uploaded_file.lower().endswith((".fa", ".fasta", ".fas")):
+    #         if not cdr3_list:
+    #             raise ValueError(" 当上传文件为 .fasta 且格式为 >peptide|HLA 时，必须提供 cdr3_list")
+    #         return process_uploaded_fasta_to_csv(uploaded_file, cdr3_list)
+    #     return uploaded_file
 
-    hla_list = hla_list or ["A*02:01"]
+    mhc_alleles = mhc_alleles or ["A*02:01"]
     rows = []
 
-    if antigen_hla_pairs:
-        pair_list = load_antigen_hla_pairs(antigen_hla_pairs)
-        for cdr3 in cdr3_list:
-            for pair in pair_list:
-                rows.append({
-                    "CDR3": cdr3,
-                    "Antigen": pair["Antigen"],
-                    "HLA": pair["HLA"]
-                })
-    else:
-        antigen_list = extract_antigen_sequences(antigen_input)
-        for cdr3, antigen, hla in itertools.product(cdr3_list, antigen_list, hla_list):
-            rows.append({
-                "CDR3": cdr3,
-                "Antigen": antigen,
-                "HLA": hla
-            })
+    # if antigen_hla_pairs:
+    #     pair_list = load_antigen_hla_pairs(antigen_hla_pairs)
+    #     for cdr3 in cdr3_list:
+    #         for pair in pair_list:
+    #             rows.append({
+    #                 "CDR3": cdr3,
+    #                 "Antigen": pair["Antigen"],
+    #                 "HLA": pair["HLA"]
+    #             })
+    # else:
+    antigen_list = extract_antigen_sequences(input_file)
+    for cdr3, antigen, hla in itertools.product(cdr3_list, antigen_list, mhc_alleles):
+        rows.append({
+            "CDR3": cdr3,
+            "Antigen": antigen,
+            "HLA": hla
+        })
 
     df = pd.DataFrame(rows)
     tmp_file = f"{upload_dir}/pmtnet_input_{uuid.uuid4()}.csv"
@@ -179,22 +193,19 @@ def prepare_pmtnet_input(
 
 @tool
 async def pMTnet(
-                cdr3_list: Optional[List[str]] = None,
-                antigen_input=None,
-                hla_list: Optional[List[str]] = None,
-                antigen_hla_pairs=None,
-                uploaded_file: Optional[str] = None) -> str:
+                cdr3_list: List[str],
+                input_file: str,
+                mhc_alleles: Optional[List[str]] = None,
+                ) -> str:
     """
     
-    自动构造 pMTnet 输入文件并调用远程预测服务。
+    pMTnet 是一个用于预测 TCR-pMHC 结合亲和力的工具。
     
     Args:
         支持以下任意输入：
         - cdr3_list
-        - antigen_input：序列列表或 minio://fasta 路径
-        - hla_list：可选
-        - antigen_hla_pairs：列表或 minio://csv 路径
-        - uploaded_file：用户上传的 minio://csv，直接使用
+        - input_file：提供fasta文件的肽段。
+        - mhc_alleles：对应的 HLA 类型，字符串列表。
 
     Returns:
     
@@ -205,10 +216,8 @@ async def pMTnet(
     try:
         input_file_path = prepare_pmtnet_input(
                 cdr3_list=cdr3_list,
-                antigen_input=antigen_input,
-                hla_list=hla_list,
-                antigen_hla_pairs=antigen_hla_pairs,
-                uploaded_file=uploaded_file
+                input_file=input_file,
+                mhc_alleles=mhc_alleles,
             )
         
         timeout = aiohttp.ClientTimeout(total=30)
@@ -245,4 +254,3 @@ if __name__ == "__main__":
         print(result)
 
     asyncio.run(test())
-
