@@ -229,6 +229,8 @@ MINIO:
   rnaplot_bucket: "rnaplot-results"
   secure: false
 
+AGENT:
+  checkpoint_db_name: "mrna_predict_agent.sqlite"
 
 RAG:
   theory_server_url: "http://52.74.25.27:60820/query/stream"

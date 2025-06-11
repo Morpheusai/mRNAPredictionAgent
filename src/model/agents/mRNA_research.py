@@ -1,9 +1,8 @@
-import aiosqlite
-
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.store.memory import InMemoryStore
 from langgraph.graph import END, MessagesState, StateGraph
 from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
 from typing import Literal,Optional
@@ -650,11 +649,8 @@ def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
         return "tools"
     return "done"
 
-
 mrnaResearchAgent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
-
-
-async def compile_mRNA_research():
-    conn = await aiosqlite.connect("checkpoints.sqlite")
-    mRNA_research = mrnaResearchAgent.compile(checkpointer=AsyncSqliteSaver(conn))
-    return mRNA_research, conn
+mRNA_research = mrnaResearchAgent.compile(
+    checkpointer = MemorySaver(), 
+    store = InMemoryStore()
+)

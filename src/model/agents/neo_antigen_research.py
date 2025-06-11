@@ -1,17 +1,15 @@
-import aiosqlite
-import uuid
-
 from datetime import datetime
 from pydantic import BaseModel, Field
 from langgraph.config import get_stream_writer
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
+from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, MessagesState, StateGraph
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.store.memory import InMemoryStore
 from langchain_core.messages import SystemMessage, AIMessage
 from langgraph.types import Command
-from typing import Literal, Any,Optional
+from typing import Any, Optional
 
 from config import CONFIG_YAML
 
@@ -483,7 +481,7 @@ NeoantigenSelectAgent.add_node("patient_case_report", PatientCaseReportNode)
 NeoantigenSelectAgent.set_entry_point("neoantigen_route_node")
 NeoantigenSelectAgent.add_edge("patient_case_report", END)
 
-async def compile_neo_antigen_research():
-    neo_antigen_research_conn = await aiosqlite.connect("checkpoints.sqlite")
-    neo_antigen_research = NeoantigenSelectAgent.compile(checkpointer=AsyncSqliteSaver(neo_antigen_research_conn))
-    return neo_antigen_research, neo_antigen_research_conn
+neo_antigen_research = NeoantigenSelectAgent.compile(
+    checkpointer = MemorySaver(), 
+    store = InMemoryStore()
+)

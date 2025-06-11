@@ -1,10 +1,9 @@
-import aiosqlite
-
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, MessagesState, StateGraph
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.store.memory import InMemoryStore
 from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
 from typing import Literal,Optional
 
@@ -215,8 +214,7 @@ def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
 
 PMHCAffinityPredictionResearchAgent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
 
-
-async def compile_pMHC_affinity_prediction_research():
-    pMHC_affinity_prediction_research_conn = await aiosqlite.connect("checkpoints.sqlite")
-    pMHC_affinity_prediction_research = PMHCAffinityPredictionResearchAgent.compile(checkpointer=AsyncSqliteSaver(pMHC_affinity_prediction_research_conn))
-    return pMHC_affinity_prediction_research, pMHC_affinity_prediction_research_conn
+pMHC_affinity_prediction_research = PMHCAffinityPredictionResearchAgent.compile(
+    checkpointer = MemorySaver(), 
+    store = InMemoryStore()
+)

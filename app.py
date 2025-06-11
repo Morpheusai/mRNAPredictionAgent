@@ -4,23 +4,28 @@ import json
 
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
-from collections import deque
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from langgraph.types import Command
-from langchain_core.messages import AIMessage, AIMessageChunk, AnyMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
-from langgraph.types import Command, Interrupt
-from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import Interrupt
 from langgraph.pregel import Pregel
 from typing import Any
 from uuid import UUID, uuid4
 
 
-from src.model.agents.agents import DEFAULT_AGENT, PMHC_AFFINITY_PREDICTION, PATIENT_CASE_MRNA_AGENT,NEO_ANTIGEN,get_agent, initialize_agents
+from src.model.agents.agents import (
+    DEFAULT_AGENT, 
+    PMHC_AFFINITY_PREDICTION, 
+    PATIENT_CASE_MRNA_AGENT,
+    NEO_ANTIGEN,
+    get_all_agent_info,
+    get_agent
+)
 from src.model.agents.file_description import fileDescriptionAgent
+from src.model.memory import initialize_store, initialize_database
 from src.model.schema.schema import UserInput
 from src.model.schema import MinioRequest,MinioResponse
 from src.model.schema.models import OpenAIModelName
@@ -35,19 +40,33 @@ from src.utils.log import logger
 logger.info(f"========================start molly_langgraph backend==============================")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 初始化所有代理并获取连接对象
-    connections = await initialize_agents()
-    app.state.connections = connections  # 将连接对象存储在 app.state 中
-
+    """
+    Configurable lifespan that initializes the appropriate database checkpointer and store
+    based on settings.
+    """
     try:
-        yield
-    finally:
-        # 关闭所有连接
-        if hasattr(app.state, "connections"):
-            for key, conn in app.state.connections.items():
-                if conn:  # 确保连接对象存在
-                    await conn.close()
-                    logger.info(f"Closed connection: {key}")
+        # Initialize both checkpointer (for short-term memory) and store (for long-term memory)
+        async with initialize_database() as saver, initialize_store() as store:
+            # Set up both components
+            if hasattr(saver, "setup"):  # ignore: union-attr
+                await saver.setup()
+            # Only setup store for Postgres as InMemoryStore doesn't need setup
+            if hasattr(store, "setup"):  # ignore: union-attr
+                await store.setup()
+
+            # Configure agents with both memory components
+            agents = get_all_agent_info()
+            for a in agents:
+                agent = get_agent(a.key)
+                # Set checkpointer for thread-scoped memory (conversation history)
+                agent.checkpointer = saver
+                # Set store for long-term memory (cross-conversation knowledge)
+                agent.store = store
+            yield
+    except Exception as e:
+        logger.error(f"Error during database/store initialization: {e}")
+        raise
+
 app = FastAPI(lifespan=lifespan)
 
 origins = [
@@ -403,21 +422,6 @@ async def message_generator(
         previous_yield_type="DONE"         
         yield "data: [DONE]\n\n"
 
-
-async def delete_thread_state(thread_id: str, conn):
-    async with conn.cursor() as cursor:
-        await cursor.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
-        await cursor.execute("DELETE FROM writes WHERE thread_id = ?", (thread_id,))
-        await conn.commit()
-    
-async def thread_exists(thread_id: str, conn) -> bool:
-    async with conn.cursor() as cursor:
-        await cursor.execute("SELECT 1 FROM checkpoints WHERE thread_id = ? LIMIT 1", (thread_id,))
-        if await cursor.fetchone():
-            return True
-        await cursor.execute("SELECT 1 FROM writes WHERE thread_id = ? LIMIT 1", (thread_id,))
-        return await cursor.fetchone() is not None
-
 #mRNA_research的接口
 @app.post("/mRNA_research_stream", response_class=StreamingResponse, responses=_sse_response_example())
 async def chat(user_input: UserInput, agent_id: str = DEFAULT_AGENT) -> StreamingResponse:
@@ -510,14 +514,9 @@ async def describe_text(request: MinioRequest):
 @app.delete("/delete_thread/{thread_id}")
 async def reset_thread(thread_id: str):
     try:
-        async with aiosqlite.connect("checkpoints.sqlite", timeout=5.0) as conn:
-            # 检查 thread_id 是否存在于 checkpoints 或 writes 中
-            exists = await thread_exists(thread_id, conn)
-            if not exists:
-                return {"status": "success", "message": f"Thread {thread_id} 已删除或不存在"}
-            #删除状态
-            await delete_thread_state(thread_id, conn)
-            return {"status": "success", "message": f"Thread {thread_id} 已清除"}
+        agents = get_all_agent_info()
+        for agent in agents:
+            await agent.delete_thread(thread_id)
     except Exception as e:
         import traceback
         traceback.print_exc()

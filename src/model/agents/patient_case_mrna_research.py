@@ -1,4 +1,3 @@
-import aiosqlite
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -8,6 +7,8 @@ from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, MessagesState, StateGraph
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.store.memory import InMemoryStore
 from langchain_core.messages import SystemMessage, AIMessage
 from langgraph.types import Command
 from typing import Literal, Any,Optional
@@ -252,7 +253,7 @@ PatientCaseMrnaAgent.add_edge("patient_case_analysis", "mrna_design_node")
 PatientCaseMrnaAgent.add_edge("mrna_design_node", "patient_case_report")
 PatientCaseMrnaAgent.add_edge("patient_case_report", END)
 
-async def compile_patient_case_mRNA_research():
-    patient_case_mRNA_research_nodes_conn = await aiosqlite.connect("checkpoints.sqlite")
-    patient_case_mRNA_research_nodes = PatientCaseMrnaAgent.compile(checkpointer=AsyncSqliteSaver(patient_case_mRNA_research_nodes_conn))
-    return patient_case_mRNA_research_nodes, patient_case_mRNA_research_nodes_conn
+patient_case_mRNA_research_nodes = PatientCaseMrnaAgent.compile(
+    checkpointer = MemorySaver(), 
+    store = InMemoryStore()
+)
