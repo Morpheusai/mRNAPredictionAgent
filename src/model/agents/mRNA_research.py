@@ -88,7 +88,7 @@ class AgentState(MessagesState, total=False):
 TOOLS = [
     mRNAResearchAndProduction,
     NetMHCpan,
-    ESM3,
+    # ESM3,   #TODO 暂时注释掉
     FastaFileProcessor,
     NetMHCstabpan,
     ExtractPeptides,

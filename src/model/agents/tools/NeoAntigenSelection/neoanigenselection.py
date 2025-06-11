@@ -28,18 +28,14 @@ from src.model.agents.core.tool_summary_prompts import (
     RNAFOLD_PROMPT,
     PMTNET_PROMPT
 )
+from config import CONFIG_YAML
 from src.model.agents.tools.utils.step1_protein_cleavage import step1_protein_cleavage
 from src.model.agents.tools.utils.step2_pmhc_binding_affinity import step2_pmhc_binding_affinity
 from src.model.agents.tools.utils.step3_pmhc_immunogenicity import step3_pmhc_immunogenicity
 from src.model.agents.tools.utils.step4_pmhc_tcr_interaction import step4_pmhc_tcr_interaction
 from src.model.agents.tools.utils.step6_tap_transportation_prediction import step6_tap_transportation_prediction
-from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
+from src.utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 load_dotenv()
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
-from config import CONFIG_YAML
-
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]

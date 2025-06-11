@@ -1,21 +1,14 @@
 import asyncio
-import sys
 import uuid
-import os
 import json
 
 from pathlib import Path
 from dotenv import load_dotenv
-from minio import Minio
 from minio.error import S3Error
 
-from utils.minio_utils import upload_file_to_minio
-load_dotenv()
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
+from src.utils.minio_utils import upload_file_to_minio
 from config import CONFIG_YAML
-
+load_dotenv()
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_BUCKET = MINIO_CONFIG["molly_bucket"]

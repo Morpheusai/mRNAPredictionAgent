@@ -1,21 +1,14 @@
 import json
-import sys
 import uuid
 
-from typing import Tuple, List
+from typing import  List
 from minio import Minio
 from io import BytesIO
 import pandas as pd
-from pathlib import Path
 from minio.error import S3Error
 
-from src.model.agents.tools.NetMHCPan.netmhcpan import NetMHCpan
-from src.model.agents.tools.BigMHC.bigmhc import BigMHC_EL
 from src.model.agents.tools.NetCTLPan.netctlpan import NetCTLpan
 
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
 from config import CONFIG_YAML
 
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]

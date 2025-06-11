@@ -1,26 +1,16 @@
 import asyncio
 import json
-import sys
 import os
-import re
 import uuid
 import itertools
 import pandas as pd
 import aiohttp
 import traceback
 
-from minio import Minio
-from minio.error import S3Error
-from pathlib import Path
 from langchain_core.tools import tool
-from urllib.parse import urlparse
-from typing import List, Dict, Optional
+from typing import List, Optional
 
 from src.utils.minio_utils import upload_file_to_minio,download_from_minio_uri
-current_file = Path(__file__).resolve()
-current_script_dir = current_file.parent
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
 from config import CONFIG_YAML
 
 pmtnet_url = CONFIG_YAML["TOOL"]["PMTNET"]["url"]

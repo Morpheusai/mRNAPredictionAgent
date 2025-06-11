@@ -1,22 +1,16 @@
 import json
-import sys
 import uuid
 import re
 import os
 
-from typing import List, Optional
+from typing import List
 from typing import List, Tuple
 from minio import Minio
 from io import BytesIO
 import pandas as pd
-from pathlib import Path
-from langgraph.config import get_stream_writer
 from src.model.agents.tools.PMTNet.pMTnet import pMTnet
 from src.utils.minio_utils import download_from_minio_uri
 
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
 from config import CONFIG_YAML
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]

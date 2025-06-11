@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 
 from dotenv import load_dotenv
 from io import StringIO
@@ -8,15 +7,8 @@ from io import BytesIO
 from langchain.tools import tool
 from minio import Minio
 from minio.error import S3Error
-from pathlib import Path
 
 load_dotenv()
-
-
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[4] 
-# 将项目根目录添加到 sys.path
-sys.path.append(str(project_root))
 from config import CONFIG_YAML
 
 # MinIO 配置:

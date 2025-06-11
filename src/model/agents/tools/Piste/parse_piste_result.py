@@ -1,8 +1,6 @@
-import io
 import os
 import pandas as pd
 import requests
-import sys
 
 from config import CONFIG_YAML
 from minio import Minio
@@ -10,9 +8,7 @@ from minio.error import S3Error
 from pathlib import Path
 from urllib.parse import urlparse
 
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
+
 from src.utils.log import logger
 
 # MinIO 配置

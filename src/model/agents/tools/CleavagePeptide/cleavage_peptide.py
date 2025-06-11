@@ -3,23 +3,14 @@ import pandas as pd
 import csv
 import json
 import uuid
-import sys
 import asyncio
 
 from dotenv import load_dotenv
 from pathlib import Path  
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
-from urllib.parse import urlparse
 from langchain_core.tools import tool
-from minio import Minio
-from minio.error import S3Error
 
-from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
-
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
+from src.utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 from src.utils.log import logger
 from config import CONFIG_YAML
 load_dotenv()

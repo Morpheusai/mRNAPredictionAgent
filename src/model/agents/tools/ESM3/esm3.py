@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-import sys
 import uuid
 
 from dotenv import load_dotenv
@@ -9,12 +8,8 @@ from esm.sdk import client
 from esm.sdk.api import ESMProtein, GenerationConfig
 from langchain_core.tools import tool
 from pathlib import Path
-from minio import Minio
-from minio.error import S3Error
 
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
-sys.path.append(str(project_root))    # 将项目根目录添加到 sys.path
+
 from config import CONFIG_YAML
 from src.utils.minio_utils import upload_file_to_minio
 from src.utils.log import logger

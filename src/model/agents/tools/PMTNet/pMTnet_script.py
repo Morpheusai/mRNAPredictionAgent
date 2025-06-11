@@ -10,20 +10,15 @@ import uuid
 
 from collections import Counter
 from io import StringIO
-from minio import Minio
 from minio.error import S3Error
 from pathlib import Path
 from keras.layers import Input,Dense,concatenate,Dropout
 from keras.models import Model,load_model                                                      
 from keras import backend as K
 
-from utils.minio_utils import upload_file_to_minio
-
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]  # 向上回溯 4 层目录：src/model/agents/tools → src/model/agents → src/model → src → 项目根目录
-sys.path.append(str(project_root))
-from config import CONFIG_YAML
+from src.utils.minio_utils import upload_file_to_minio
 from src.utils.log import logger
+from config import CONFIG_YAML
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_BUCKET = MINIO_CONFIG["pmtnet_bucket"]

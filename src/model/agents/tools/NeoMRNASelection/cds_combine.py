@@ -1,6 +1,5 @@
 import asyncio
 import uuid
-import sys
 import os
 
 from pathlib import Path
@@ -8,9 +7,7 @@ from dotenv import load_dotenv
 from minio import Minio
 
 load_dotenv()
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
+
 from config import CONFIG_YAML
 from src.utils.log import logger
 

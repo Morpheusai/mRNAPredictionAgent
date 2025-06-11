@@ -2,22 +2,16 @@ import aiohttp
 import asyncio
 import json
 import os
-import sys
 import traceback
 import uuid
 
 from Bio import SeqIO
-from io import StringIO
 from langchain_core.tools import tool
-from minio import Minio
 from pathlib import Path
 from typing import List, Optional
 
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]                
-sys.path.append(str(project_root))
 from config import CONFIG_YAML
-from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
+from src.utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 
 immuneapp_neo_url = CONFIG_YAML["TOOL"]["IMMUNEAPP_NEO"]["url"]
 LOCAL_OUTPUT_DIR = CONFIG_YAML["TOOL"]["IMMUNEAPP_NEO"]["output_tmp_dir"]

@@ -1,6 +1,5 @@
 import json
 import re
-import sys
 import uuid
 import tempfile
 
@@ -8,15 +7,10 @@ from typing import Tuple, List
 from minio import Minio
 from io import BytesIO
 import pandas as pd
-from pathlib import Path
 from minio.error import S3Error
-from langgraph.config import get_stream_writer
 from src.model.agents.tools.BigMHC.bigmhc import BigMHC_IM
 from src.utils.minio_utils import download_from_minio_uri
 
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
 from config import CONFIG_YAML
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]

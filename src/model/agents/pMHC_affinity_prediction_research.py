@@ -26,7 +26,11 @@ class AgentState(MessagesState, total=False):
     esm3_result: Optional[str]=None
     netmhcstabpan_result: Optional[str]=None
 
-TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan]       
+TOOLS = [mRNAResearchAndProduction, 
+         NetMHCpan, 
+        #  ESM3,  #TODO 暂时注释掉
+         FastaFileProcessor, 
+         NetMHCstabpan]       
 
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:

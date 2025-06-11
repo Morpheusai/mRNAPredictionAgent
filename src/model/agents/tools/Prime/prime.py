@@ -1,17 +1,12 @@
 import aiohttp
 import asyncio
 import json
-import sys
 import traceback
 
 
 from langchain_core.tools import tool
-from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List,  Optional
 
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]                
-sys.path.append(str(project_root))
 from config import CONFIG_YAML
 
 prime_url = CONFIG_YAML["TOOL"]["PRIME"]["url"]

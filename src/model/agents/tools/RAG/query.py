@@ -9,10 +9,9 @@ from langchain_core.tools import tool
 from typing import Optional
 
 from src.model.agents.tools.RAG.query_llm import query_llm
-from src.utils.log import logger
-current_file = Path(__file__).resolve()
-current_script_dir = current_file.parent
-project_root = current_file.parents[4] 
+# current_file = Path(__file__).resolve()
+# current_script_dir = current_file.parent
+# project_root = current_file.parents[4] 
 from config import CONFIG_YAML
 from src.utils.log import logger
 

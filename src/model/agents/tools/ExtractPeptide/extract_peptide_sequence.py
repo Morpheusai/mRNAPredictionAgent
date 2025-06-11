@@ -1,20 +1,14 @@
 import asyncio
 import json
-import os
-import sys
 import uuid
 
 from pathlib import Path
-from minio import Minio
-from minio.error import S3Error
 from langchain_core.tools import tool
 
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]  
-sys.path.append(str(project_root))   
+ 
 from config import CONFIG_YAML
 from src.utils.log import logger
-from utils.minio_utils import upload_file_to_minio
+from src.utils.minio_utils import upload_file_to_minio
 
 TMP_OUTPUT_DIR = CONFIG_YAML["TOOL"]["EXTRACT_PEPTIDE"]["tmp_extract_peptide_dir"]
 tmp_output_dir = Path(TMP_OUTPUT_DIR)

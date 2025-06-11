@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-import sys
 import uuid
 
 from dotenv import load_dotenv
@@ -32,12 +31,11 @@ from src.model.agents.tools.utils.step2_pmhc_binding_affinity import step2_pmhc_
 from src.model.agents.tools.utils.step3_pmhc_immunogenicity import step3_pmhc_immunogenicity
 from src.model.agents.tools.utils.step4_pmhc_tcr_interaction import step4_pmhc_tcr_interaction
 from src.model.agents.tools.utils.step5_mrna_design import step5_mrna_design
-from utils.minio_utils import upload_file_to_minio,download_from_minio_uri
-load_dotenv()
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
+from src.utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 from config import CONFIG_YAML
+load_dotenv()
+
+
 
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]

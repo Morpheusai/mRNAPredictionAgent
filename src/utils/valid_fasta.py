@@ -1,20 +1,13 @@
 import os
-import sys
 import re
-
 
 from dotenv import load_dotenv
 from pathlib import Path
 from minio import Minio
 
-
-load_dotenv()
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
 from config import CONFIG_YAML
 from src.utils.log import logger
-
+load_dotenv()
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]

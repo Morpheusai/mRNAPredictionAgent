@@ -1,20 +1,15 @@
 import json
-import sys
 import uuid
 
-from typing import Tuple, List
+from typing import List
 from minio import Minio
 from io import BytesIO
 import pandas as pd
-from pathlib import Path
 from minio.error import S3Error
 
 from src.model.agents.tools.NetMHCPan.netmhcpan import NetMHCpan
 from src.model.agents.tools.BigMHC.bigmhc import BigMHC_EL
 
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
 from config import CONFIG_YAML
 
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
@@ -200,8 +195,6 @@ f"""
     if bigmhc_el_result_dict.get("type") != "link":
         neoantigen_message[6]=f"0/{mhcpan_count}"
         neoantigen_message[7]="pMHC结合亲和力预测阶段BigMHC_el工具执行失败"
-        print(".......................................................")
-        print(bigmhc_el_result_dict.get("content"))
         raise Exception(bigmhc_el_result_dict.get("content", "pMHC结合亲和力预测阶段BigMHC_el工具执行失败"))
     
     bigmhc_el_result_file_path = bigmhc_el_result_dict["url"]

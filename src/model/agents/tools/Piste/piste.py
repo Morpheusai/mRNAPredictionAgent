@@ -2,21 +2,16 @@ import json
 import aiohttp
 import asyncio
 import os
-import sys
 import traceback
 import tempfile
 
 
 from langchain_core.tools import tool
-from pathlib import Path
 import pandas as pd
 from typing import Optional,List
 
 from src.utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 from src.utils.log import logger
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]                
-sys.path.append(str(project_root))
 from config import CONFIG_YAML
 
 piste_url = CONFIG_YAML["TOOL"]["PISTE"]["url"]
@@ -122,7 +117,7 @@ async def PISTE(
         raise ValueError("cdr3_list和mhc_alleles长度必须一致")
     peptides = extract_antigen_sequences(input_file)
     if len(peptides) != len(cdr3_list):
-        raise ValueError(f"FASTA文件中的肽序列数量({len(peptides)})与CDR3序列数量({len(cdr3_list)})不匹配")
+        raise ValueError(f"FASTA文件中的肽序列数量({len(peptides)})与CDR3序列数量({len(cdr3_list)})不匹配")  #TODO不能是raise，要return，不然会出错
  #兼容各种hla写法   
     mhc_alleles = normalize_hla_alleles(mhc_alleles)
     # 创建临时CSV文件

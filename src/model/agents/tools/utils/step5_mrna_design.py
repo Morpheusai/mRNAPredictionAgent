@@ -1,13 +1,6 @@
-import sys
-
-from pathlib import Path
-
 from src.model.agents.tools.NeoMRNASelection.cds_combine import concatenate_peptides_with_linker
 from src.model.agents.tools.NeoMRNASelection.utr_spacer_rnafold import utr_spacer_rnafold_to_mrna
 
-current_file = Path(__file__).resolve()
-project_root = current_file.parents[5]
-sys.path.append(str(project_root))
 from config import CONFIG_YAML
 
 MARKDOWN_DOWNLOAD_URL_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["markdown_download_url_prefix"]
