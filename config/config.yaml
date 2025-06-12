@@ -206,7 +206,7 @@ TOOL:
 
 
 MINIO:
-  endpoint: "52.74.25.27:18080"
+  endpoint: "47.237.170.62:18080"
   molly_bucket: "molly"
   netmhcpan_bucket: "netmhcpan-results"
   esm_bucket: "esm3-results"
