@@ -422,7 +422,7 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
 ### 📝 病例数据分析
 """
     WRITER(STEP1_DESC1)
-    WRITER("```json\n")
+#    WRITER("```json\n")
     system_prompt = PATIENT_CASE_ANALYSIS_PROMPT.format(
         patient_info = patient_info,
     )
@@ -433,7 +433,9 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     logger.info(f"patient case analysis prompt: {system_prompt}")
     response = await model_runnable.ainvoke(state, config)
     writer = get_stream_writer()
-    writer("\n```\n ✅ 病例数据分析完成，结合筛选过程生成病例报告...\n")
+#writer("\n```\n ✅ 病例数据分析完成，结合筛选过程生成病例报告...\n")
+    WRITER('\n')
+    writer("\n ✅ 病例数据分析完成，结合筛选过程生成病例报告...\n")
     patient_case_analysis_summary = response.content
 
     neoantigen_message_str = state.get("neoantigen_message", "")
