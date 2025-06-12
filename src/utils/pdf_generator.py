@@ -2,6 +2,7 @@ import os
 import subprocess
 import uuid
 
+from pathlib import Path
 from PyPDF2 import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
@@ -18,6 +19,7 @@ MD2PDF_WATERMARK_CONTENT = CONFIG_YAML["MD2PDF"]["watermark_content"]
 MD2PDF_CSS_PATH = CONFIG_YAML["MD2PDF"]["css_path"]
 MD2PDF_LOGO_PATH = CONFIG_YAML["MD2PDF"]["logo_path"]
 MD2PDF_HEADER_CONTENT = CONFIG_YAML["MD2PDF"]["header_content"]
+MD2PDF_TEMP_FILE = CONFIG_YAML["MD2PDF"]["temp_file"]
 
 MINIO_BUCKET = CONFIG_YAML["MINIO"]["molly_bucket"]
 
@@ -37,9 +39,13 @@ def neo_md2pdf(
         watermark_text (str): 水印文字
         header_text, 页脚
     """
+    # 确保临时目录存在
+    Path(MD2PDF_TEMP_FILE).mkdir(parents=True, exist_ok=True)
+
     tmp_postfix = uuid.uuid4().hex
-    temp_md_file = f"/mnt/data/temp/temp_watermark_{tmp_postfix}.md"
-    temp_pdf_file = f"/mnt/data/temp/case_report_{tmp_postfix}.pdf"
+    temp_md_file = os.path.join(MD2PDF_TEMP_FILE, f"temp_watermark_{tmp_postfix}.md")
+    temp_pdf_file = os.path.join(MD2PDF_TEMP_FILE, f"case_report_{tmp_postfix}.pdf")
+
 
     with open(temp_md_file, 'w', encoding='utf-8') as f:
         f.write(md_content)

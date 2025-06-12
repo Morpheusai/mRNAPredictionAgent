@@ -206,7 +206,7 @@ TOOL:
 
 
 MINIO:
-  endpoint: "localhost:18080"
+  endpoint: "52.74.25.27:18080"
   molly_bucket: "molly"
   netmhcpan_bucket: "netmhcpan-results"
   esm_bucket: "esm3-results"
@@ -242,3 +242,4 @@ MD2PDF:
   header_content: "复旦大学 NEO 项目"
   css_path: "./src/utils/data/style.css"
   logo_path: "./src/utils/data/neo.jpg"
+  temp_file: "/mnt/data/temp"

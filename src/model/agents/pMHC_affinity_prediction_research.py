@@ -9,7 +9,7 @@ from typing import Literal,Optional
 
 from src.model.agents.tools import mRNAResearchAndProduction
 from src.model.agents.tools import NetMHCpan
-from src.model.agents.tools import ESM3
+# from src.model.agents.tools import ESM3
 from src.model.agents.tools import NetMHCstabpan
 from src.model.agents.tools import FastaFileProcessor
 from src.utils.log import logger
@@ -152,21 +152,21 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 tmp_tool_msg.append(tool_msg)
 
 
-            elif tool_name == "ESM3":
-                tool_call_esm3_input=tool_call["args"].get("protein_sequence")
-                func_result = await ESM3.ainvoke(
-                    {
-                        "protein_sequence" : tool_call_esm3_input
-                    }
-                )
-                logger.info(f"ESM3 result: {func_result}")
-                esm3_result=func_result
+            # elif tool_name == "ESM3":
+            #     tool_call_esm3_input=tool_call["args"].get("protein_sequence")
+            #     func_result = await ESM3.ainvoke(
+            #         {
+            #             "protein_sequence" : tool_call_esm3_input
+            #         }
+            #     )
+            #     logger.info(f"ESM3 result: {func_result}")
+            #     esm3_result=func_result
 
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
+            #     tool_msg = ToolMessage(
+            #         content=func_result,
+            #         tool_call_id=tool_call_id,
+            #     )
+            #     tmp_tool_msg.append(tool_msg)
 
             elif tool_name == "NetMHCstabpan":
                 input_file = tool_call["args"].get("input_file")

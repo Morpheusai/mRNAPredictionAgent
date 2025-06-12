@@ -10,7 +10,7 @@ from typing import Literal,Optional
 from src.model.agents.tools import (
     mRNAResearchAndProduction,
     NetMHCpan,
-#    ESM3,
+    # ESM3,
     NetMHCstabpan,
     FastaFileProcessor,
     ExtractPeptides,
@@ -24,7 +24,7 @@ from src.model.agents.tools import (
     BigMHC_EL, 
     BigMHC_IM,
     TransPHLA_AOMP,
-#    ImmuneApp_Neo,
+    # ImmuneApp_Neo,
     UniPMT,
     NetChop_Cleavage,
     LinearDesign,
@@ -320,21 +320,21 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 )
                 tmp_tool_msg.append(tool_msg)
 
-            elif tool_name == "ESM3":
-                tool_call_esm3_input=tool_call["args"].get("protein_sequence")
-                func_result = await ESM3.ainvoke(
-                    {
-                        "protein_sequence" : tool_call_esm3_input
-                    }
-                )
-                logger.info(f"ESM3 result: {func_result}")
-                esm3_result=func_result
+            # elif tool_name == "ESM3":
+            #     tool_call_esm3_input=tool_call["args"].get("protein_sequence")
+            #     func_result = await ESM3.ainvoke(
+            #         {
+            #             "protein_sequence" : tool_call_esm3_input
+            #         }
+            #     )
+            #     logger.info(f"ESM3 result: {func_result}")
+            #     esm3_result=func_result
 
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
+            #     tool_msg = ToolMessage(
+            #         content=func_result,
+            #         tool_call_id=tool_call_id,
+            #     )
+            #     tmp_tool_msg.append(tool_msg)
 
             elif tool_name == "NetMHCstabpan":
                 input_file = tool_call["args"].get("input_file")
@@ -453,22 +453,22 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                     tool_call_id=tool_call_id,
                 )
                 tmp_tool_msg.append(tool_msg)
-            elif tool_name == "ImmuneApp_Neo":
-                input_file = tool_call["args"].get("input_file")
-                alleles=tool_call["args"].get("alleles",["HLA-A*01:01", "HLA-A*02:01", "HLA-A*03:01", "HLA-B*07:02"])
-                func_result = await ImmuneApp_Neo.ainvoke(
-                    {
-                        "input_file": input_file,
-                        "alleles": alleles,
-                    }
-                )
-                immuneapp_neo_result=func_result
-                logger.info(f"ImmuneApp_Neo result: {func_result}")
-                tool_msg = ToolMessage(
-                    content=immuneapp_neo_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
+            # elif tool_name == "ImmuneApp_Neo":
+            #     input_file = tool_call["args"].get("input_file")
+            #     alleles=tool_call["args"].get("alleles",["HLA-A*01:01", "HLA-A*02:01", "HLA-A*03:01", "HLA-B*07:02"])
+            #     func_result = await ImmuneApp_Neo.ainvoke(
+            #         {
+            #             "input_file": input_file,
+            #             "alleles": alleles,
+            #         }
+            #     )
+            #     immuneapp_neo_result=func_result
+            #     logger.info(f"ImmuneApp_Neo result: {func_result}")
+            #     tool_msg = ToolMessage(
+            #         content=immuneapp_neo_result,
+            #         tool_call_id=tool_call_id,
+            #     )
+            #     tmp_tool_msg.append(tool_msg)
             elif tool_name == "BigMHC_EL":
                 input_file = tool_call["args"].get("input_file")
                 mhc_alleles = tool_call["args"].get("mhc_alleles")
