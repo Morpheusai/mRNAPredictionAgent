@@ -8,19 +8,19 @@ TOOL:
     output_download_url_prefix: "https://mollyseek.com/downloads/"
     markdown_download_url_prefix: "https://try.mollyseek.cn/backend/markdown_download?file_path="
   NETMHCPAN:   
-    url: "http://43.202.64.213:60823/netmhcpan"
+    url: "http://3.34.237.164:60823/netmhcpan"
     netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
     input_tmp_netmhcpan_dir: "/mnt/tmp/NetMHCpan/input"
     output_tmp_netmhcpan_dir: "/mnt/tmp/NetMHCpan/output"
   ESM:
     output_tmp_mse3_dir: "/mnt/tmp/ESM3"
   NETMHCSTABPAN:   
-    url: "http://43.202.64.213:60823/netmhcstabpan"
+    url: "http://3.34.237.164:60823/netmhcstabpan"
     netmhcstabpan_dir: "/mnt/softwares/netMHCstabpan-1.0/Linux_x86_64"
     input_tmp_netmhcstabpan_dir: "/mnt/tmp/NetMHCstabpan/input"
     output_tmp_netmhcstabpan_dir: "/mnt/tmp/NetMHCstabpan/output"
   PMTNET:
-    url: "http://43.202.64.213:60825/pMTnet"
+    url: "http://3.34.237.164:60825/pMTnet"
     pMTnet_env_python_dir: "/mnt/softwares/miniconda3/envs/pmtnet/bin/python"
     pMTnet_script_dir: "/mnt/softwares/pMTnet/pMTnet.py"
     library_dir: "/mnt/softwares/pMTnet/library"
@@ -31,48 +31,48 @@ TOOL:
   EXTRACT_PEPTIDE:
     tmp_extract_peptide_dir: "/mnt/tmp/ExtractPeptide/output"
   NETCHOP:
-    url: "http://43.202.64.213:60823/netchop"
+    url: "http://3.34.237.164:60823/netchop"
     netchop_dir: "/mnt/softwares/netchop-3.1/Linux_x86_64"
     input_tmp_netchop_dir: "/mnt/tmp/NetChop/input"
     output_tmp_netchop_dir: "/mnt/tmp/NetChop/output"
   PRIME:
-    url: "http://43.202.64.213:60823/prime"
+    url: "http://3.34.237.164:60823/prime"
     input_tmp_prime_dir: "/mnt/tmp/Prime/input"
     output_tmp_prime_dir: "/mnt/tmp/Prime/output"
   NETTCR:
-    url: "http://43.202.64.213:60823/nettcr"
+    url: "http://3.34.237.164:60823/nettcr"
     nettcr_dir: "/mnt/softwares/NetTCR-2.2"  
     input_tmp_nettcr_dir: "/mnt/tmp/NetTCR/input"
     output_tmp_nettcr_dir: "/mnt/tmp/NetTCR/output"    
   NETCTLPAN:
-    url: "http://43.202.64.213:60823/netctlpan"
+    url: "http://3.34.237.164:60823/netctlpan"
     netctlpan_dir: /mnt/softwares/netCTLpan-1.1
     input_tmp_netctlpan_dir: /mnt/tmp/netctlpan/input
     output_tmp_netctlpan_dir: /mnt/tmp/netctlpan/output
   PISTE:
-    url: "http://43.202.64.213:60825/piste"
+    url: "http://3.34.237.164:60825/piste"
     piste_env_python_dir: /mnt/softwares/miniconda3/envs/piste/bin/python
     input_tmp_piste_dir: /mnt/tmp/piste/input
     output_tmp_piste_dir: /mnt/tmp/piste/output
   IMMUNEAPP:
-    url: "http://43.202.64.213:60824/ImmuneApp"
+    url: "http://3.34.237.164:60824/ImmuneApp"
     script_path: /mnt/softwares/ImmuneApp/ImmuneApp_presentation_prediction.py
     python_bin: /mnt/softwares/miniconda3/envs/ImmuneApp/bin/python
     input_tmp_dir: /mnt/tmp/immuneapp/input  
     output_tmp_dir: /mnt/tmp/immuneapp/output
   IMMUNEAPP_NEO:
-    url: "http://43.202.64.213:60824/ImmuneApp_Neo"
+    url: "http://3.34.237.164:60824/ImmuneApp_Neo"
     script_path: /mnt/softwares/ImmuneApp/ImmuneApp_immunogenicity_prediction.py
     python_bin: /mnt/softwares/miniconda3/envs/ImmuneApp/bin/python
     input_tmp_dir: /mnt/tmp/immuneapp_neo/input  
     output_tmp_dir: /mnt/tmp/immuneapp_neo/output
   BIGMHC:
-    url: "http://43.202.64.213:60823/bigmhc"
+    url: "http://3.34.237.164:60823/bigmhc"
     bigmhc_dir: "/mnt/softwares/bigmhc/src"  
     input_tmp_bigmhc_dir: "/mnt/tmp/BigMHC/input"
     output_tmp_bigmhc_dir: "/mnt/tmp/BigMHC/output" 
   TRANSPHLA:
-    url: "http://43.202.64.213:60824/TransPHLA_AOMP"
+    url: "http://3.34.237.164:60824/TransPHLA_AOMP"
     script_path: /mnt/softwares/TransPHLA-AOMP/TransPHLA-AOMP/pHLAIformer.py
     python_bin: /mnt/softwares/miniconda3/envs/transphla/bin/python
     hla_peptide_mapping_path: src/model/agents/tools/TransPHLA/TransPHLA_hla_peptide_mapping.json
@@ -103,18 +103,18 @@ TOOL:
     rnafold_energy_threshold : 0.0
 
   LINEARDESIGN:
-    url: "http://43.202.64.213:60824/LinearDesign"
+    url: "http://3.34.237.164:60824/LinearDesign"
     script: "/mnt/softwares/LinearDesign/linear_design.py"
     input_tmp_dir: "/mnt/tmp/LinearDesign/input"
     output_tmp_dir: "/mnt/tmp/LinearDesign/output"
 
   RNAFOLD:
-    url: "http://43.202.64.213:60823/rnafold"
+    url: "http://3.34.237.164:60823/rnafold"
     input_tmp_dir: "/mnt/tmp/rnafold/input" 
     output_tmp_dir: "/mnt/tmp/rnafold/output"
 
   RNAPLOT:
-    url: "http://43.202.64.213:60823/rnaplot"
+    url: "http://3.34.237.164:60823/rnaplot"
     input_tmp_dir: "/mnt/tmp/rnaplot/input" 
     output_tmp_dir: "/mnt/tmp/rnaplot/output"
 
@@ -234,7 +234,7 @@ AGENT:
 
 RAG:
   theory_server_url: "http://52.74.25.27:60820/query/stream"
-  case_server_url: "http://43.202.64.213:60820/query/stream"
+  case_server_url: "http://3.34.237.164:60820/query/stream"
   files_path: "/mnt/workspace/dev/ljs/lightrag/theory_rag/files_md"
 
 MD2PDF:
