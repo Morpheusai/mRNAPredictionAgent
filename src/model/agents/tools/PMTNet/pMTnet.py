@@ -162,12 +162,23 @@ def prepare_pmtnet_input(
     #             })
     # else:
     antigen_list = extract_antigen_sequences(input_file)
-    for cdr3, antigen, hla in itertools.product(cdr3_list, antigen_list, mhc_alleles):
-        rows.append({
-            "CDR3": cdr3,
-            "Antigen": antigen,
-            "HLA": hla
-        })
+    # 如果 Antigen 和 HLA 数量相同，则按顺序配对
+    if len(antigen_list) == len(mhc_alleles):
+        for cdr3 in cdr3_list:
+            for antigen, hla in zip(antigen_list, mhc_alleles):
+                rows.append({
+                    "CDR3": cdr3,
+                    "Antigen": antigen,
+                    "HLA": hla
+                })
+    # 否则做笛卡尔积
+    else:
+        for cdr3, antigen, hla in itertools.product(cdr3_list, antigen_list, mhc_alleles):
+            rows.append({
+                "CDR3": cdr3,
+                "Antigen": antigen,
+                "HLA": hla
+            })
 
     df = pd.DataFrame(rows)
     tmp_file = f"{upload_dir}/pmtnet_input_{uuid.uuid4()}.csv"
@@ -210,7 +221,7 @@ async def pMTnet(
                 mhc_alleles=mhc_alleles,
             )
         
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=300)
         payload = {"input_file_dir_minio": input_file_path}
     
         async with aiohttp.ClientSession(timeout=timeout) as session:

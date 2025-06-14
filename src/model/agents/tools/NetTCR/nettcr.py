@@ -23,7 +23,7 @@ async def NetTCR(input_file: str) -> str:
         "input_file": input_file
     }
 
-    timeout = aiohttp.ClientTimeout(total=120)
+    timeout = aiohttp.ClientTimeout(total=300)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(nettcr_url, json=payload) as response:
@@ -36,7 +36,7 @@ async def NetTCR(input_file: str) -> str:
 
         return json.dumps({
             "type": "text",
-            "content": f"调用 NetMHCpan 服务失败: {type(e).__name__} - {str(e)}"
+            "content": f"调用 NetTCR 服务失败: {type(e).__name__} - {str(e)}"
         }, ensure_ascii=False)
 if __name__ == "__main__":
     # test_input = "minio://molly/8e2d5554-cd03-4088-98f4-1766952b4171_B0702.fsa"

@@ -38,6 +38,7 @@ async def step6_tap_transportation_prediction(
         tuple: (netctlpan_result_file_path, netctlpan_fasta_str) 结果文件路径和FASTA内容
     """
     mhc_allele_str = ",".join(mhc_allele)
+    mhc_allele_str = mhc_allele[0]
     
     # 步骤开始描述
 #     STEP2_DESC1 = f"""

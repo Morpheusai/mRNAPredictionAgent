@@ -212,12 +212,15 @@ async def run_neoanigenselection(
         bigmhc_el_result_file_path, bigmhc_el_fasta_str,pmhc_binding_ratio,pmhc_binding_m,bigmhc_el_tool_url= await step2_pmhc_binding_affinity(
             netctlpan_file_path, netctlpan_fasta_str,mhc_allele, writer, mrna_design_process_result,minio_client,neoantigen_message,tap_m
         )
+
         neoantigen_message[6]=pmhc_binding_ratio
         neoantigen_message[7]=bigmhc_el_tool_url
         # 第四步：pMHC免疫原性预测
         bigmhc_im_result_file_path, bigmhc_im_fasta_str,pmhc_immunogenicity_m, bigmhc_im_tool_url= await step3_pmhc_immunogenicity(
             bigmhc_el_result_file_path, writer, mrna_design_process_result,minio_client,neoantigen_message,pmhc_binding_m
         )
+
+
         neoantigen_message[8]=f"{pmhc_immunogenicity_m}/{pmhc_binding_m}"
         neoantigen_message[9]=bigmhc_im_tool_url
         # 第五步：pMHC-TCR相互作用预测
@@ -225,8 +228,11 @@ async def run_neoanigenselection(
             bigmhc_im_result_file_path, cdr3_sequence, writer, mrna_design_process_result,minio_client,neoantigen_message,pmhc_immunogenicity_m
         
         )
+
+
+
         if cdr3_sequence is not None:
-            neoantigen_message[10]=f"{tcr_m}/{pmhc_immunogenicity_m}"
+            neoantigen_message[10] = f"{tcr_m}/{pmhc_immunogenicity_m * len(cdr3_sequence)}"
             neoantigen_message[11]=pmtnet_result_tool_url
             neoantigen_message[12]=tcr_content
             STEP1_DESC2 = f"""
@@ -237,6 +243,10 @@ async def run_neoanigenselection(
         
         
     except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
+        print(f"流程执行失败，完整异常栈:\n{error_traceback}")
+        print(f"流程执行失败: {str(e)}")
         return json.dumps({
             "type": "text",
             "content": f"流程执行失败: {str(e)}"

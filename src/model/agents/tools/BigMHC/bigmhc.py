@@ -72,6 +72,7 @@ def generate_bigmhc_input_file(
     mhc_alleles: List[str],
     default_tgt: int = 1
 ) -> str:
+    
     peptides = resolve_input(input_file, is_peptide=True)
     hlas = resolve_input(mhc_alleles)
 
@@ -230,9 +231,9 @@ async def BigMHC_EL(
                 response.raise_for_status()
                 return await response.json()
     except Exception as e:
-        print("发生异常类型：", type(e).__name__)
-        print("异常信息：", str(e))
-        traceback.print_exc()
+        # print("发生异常类型：", type(e).__name__)
+        # print("异常信息：", str(e))
+        # traceback.print_exc()
         return json.dumps({
             "type": "text",
             "content": f" BigMHC-EL 预测失败: {type(e).__name__} - {str(e)}"
@@ -275,9 +276,9 @@ async def BigMHC_IM(
                 return await response.json()
 
     except Exception as e:
-        print("发生异常类型：", type(e).__name__)
-        print("异常信息：", str(e))
-        traceback.print_exc()
+        # print("发生异常类型：", type(e).__name__)
+        # print("异常信息：", str(e))
+        # traceback.print_exc()
 
         return json.dumps({
             "type": "text",
@@ -316,8 +317,6 @@ if __name__ == "__main__":
             "input_file": "minio://molly/da861418-bdac-43b3-8760-853d8140ab37_bigmhc_el.fasta",#特殊形式的fasta文件
             
         })
-        print("BigMHC_IM 异步调用结果：")
-        print(result)
 
     asyncio.run(BigMHC_IM_test())
     # async def test_bigmhc_im():

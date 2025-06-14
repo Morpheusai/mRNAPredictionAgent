@@ -32,7 +32,7 @@ async def NetCTLpan(input_file: str, mhc_allele: str = "HLA-A02:01", weight_of_c
         "peptide_length": peptide_length
     }
 
-    timeout = aiohttp.ClientTimeout(total=60)
+    timeout = aiohttp.ClientTimeout(total=300)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(netctlpan_url, json=payload) as response:
@@ -45,7 +45,7 @@ async def NetCTLpan(input_file: str, mhc_allele: str = "HLA-A02:01", weight_of_c
 
         return json.dumps({
             "type": "text",
-            "content": f"调用 NetMHCpan 服务失败: {type(e).__name__} - {str(e)}"
+            "content": f"调用 NetCTLpan 服务失败: {type(e).__name__} - {str(e)}"
         }, ensure_ascii=False)
 if __name__ == "__main__":
     async def test():

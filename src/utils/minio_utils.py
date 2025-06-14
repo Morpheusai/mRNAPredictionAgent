@@ -142,5 +142,5 @@ def download_from_minio_uri(uri: str, local_path: str = None) -> str:
     # 返回绝对路径
     return os.path.abspath(local_path)
 
-# download_from_minio_uri("minio://molly/54d84f34-3917-4a9d-86f0-69f2f560933f_PancreaticCase.txt","/mnt/workspace/dev/ljs/fork_neoantigen/mRNAPredictionAgent/src/utils")
+# download_from_minio_uri("minio://molly/4d3b656c2d934b219a628ea8000a5811.pdf","/opt/workspace/neotech/mRNAPredictionAgent/src/utils")
 

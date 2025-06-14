@@ -57,8 +57,8 @@ def extract_hla_from_fasta(
                     
                     # 验证并记录HLA分型
                     if hla_pattern.fullmatch(hla_part):
-                        if hla_part not in hla_list:  # 避免重复
-                            hla_list.append(hla_part)
+                        # if hla_part not in hla_list:  # 避免重复
+                        hla_list.append(hla_part)
     
     finally:
         if os.path.exists(local_path):

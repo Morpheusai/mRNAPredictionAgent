@@ -46,8 +46,7 @@ def extract_hla_and_peptides_from_fasta(
                     hla = parts[1].strip()
                     if not hla.startswith("HLA-"):
                         hla = "HLA-" + hla
-                    if hla not in hla_list:
-                        hla_list.append(hla)
+                    hla_list.append(hla)
 
     if not hla_list:
         raise ValueError("未能从FASTA中解析出合法的HLA分型")
@@ -94,12 +93,10 @@ async def step3_pmhc_immunogenicity(
     mrna_design_process_result.append(STEP3_DESC1)
 
     input_file,mhc_alleles = extract_hla_and_peptides_from_fasta(bigmhc_el_result_file_path)
-    
     # 运行BigMHC_IM工具
     bigmhc_im_result = await BigMHC_IM.arun({
         "input_file": input_file,"mhc_alleles":mhc_alleles
     })
-    
     try:
         bigmhc_im_result_dict = json.loads(bigmhc_im_result)
     except json.JSONDecodeError:

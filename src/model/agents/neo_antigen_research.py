@@ -9,7 +9,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 from langchain_core.messages import SystemMessage, AIMessage
 from langgraph.types import Command
-from typing import Any, Optional
+from typing import Any, Optional,List
 
 from config import CONFIG_YAML
 
@@ -38,8 +38,8 @@ class AgentState(MessagesState, total=False):
     """`total=False` is PEP589 specs.
     documentation: https://typing.readthedocs.io/en/latest/spec/typeddict.html#totality
     """
-    mhc_allele: Optional[str]
-    cdr3: Optional[str] 
+    mhc_allele: Optional[List[str]]
+    cdr3: Optional[List[str]] 
     input_fsa_filepath: Optional[str]
     mode: int #0-user, 1-demo
     neoantigen_message: str
@@ -48,11 +48,11 @@ class AgentState(MessagesState, total=False):
 # Data model
 class PatientCaseSummaryReport(BaseModel):
     """病例数据分析后的总结输出结果."""
-    mhc_allele: Optional[str] = Field(
+    mhc_allele: Optional[List[str]] = Field(
         None,
         description="病例中测结果中检测到的MHC allele",
     )
-    cdr3: Optional[str] = Field(
+    cdr3: Optional[List[str]] = Field(
         None,
         description="病例中测结果中检测到的CDR3序列",
     )
@@ -370,8 +370,8 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         neoantigen_message= await NeoantigenSelection.ainvoke(
             {
                 "input_file": input_fsa_filepath,
-                "mhc_allele": [mhc_allele],
-                "cdr3_sequence": [cdr3] if cdr3 is not None else cdr3
+                "mhc_allele": mhc_allele,
+                "cdr3_sequence": cdr3 if cdr3 is not None else cdr3
             }
         )
         return Command(

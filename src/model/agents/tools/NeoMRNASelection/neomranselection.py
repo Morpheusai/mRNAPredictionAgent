@@ -159,7 +159,6 @@ async def run_neoanigenselection(
             cleavage_result_file_path, netchop_final_result_str,mhc_allele, writer, mrna_design_process_result,minio_client
         )
 
-        print(bigmhc_el_result_file_path)
         # 第三步：pMHC免疫原性预测
         bigmhc_im_result_file_path, bigmhc_im_fasta_str = await step3_pmhc_immunogenicity(
             bigmhc_el_result_file_path, writer, mrna_design_process_result,minio_client
