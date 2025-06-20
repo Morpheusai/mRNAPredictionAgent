@@ -182,7 +182,7 @@ async def run_neoanigenselection(
     """
     # 初始化变量
     mrna_design_process_result = []
-    neoantigen_message = ["--"] * 13
+    neoantigen_message = ["--"] * 9
     cleavage_m=0
     tap_m=0
     pmhc_binding_m=0
@@ -209,37 +209,41 @@ async def run_neoanigenselection(
         neoantigen_message[2]=f"{tap_m}/{cleavage_m}"
         neoantigen_message[3]=netctlpan_tool_url
         # 第三步：pMHC结合亲和力预测
-        bigmhc_el_result_file_path, bigmhc_el_fasta_str,pmhc_binding_ratio,pmhc_binding_m,bigmhc_el_tool_url= await step2_pmhc_binding_affinity(
+        netmhcpan_result_file_path, mhcpan_count = await step2_pmhc_binding_affinity(
             netctlpan_file_path, netctlpan_fasta_str,mhc_allele, writer, mrna_design_process_result,minio_client,neoantigen_message,tap_m
         )
-
-        neoantigen_message[6]=pmhc_binding_ratio
-        neoantigen_message[7]=bigmhc_el_tool_url
+        # 暂时这一步只需要netmhcpan
+        # bigmhc_el_result_file_path, bigmhc_el_fasta_str,pmhc_binding_ratio,pmhc_binding_m,bigmhc_el_tool_url
+        # neoantigen_message[6]=pmhc_binding_ratio
+        # neoantigen_message[7]=bigmhc_el_tool_url
         # 第四步：pMHC免疫原性预测
-        bigmhc_im_result_file_path, bigmhc_im_fasta_str,pmhc_immunogenicity_m, bigmhc_im_tool_url= await step3_pmhc_immunogenicity(
-            bigmhc_el_result_file_path, writer, mrna_design_process_result,minio_client,neoantigen_message,pmhc_binding_m
+        bigmhc_im_result_file_path, bigmhc_im_fasta_str,pmhc_immunogenicity_m, bigmhc_im_tool_url, bigmhc_im_content= await step3_pmhc_immunogenicity(
+            netmhcpan_result_file_path, writer, mrna_design_process_result,minio_client,neoantigen_message,pmhc_binding_m
         )
 
 
-        neoantigen_message[8]=f"{pmhc_immunogenicity_m}/{pmhc_binding_m}"
-        neoantigen_message[9]=bigmhc_im_tool_url
-        # 第五步：pMHC-TCR相互作用预测
-        mrna_input_file_path,tcr_m,tcr_content,pmtnet_result_tool_url= await step4_pmhc_tcr_interaction(
-            bigmhc_im_result_file_path, cdr3_sequence, writer, mrna_design_process_result,minio_client,neoantigen_message,pmhc_immunogenicity_m
+        neoantigen_message[6]=f"{pmhc_immunogenicity_m}/{mhcpan_count}"
+        neoantigen_message[7]=bigmhc_im_tool_url
+        neoantigen_message[8]=bigmhc_im_content
+
+        STEP1_DESC2 = f"""
+\n## 📄 综合结论：
+\n✅ 本次筛选流程中，系统最终识别出**{pmhc_immunogenicity_m}条在抗原递呈、免疫激活与T细胞识别多个维度均表现优异的个体化 neoantigen 候选肽段**，建议作为后续疫苗设计重点靶点。
+    """
+        writer(STEP1_DESC2)
+
+#目前不需要cdr3序列的预测
+        # # 第五步：pMHC-TCR相互作用预测
+        # mrna_input_file_path,tcr_m,tcr_content,pmtnet_result_tool_url= await step4_pmhc_tcr_interaction(
+        #     bigmhc_im_result_file_path, cdr3_sequence, writer, mrna_design_process_result,minio_client,neoantigen_message,pmhc_immunogenicity_m
         
-        )
+        # )
 
+        # if cdr3_sequence is not None:
+        #     neoantigen_message[10] = f"{tcr_m}/{pmhc_immunogenicity_m * len(cdr3_sequence)}"
+        #     neoantigen_message[11]=pmtnet_result_tool_url
+        #     neoantigen_message[12]=tcr_content
 
-
-        if cdr3_sequence is not None:
-            neoantigen_message[10] = f"{tcr_m}/{pmhc_immunogenicity_m * len(cdr3_sequence)}"
-            neoantigen_message[11]=pmtnet_result_tool_url
-            neoantigen_message[12]=tcr_content
-            STEP1_DESC2 = f"""
-    \n## 📄 综合结论：
-    \n✅ 本次筛选流程中，系统最终识别出{tcr_m}条在抗原递呈、免疫激活与T细胞识别多个维度均表现优异的个体化 neoantigen 候选肽段，建议作为后续疫苗设计重点靶点。
-        """
-            writer(STEP1_DESC2)
         
         
     except Exception as e:

@@ -204,4 +204,4 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
 """
     writer(STEP3_DESC5)
     
-    return f"minio://molly/{bigmhc_im_result_fasta_filename}", bigmhc_im_fasta_str,count,bigmhc_im_result_file_path
+    return f"minio://molly/{bigmhc_im_result_fasta_filename}", bigmhc_im_fasta_str,count,bigmhc_im_result_file_path,bigmhc_im_result_dict["content"]
