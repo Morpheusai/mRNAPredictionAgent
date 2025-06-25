@@ -13,7 +13,7 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from schema.models import (
+from src.schema.models import (
     AllModelEnum,
     AnthropicModelName,
     AWSModelName,

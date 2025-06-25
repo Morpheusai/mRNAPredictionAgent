@@ -16,3 +16,9 @@ pydantic==2.10.6
 PyPDF2==3.0.1
 reportlab==4.4.1
 openpyxl==3.1.5
+langchain-anthropic==0.3.15
+langchain-aws==0.2.27
+langchain-google-genai==2.1.5
+langchain-google-vertexai==2.0.26
+langchain-groq==0.3.4
+langchain-ollama==0.3.3
