@@ -1,24 +1,15 @@
 import json
-import logging
 import os
 import requests
 
-
-from pathlib import Path
 from langchain_core.tools import tool
-from typing import Optional
 
-from src.model.agents.tools.RAG.query_llm import query_llm
-# current_file = Path(__file__).resolve()
-# current_script_dir = current_file.parent
-# project_root = current_file.parents[4] 
 from config import CONFIG_YAML
-from src.utils.log import logger
+from src.agents.tools.RAG.query_llm import query_llm
 
 #理论和案例lightrag服务地址
 theory_server_url: str = CONFIG_YAML["RAG"]["theory_server_url"]
 case_server_url: str = CONFIG_YAML["RAG"]["case_server_url"]
-
 folder_path = CONFIG_YAML["RAG"]["files_path"]
 
 def run_rag_stream(
@@ -29,7 +20,6 @@ def run_rag_stream(
     only_need_context: bool = True,
     only_need_prompt: bool = False,
     response_type: str = "string",
-    
 ) -> str:
     """
     调用 LightRAG Server 的流式接口，并实时返回拼接结果
