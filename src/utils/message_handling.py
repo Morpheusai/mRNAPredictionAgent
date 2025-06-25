@@ -10,8 +10,7 @@ from langchain_core.messages import (
     ChatMessage as LangchainChatMessage,
 )
 
-from src.model.schema import ChatMessage
-
+from src.schema import ChatMessage
 
 def convert_message_content_to_string(content: str | list[str | dict]) -> str:
     if isinstance(content, str):

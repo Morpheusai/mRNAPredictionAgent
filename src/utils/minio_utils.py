@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 from config import CONFIG_YAML
 from src.utils.log import logger
+
 load_dotenv()
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]

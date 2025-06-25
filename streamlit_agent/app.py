@@ -10,7 +10,7 @@ from PIL import Image
 from utils.st_callable_util import get_streamlit_cb  # Utility function to get a Streamlit callback handler with context
 
 from graph import GRAPH
-from src.model.schema.models import OpenAIModelName
+from src.schema.models import OpenAIModelName
 from src.utils.log import logger
 # from utils.translate_agent import TranslationAgent
 

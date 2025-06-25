@@ -1,23 +1,27 @@
-import aiosqlite
-
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, MessagesState, StateGraph
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.store.memory import InMemoryStore
 from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
-from langgraph.checkpoint.memory import MemorySaver 
 from typing import Literal,Optional
 
 from src.agents.tools import mRNAResearchAndProduction
 from src.agents.tools import NetMHCpan
-from src.agents.tools import ESM3
 from src.agents.tools import NetMHCstabpan
 from src.agents.tools import FastaFileProcessor
-from src.agents.tools.NetMHCPan.extract_min_affinity import extract_min_affinity_peptide
 from src.utils.log import logger
-from src.agents.core import get_model  # 相对导入
-from src.agents.core.demo_prompts import MRNA_AGENT_PROMPT, FILE_LIST, NETMHCPAN_RESULT, ESM3_RESULT, NETMHCSTABPAN_RESULT, OUTPUT_INSTRUCTIONS
+
+from src.core import get_model
+from .prompt.pMHC_affinity_prediction_prompts import (
+    MRNA_AGENT_PROMPT, 
+    FILE_LIST, 
+    NETMHCPAN_RESULT, 
+    ESM3_RESULT, 
+    NETMHCSTABPAN_RESULT, 
+    OUTPUT_INSTRUCTIONS
+)
 
 class AgentState(MessagesState, total=False):
     """`total=False` is PEP589 specs.
@@ -27,7 +31,11 @@ class AgentState(MessagesState, total=False):
     esm3_result: Optional[str]=None
     netmhcstabpan_result: Optional[str]=None
 
-TOOLS = [mRNAResearchAndProduction, NetMHCpan, ESM3, FastaFileProcessor, NetMHCstabpan]       
+TOOLS = [mRNAResearchAndProduction, 
+         NetMHCpan, 
+        #  ESM3,  #TODO 暂时注释掉
+         FastaFileProcessor, 
+         NetMHCstabpan]       
 
 
 def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializable[AgentState, AIMessage]:
@@ -51,25 +59,18 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
     #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
     # 处理文件列表
-    instructions = MRNA_AGENT_PROMPT                
+    instructions = MRNA_AGENT_PROMPT
     if file_list:
         for conversation_file in file_list:
-            # 获取 files 列表
-            files = conversation_file.get("files", [])
-            for file in files:
-                # 通过字典键访问文件信息
-                file_name = file.get("file_name", "未知文件名")
-                file_path = file.get("file_path", "未知路径")
-                file_content = file.get("file_content", "未知内容")
-                file_desc = file.get("file_desc", "未知描述")
-                
-                # 构建文件说明
-                file_instructions = (
-                    f"*上传文件名*: {file_name} \n"
-                    f"*上传的文件路径*: {file_path} \n"
-                    f"*上传的文件内容*: {file_content} \n"
-                    f"*上传的文件描述*: {file_desc} \n"
-                )                
+            for file in conversation_file.files:
+                file_name = file.file_name
+                file_path = file.file_path
+                file_content = file.file_content
+                file_desc = file.file_desc
+                file_instructions = f"*上传文件名*: {file_name} \n" + \
+                                    f"*上传的文件路径*: {file_path} \n" + \
+                                    f"*上传的文件内容*: {file_content} \n" + \
+                                    f"*上传的文件描述*: {file_desc} \n"
                 file_list_content = FILE_LIST.format(file_list=file_instructions)
                 netmhcpan_result = NETMHCPAN_RESULT.format(netmhcpan_result=state.get("netmhcpan_result"))
                 esm3_result = ESM3_RESULT.format(esm3_result=state.get("esm3_result"))
@@ -119,7 +120,6 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                         "peptide_length":peptide_length
                     }
                 )
-                # netmhcpan_result=extract_min_affinity_peptide(func_result)
                 netmhcpan_result=func_result
                 logger.info(f"NetMHCpan result: {func_result}")
                 tool_msg = ToolMessage(
@@ -157,21 +157,21 @@ async def should_continue(state: AgentState, config: RunnableConfig):
                 tmp_tool_msg.append(tool_msg)
 
 
-            elif tool_name == "ESM3":
-                tool_call_esm3_input=tool_call["args"].get("protein_sequence")
-                func_result = await ESM3.ainvoke(
-                    {
-                        "protein_sequence" : tool_call_esm3_input
-                    }
-                )
-                logger.info(f"ESM3 result: {func_result}")
-                esm3_result=func_result
+            # elif tool_name == "ESM3":
+            #     tool_call_esm3_input=tool_call["args"].get("protein_sequence")
+            #     func_result = await ESM3.ainvoke(
+            #         {
+            #             "protein_sequence" : tool_call_esm3_input
+            #         }
+            #     )
+            #     logger.info(f"ESM3 result: {func_result}")
+            #     esm3_result=func_result
 
-                tool_msg = ToolMessage(
-                    content=func_result,
-                    tool_call_id=tool_call_id,
-                )
-                tmp_tool_msg.append(tool_msg)
+            #     tool_msg = ToolMessage(
+            #         content=func_result,
+            #         tool_call_id=tool_call_id,
+            #     )
+            #     tmp_tool_msg.append(tool_msg)
 
             elif tool_name == "NetMHCstabpan":
                 input_file = tool_call["args"].get("input_file")
@@ -205,12 +205,12 @@ async def should_continue(state: AgentState, config: RunnableConfig):
 
 
 # Define the graph
-DemoMrnaResearchAgent = StateGraph(AgentState)
-DemoMrnaResearchAgent.add_node("modelNode", modelNode)
-DemoMrnaResearchAgent.add_node("should_continue", should_continue)
-DemoMrnaResearchAgent.set_entry_point("modelNode")
+PMHCAffinityPredictionResearchAgent = StateGraph(AgentState)
+PMHCAffinityPredictionResearchAgent.add_node("modelNode", modelNode)
+PMHCAffinityPredictionResearchAgent.add_node("should_continue", should_continue)
+PMHCAffinityPredictionResearchAgent.set_entry_point("modelNode")
 
-DemoMrnaResearchAgent.add_edge("should_continue", "modelNode")
+PMHCAffinityPredictionResearchAgent.add_edge("should_continue", "modelNode")
 
 def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     last_message = state["messages"][-1]
@@ -221,10 +221,9 @@ def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     return "done"
 
 
-DemoMrnaResearchAgent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
+PMHCAffinityPredictionResearchAgent.add_conditional_edges("modelNode", pending_tool_calls, {"tools": "should_continue", "done": END})
 
-
-GRAPH_MEMORY = MemorySaver()
-GRAPH = DemoMrnaResearchAgent.compile(
-    checkpointer=GRAPH_MEMORY
+pMHC_affinity_prediction_research = PMHCAffinityPredictionResearchAgent.compile(
+    checkpointer = MemorySaver(), 
+    store = InMemoryStore()
 )

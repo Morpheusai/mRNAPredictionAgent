@@ -2,11 +2,9 @@ import os
 import re
 
 from dotenv import load_dotenv
-from pathlib import Path
 from minio import Minio
 
 from config import CONFIG_YAML
-from src.utils.log import logger
 load_dotenv()
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
