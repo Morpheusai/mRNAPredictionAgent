@@ -15,7 +15,7 @@ from minio.error import S3Error
 load_dotenv()
 from src.utils.log import logger
 from config import CONFIG_YAML
-from src.model.agents.tools.UniPMT.parse_unipmt_results import parse_unipmt_results
+from src.agents.tools.UniPMT.parse_unipmt_results import parse_unipmt_results
 from src.utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 
 # UniPMT 工具配置
