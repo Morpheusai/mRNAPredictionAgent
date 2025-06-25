@@ -32,7 +32,7 @@ from src.agents.tools import (
     RNAPlot,
     NeoantigenSelectionIntroduce
 )
-from src.core import get_model
+from src.core import get_model, settings
 from src.utils.log import logger
 
 from .prompt.prompts import (
@@ -157,13 +157,7 @@ def format_tool_results(state: dict, tool_templates: dict) -> str:
     )
     
 async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
-    m = get_model(
-        config["configurable"].get("model", None),
-        config["configurable"].get("temperature", None),
-        config["configurable"].get("max_tokens", None),
-        config["configurable"].get("base_url", None),
-        config["configurable"].get("frequency_penalty", None),
-        )
+    model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
     # 处理文件列表
@@ -175,7 +169,7 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
                 tool_results = format_tool_results(state, TOOL_TEMPLATES)
                 instructions += f"{file_info}\n{tool_results}\n{OUTPUT_INSTRUCTIONS}"
     
-    model_runnable = wrap_model(m,instructions)
+    model_runnable = wrap_model(model, instructions)
     response = await model_runnable.ainvoke(state, config)
     # print(state)
     return {"messages": [response]}

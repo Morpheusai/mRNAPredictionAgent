@@ -1,11 +1,10 @@
 from datetime import date
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
+from typing import Optional
 
-from src.core import get_model
-from src.schema.models import FileDescriptionName
+from src.core import get_model, settings
 
 class Gender(str, Enum):
     MALE = '男'
@@ -48,13 +47,7 @@ class PatientInfoFormatter(BaseModel):
 
 
 # 初始化 GPT-4 模型
-patient_info_agent = get_model(
-    FileDescriptionName.GPT_4O,
-    FileDescriptionName.TEMPERATURE,
-    FileDescriptionName.MAX_TOKENS,
-    FileDescriptionName.BASE_URL,
-    FileDescriptionName.FREQUENCY_PENALTY
-)
+patient_info_agent = get_model(settings.DEFAULT_MODEL)
 
 # 创建带结构化输出的模型
 patient_info_structured = patient_info_agent.with_structured_output(PatientInfoFormatter) 

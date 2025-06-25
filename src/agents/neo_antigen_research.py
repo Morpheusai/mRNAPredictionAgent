@@ -16,7 +16,7 @@ from config import CONFIG_YAML
 from src.agents.tools import (
     NeoantigenSelection
 )
-from src.core import get_model
+from src.core import get_model, settings
 from src.utils.log import logger
 from src.utils.pdf_generator import neo_md2pdf
 from src.utils.valid_fasta import validate_minio_fasta
@@ -77,14 +77,7 @@ def wrap_model(
     return preprocessor | model
 
 async def NeoantigenRouteNode(state: AgentState, config: RunnableConfig) -> AgentState:
-    model = get_model(
-        config["configurable"].get("model", None),
-        config["configurable"].get("temperature", None),
-        config["configurable"].get("max_tokens", None),
-        config["configurable"].get("base_url", None),
-        config["configurable"].get("frequency_penalty", None),
-        stream_mode = False,  # 不使用流式输出
-    )
+    model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     system_prompt = NEOATIGIGEN_ROUTE_PROMPT
     logger.info(f"neoantigen route prompt: {system_prompt}")
     model_runnable = wrap_model(
@@ -127,13 +120,7 @@ async def PlatformIntroNode(state: AgentState, config: RunnableConfig):
     )
 
 async def NeoantigenSelectChat(state: AgentState, config: RunnableConfig):
-    model = get_model(
-        config["configurable"].get("model", None),
-        config["configurable"].get("temperature", None),
-        config["configurable"].get("max_tokens", None),
-        config["configurable"].get("base_url", None),
-        config["configurable"].get("frequency_penalty", None),
-    )
+    model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     patient_neoantigen_report = state.get("patient_neoantigen_report", "")
     system_prompt = NEOANTIGEN_CHAT_PROMPT.format(
         prompt_intro = PLATFORM_INTRO,
@@ -160,15 +147,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         last_msg = messages[-1]
         if "用户数据处理" in last_msg.content:
             mode = 0
-
-    model = get_model(
-        config["configurable"].get("model", None),
-        config["configurable"].get("temperature", None),
-        config["configurable"].get("max_tokens", None),
-        config["configurable"].get("base_url", None),
-        config["configurable"].get("frequency_penalty", None),
-        stream_mode = False
-    )
+    model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
     # 处理文件列表
@@ -387,14 +366,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         )
 
 async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
-    model = get_model(
-        config["configurable"].get("model", None),
-        config["configurable"].get("temperature", None),
-        config["configurable"].get("max_tokens", None),
-        config["configurable"].get("base_url", None),
-        config["configurable"].get("frequency_penalty", None),
-        stream_mode = False
-    )
+    model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     file_list = config["configurable"].get("file_list", None)
     mode = state.get("mode", 1)
     cdr3 = state.get("cdr3", None)

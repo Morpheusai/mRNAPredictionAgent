@@ -16,11 +16,9 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 from pathlib import Path
 import pandas as pd
-from io import BytesIO
 from typing import List, Dict, Optional, Union, AsyncIterator,Any
 
-from src.model.agents.core import get_model
-from src.model.agents.core.tool_summary_prompts import (
+from src.agents.prompt.tool_summary_prompts import (
     NETCHOP_PROMPT,
     NETMHCPAN_PROMPT,
     BIGMHC_EL_PROMPT,
@@ -29,11 +27,11 @@ from src.model.agents.core.tool_summary_prompts import (
     PMTNET_PROMPT
 )
 from config import CONFIG_YAML
-from src.model.agents.tools.utils.step1_protein_cleavage import step1_protein_cleavage
-from src.model.agents.tools.utils.step2_pmhc_binding_affinity import step2_pmhc_binding_affinity
-from src.model.agents.tools.utils.step3_pmhc_immunogenicity import step3_pmhc_immunogenicity
-from src.model.agents.tools.utils.step4_pmhc_tcr_interaction import step4_pmhc_tcr_interaction
-from src.model.agents.tools.utils.step6_tap_transportation_prediction import step6_tap_transportation_prediction
+from src.agents.tools.utils.step1_protein_cleavage import step1_protein_cleavage
+from src.agents.tools.utils.step2_pmhc_binding_affinity import step2_pmhc_binding_affinity
+from src.agents.tools.utils.step3_pmhc_immunogenicity import step3_pmhc_immunogenicity
+from src.agents.tools.utils.step4_pmhc_tcr_interaction import step4_pmhc_tcr_interaction
+from src.agents.tools.utils.step6_tap_transportation_prediction import step6_tap_transportation_prediction
 from src.utils.minio_utils import upload_file_to_minio,download_from_minio_uri
 load_dotenv()
 # MinIO 配置:

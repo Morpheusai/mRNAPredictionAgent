@@ -16,7 +16,7 @@ from config import CONFIG_YAML
 from src.agents.tools import (
     NeoantigenSelection
 )
-from src.core import get_model
+from src.core import get_model, settings
 from src.utils.pdf_generator import neo_md2pdf
 from src.utils.valid_fasta import validate_minio_fasta
 

@@ -35,7 +35,6 @@ from src.schema.schema import (
     PatientInfoResponse,
     PredictUserInput
 )
-from src.schema.models import OpenAIModelName
 from src.utils.message_handling import (
     convert_message_content_to_string,
     langchain_to_chat_message,
@@ -97,11 +96,6 @@ def _parse_input(user_input: Union[UserInput, PredictUserInput]) -> tuple[dict[s
     # 基础配置
     configurable = {
         "thread_id": thread_id, 
-        "model": OpenAIModelName.GPT_4O, 
-        "temperature": OpenAIModelName.TEMPERATURE, 
-        "max_tokens": OpenAIModelName.MAX_TOKENS,
-        "base_url": OpenAIModelName.BASE_URL,
-        "frequency_penalty": OpenAIModelName.FREQUENCY_PENALTY,
     }
     
     # 根据输入类型添加特定配置

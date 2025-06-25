@@ -2,10 +2,8 @@ import sys
 
 from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 
-from src.core import get_model
-from src.schema.models import FileDescriptionName
-
-from ...prompt.patient_case_mrna_prompts import RAG_SUMMARY_PROMPT  # Changed to use RAG_SUMMARY_PROMPT
+from src.core import get_model, settings
+from src.agents.tools.RAG.prompt import RAG_SUMMARY_PROMPT  # Changed to use RAG_SUMMARY_PROMPT
 
 # 构建提示模板 - Updated to use RAG_SUMMARY_PROMPT
 system_prompt = SystemMessagePromptTemplate.from_template(RAG_SUMMARY_PROMPT)
@@ -13,13 +11,7 @@ human_prompt = HumanMessagePromptTemplate.from_template("原始查询：'''{quer
 chat_prompt = ChatPromptTemplate.from_messages([system_prompt, human_prompt])
 
 # ================= 模型配置 =================
-vaccine_design_agent = get_model(  # Renamed to better reflect purpose
-    FileDescriptionName.GPT_4O, 
-    0.0, 
-    FileDescriptionName.MAX_TOKENS, 
-    FileDescriptionName.BASE_URL, 
-    FileDescriptionName.FREQUENCY_PENALTY
-)
+vaccine_design_agent = get_model(settings.DEFAULT_MODEL)
 
 # ================= 处理链 =================
 vaccine_design_chain = chat_prompt | vaccine_design_agent  # Renamed chain

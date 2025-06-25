@@ -13,7 +13,7 @@ from src.agents.tools import NetMHCstabpan
 from src.agents.tools import FastaFileProcessor
 from src.utils.log import logger
 
-from src.core import get_model
+from src.core import get_model, settings
 from .prompt.pMHC_affinity_prediction_prompts import (
     MRNA_AGENT_PROMPT, 
     FILE_LIST, 
@@ -49,13 +49,7 @@ def wrap_model(model: BaseChatModel, file_instructions: str) -> RunnableSerializ
 
 
 async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
-    m = get_model(
-        config["configurable"].get("model", None),
-        config["configurable"].get("temperature", None),
-        config["configurable"].get("max_tokens", None),
-        config["configurable"].get("base_url", None),
-        config["configurable"].get("frequency_penalty", None),
-        )
+    model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
     # 处理文件列表
@@ -83,7 +77,7 @@ async def modelNode(state: AgentState, config: RunnableConfig) -> AgentState:
  
 
     
-    model_runnable = wrap_model(m,instructions)
+    model_runnable = wrap_model(model, instructions)
     response = await model_runnable.ainvoke(state, config)
     # print(state)
     return {"messages": [response]}

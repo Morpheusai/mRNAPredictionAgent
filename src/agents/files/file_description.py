@@ -1,8 +1,6 @@
 from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 
-from src.core import get_model
-from src.schema.models import FileDescriptionName
-
+from src.core import get_model, settings
 from ..prompt.prompts import MINIO_SYSTEM_PROMPT
 
 minio_system_prompt = MINIO_SYSTEM_PROMPT
@@ -18,10 +16,6 @@ human_prompt = HumanMessagePromptTemplate.from_template(human_template)
 chat_prompt = ChatPromptTemplate.from_messages([system_prompt, human_prompt])
 
 # 初始化 GPT-4 模型
-file_agent = get_model(
-                FileDescriptionName.GPT_4O, FileDescriptionName.TEMPERATURE, 
-                FileDescriptionName.MAX_TOKENS, FileDescriptionName.BASE_URL, 
-                FileDescriptionName.FREQUENCY_PENALTY
-                 )
+file_agent = get_model(settings.DEFAULT_MODEL)
 # 创建处理链
 fileDescriptionAgent = chat_prompt | file_agent

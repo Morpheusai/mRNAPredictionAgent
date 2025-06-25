@@ -17,7 +17,7 @@ from config import CONFIG_YAML
 from src.agents.tools import (
     NeoantigenSelection
 )
-from src.core import get_model
+from src.core import get_model, settings
 from src.utils.log import logger
 from src.utils.pdf_generator import neo_md2pdf
 
@@ -80,13 +80,7 @@ def wrap_model(
     return preprocessor | model
 
 async def PatientCaseAnalysisNode(state: AgentState, config: RunnableConfig) -> AgentState:
-    model = get_model(
-        config["configurable"].get("model", None),
-        config["configurable"].get("temperature", None),
-        config["configurable"].get("max_tokens", None),
-        config["configurable"].get("base_url", None),
-        config["configurable"].get("frequency_penalty", None),
-    )
+    model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
     # 处理文件列表
@@ -170,13 +164,7 @@ async def mRNADesignNode(state: AgentState, config: RunnableConfig):
 async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     logger.info(f"patient case report node")
     mrna_design_process_result = state["mrna_design_process_result"]
-    model = get_model(
-        config["configurable"].get("model", None),
-        config["configurable"].get("temperature", None),
-        config["configurable"].get("max_tokens", None),
-        config["configurable"].get("base_url", None),
-        config["configurable"].get("frequency_penalty", None),
-    )
+    model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     #添加文件到system token里面
     file_list = config["configurable"].get("file_list", None)
     # 处理文件列表
