@@ -4,8 +4,8 @@ from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from pathlib import Path  
 
-from .core import get_model
-from .core.prompts import MINIO_SYSTEM_PROMPT
+from ..core import get_model
+from ..core.prompts import MINIO_SYSTEM_PROMPT
 from src.model.schema.models import FileDescriptionName
 
 minio_system_prompt = MINIO_SYSTEM_PROMPT

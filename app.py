@@ -1,6 +1,7 @@
 import aiosqlite
 import inspect
 import json
+from typing import Any, Union
 
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
@@ -21,14 +22,15 @@ from src.model.agents.agents import (
     PMHC_AFFINITY_PREDICTION, 
     PATIENT_CASE_MRNA_AGENT,
     NEO_ANTIGEN,
+    PREDICT_NEO_ANTIGEN,
     get_all_agent_info,
     get_all_agents,
     get_agent
 )
-from src.model.agents.file_description import fileDescriptionAgent
+from src.model.agents.files.file_description import fileDescriptionAgent
+from src.model.agents.files.patient_info_formatter import patient_info_structured
 from src.model.memory import initialize_store, initialize_database
-from src.model.schema.schema import UserInput
-from src.model.schema import MinioRequest,MinioResponse
+from src.model.schema.schema import UserInput, MinioRequest, MinioResponse, PatientInfoRequest, PatientInfoResponse,PredictUserInput
 from src.model.schema.models import OpenAIModelName
 from src.utils.message_handling import (
     convert_message_content_to_string,
@@ -37,6 +39,7 @@ from src.utils.message_handling import (
     _sse_response_example
 )
 from src.utils.log import logger
+
 
 logger.info(f"========================start molly_langgraph backend==============================")
 @asynccontextmanager
@@ -84,30 +87,38 @@ app.add_middleware(
 
 load_dotenv()
 
-def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], UUID]:
+def _parse_input(user_input: Union[UserInput, PredictUserInput]) -> tuple[dict[str, Any], UUID]:
     run_id = uuid4()
-    # thread_id = user_input.thread_id or str(uuid4())
     thread_id = user_input.conversation_id
-    file_list = user_input.file_list
-
-    # configurable = {"thread_id": thread_id, "model": user_input.model}
+    
+    # 基础配置
     configurable = {
-                    "thread_id": thread_id, 
-                    "model": OpenAIModelName.GPT_4O, 
-                    "temperature":OpenAIModelName.TEMPERATURE, 
-                    "max_tokens":OpenAIModelName.MAX_TOKENS,
-                    "base_url":OpenAIModelName.BASE_URL,
-                    "frequency_penalty":OpenAIModelName.FREQUENCY_PENALTY,
-                    "file_list":file_list
-                    
-                    }
+        "thread_id": thread_id, 
+        "model": OpenAIModelName.GPT_4O, 
+        "temperature": OpenAIModelName.TEMPERATURE, 
+        "max_tokens": OpenAIModelName.MAX_TOKENS,
+        "base_url": OpenAIModelName.BASE_URL,
+        "frequency_penalty": OpenAIModelName.FREQUENCY_PENALTY,
+    }
+    
+    # 根据输入类型添加特定配置
+    if isinstance(user_input, UserInput):
+        configurable["file_list"] = user_input.file_list
+    elif isinstance(user_input, PredictUserInput):
+        configurable.update({
+            "file_path": user_input.file_path,
+            "mhc_allele": user_input.mhc_allele,
+            "cdr3": user_input.cdr3
+        })
+    
     # if user_input.agent_config:
     #     if overlap := configurable.keys() & user_input.agent_config.keys():
     #         raise HTTPException(
     #             status_code=422,
     #             detail=f"agent_config contains reserved keys: {overlap}",
     #         )
-    #     configurable.update(user_input.agent_config)
+    #     configurable.update(user_input.agent_config)    
+
 
     kwargs = {
         "input": {"messages": [HumanMessage(content=user_input.prompt)]},
@@ -263,12 +274,20 @@ def _create_ai_message(parts: dict) -> AIMessage:
 
 
 async def message_generator(
-    user_input: UserInput, agent_id: str = DEFAULT_AGENT
+    user_input: Union[UserInput, PredictUserInput], agent_id: str = DEFAULT_AGENT
 ) -> AsyncGenerator[str, None]:
     """
     Generate a stream of messages from the agent.
 
     This is the workhorse method for the /stream endpoint.
+    Supports both UserInput and PredictUserInput types.
+
+    Args:
+        user_input: Either UserInput or PredictUserInput object containing the user's request
+        agent_id: The ID of the agent to use (defaults to DEFAULT_AGENT)
+
+    Returns:
+        An async generator yielding SSE formatted messages
     """
     
     agent: Pregel = get_agent(agent_id)
@@ -499,6 +518,25 @@ async def chat(user_input: UserInput, agent_id: str = NEO_ANTIGEN) -> StreamingR
         media_type="text/event-stream",
     )
 
+#predict_neo_antigen_stream的接口
+@app.post("/predict_neo_antigen_stream", response_class=StreamingResponse, responses=_sse_response_example())
+async def chat(user_input: PredictUserInput, agent_id: str = PREDICT_NEO_ANTIGEN) -> StreamingResponse:
+    """
+    Stream an agent's response to a user input, including intermediate messages and tokens.
+
+    If agent_id is not provided, the default agent will be used.
+    Use thread_id to persist and continue a multi-turn conversation. run_id kwarg
+    is also attached to all messages for recording feedback.
+
+    Set `stream_tokens=false` to return intermediate messages but not token-by-token.
+    """
+    logger.info(f"Received user_input: {user_input.dict()}")
+    logger.info(f"Agent ID: {agent_id}")
+    return StreamingResponse(
+        message_generator(user_input, agent_id),
+        media_type="text/event-stream",
+    )
+
 #对minio传来的文件进行描述
 @app.post("/description", response_model=MinioResponse)
 async def describe_text(request: MinioRequest):
@@ -523,3 +561,16 @@ async def reset_thread(thread_id: str):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"清除失败: {str(e)}")
+
+#处理病人信息结构化的接口
+@app.post("/extract_patient_info", response_model=PatientInfoResponse)
+async def process_patient_info(request: PatientInfoRequest):
+    try:
+        # 调用结构化处理模型
+        result = patient_info_structured.invoke(request.patient_info)
+        
+        # 返回结构化后的信息
+        return PatientInfoResponse(structured_info=result.model_dump())
+    except Exception as e:
+        logger.error(f"处理病人信息时发生错误: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

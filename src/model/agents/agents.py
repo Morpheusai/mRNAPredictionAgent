@@ -6,11 +6,13 @@ from src.model.agents.mRNA_research import mRNA_research
 from src.model.agents.patient_case_mrna_research import patient_case_mRNA_research
 from src.model.agents.pMHC_affinity_prediction_research import pMHC_affinity_prediction_research
 from src.model.agents.neo_antigen_research import neo_antigen_research  
+from src.model.agents.predict_neo_antigen_research import predict_neo_antigen_research
 
 DEFAULT_AGENT = "mRNA_research"
 PMHC_AFFINITY_PREDICTION="pMHC_affinity_prediction"
 PATIENT_CASE_MRNA_AGENT="patient_case_mRNA_research"
 NEO_ANTIGEN="neo_antigen_research"
+PREDICT_NEO_ANTIGEN="predict_neo_antigen_research"
 
 @dataclass
 class Agent:
@@ -37,6 +39,11 @@ agents: dict[str, Agent] = {
     "neo_antigen_research": Agent(
         description="完成个体化neo-antigen筛选的Agent",
         graph=neo_antigen_research
+    ),
+
+    "predict_neo_antigen_research": Agent(
+        description="完成个体化肽段预测predict-neo-antigen筛选的Agent",
+        graph=predict_neo_antigen_research
     ),
 }
 

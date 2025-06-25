@@ -66,6 +66,38 @@ class UserInput(BaseModel):
         description="Whether to stream LLM tokens to the client.",
         default=True,
     )
+
+class PredictUserInput(BaseModel):
+    """Basic user input for the agent."""
+    prompt: str = Field(
+        description="User input to the agent.",
+        examples=["_______________________________DQATSLRILNNGHAFNVEFDDSQDKAVLK"or"What is the weather in Tokyo?"],
+    )
+    conversation_id: str = Field(
+        description="传入会话id，存入数据库",
+    )
+    file_path: str = Field(
+        description="测序文件minio路径",
+        examples=["minio://molly/6e461c0b-876c-4a98-9e7e-a743ec71c7b0_bigmhc_el.fasta"],
+    )
+    mhc_allele: List[str] = Field(
+        description="HLA分型",
+        examples=[["HLA-A*0201", "HLA-B*0702"]],
+    )
+    cdr3: List[str] = Field(
+        description="cdr3序列",
+        examples=[["CASSIRSSYEQYF", "CASSLGQGAEAFF"]],
+        default=[],
+    )
+    agent_config: dict[str, Any] = Field(
+        description="Additional configuration to pass through to the agent",
+        default={},
+        examples=[{"spicy_level": 0.8}],
+    )
+    stream_tokens: bool = Field(
+        description="Whether to stream LLM tokens to the client.",
+        default=True,
+    )
 # class UserInput(BaseModel):
 #     """Basic user input for the agent."""
 
@@ -215,3 +247,11 @@ class MinioRequest(BaseModel):
 # 定义响应体模型
 class MinioResponse(BaseModel):
     file_description: str
+
+# 定义病人信息请求体模型
+class PatientInfoRequest(BaseModel):
+    patient_info: str = Field(description="病人的原始信息文本")
+
+# 定义病人信息响应体模型
+class PatientInfoResponse(BaseModel):
+    structured_info: dict = Field(description="结构化后的病人信息")
