@@ -72,7 +72,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         # INSERT_SPACER=""
         STEP1_DESC3 = f"""
     \n ### ⚠️未检测到您发送的fasta文件，请仔细检查您的肽段文件是否符合国际标准的fasta文件格式要求
-    """改
+    """
         # WRITER(INSERT_SPACER)
         WRITER(STEP1_DESC3)
         return Command(
