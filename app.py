@@ -102,11 +102,14 @@ def _parse_input(user_input: Union[UserInput, PredictUserInput]) -> tuple[dict[s
     if isinstance(user_input, UserInput):
         configurable["file_list"] = user_input.file_list
     elif isinstance(user_input, PredictUserInput):
-        configurable.update({
-            "file_path": user_input.file_path,
-            "mhc_allele": user_input.mhc_allele,
-            "cdr3": user_input.cdr3
-        })
+        configurable.update(
+            {
+                "file_path": user_input.file_path,
+                "mhc_allele": user_input.mhc_allele,
+                "cdr3": user_input.cdr3,
+                "parameters": user_input.parameters
+            }
+        )
     
     # if user_input.agent_config:
     #     if overlap := configurable.keys() & user_input.agent_config.keys():

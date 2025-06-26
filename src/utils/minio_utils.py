@@ -22,7 +22,7 @@ MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 
 # # 初始化 MinIO 客户端
-minio_client = Minio(
+MINIO_CLIENT = Minio(
     MINIO_ENDPOINT,
     access_key=MINIO_ACCESS_KEY,
     secret_key=MINIO_SECRET_KEY,
@@ -63,11 +63,11 @@ def upload_file_to_minio(
     
     try:
         # 确保桶存在
-        if not minio_client.bucket_exists(bucket_name):
-            minio_client.make_bucket(bucket_name)
+        if not MINIO_CLIENT.bucket_exists(bucket_name):
+            MINIO_CLIENT.make_bucket(bucket_name)
         
         # 上传文件
-        minio_client.fput_object(
+        MINIO_CLIENT.fput_object(
             bucket_name,
             minio_object_name,
             str(local_path)
@@ -75,19 +75,12 @@ def upload_file_to_minio(
         logger.info(f"MinIO path: minio://{bucket_name}/{minio_object_name}")
         # 返回MinIO地址
         return f"minio://{bucket_name}/{minio_object_name}"
-        
     except S3Error as e:
         logger.error(f"MinIO S3 Error: {e}")
         raise S3Error(f"上传文件到MinIO失败: {e}") from e
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         raise
-        
-
-
-
-
-
 
 def download_from_minio_uri(uri: str, local_path: str = None) -> str:
     """
@@ -134,7 +127,7 @@ def download_from_minio_uri(uri: str, local_path: str = None) -> str:
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
     
     # 执行下载
-    minio_client.fget_object(
+    MINIO_CLIENT.fget_object(
         bucket_name=bucket_name,
         object_name=object_name,
         file_path=local_path

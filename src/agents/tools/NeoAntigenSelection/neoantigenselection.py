@@ -1,12 +1,9 @@
 import asyncio
 import json
 import os
-import sys
 import uuid
-import re
 
 from dotenv import load_dotenv
-from minio import Minio
 from minio.error import S3Error
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import tool
@@ -16,16 +13,8 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 from pathlib import Path
 import pandas as pd
-from typing import List, Dict, Optional, Union, AsyncIterator,Any
+from typing import List, Dict, Optional, AsyncIterator,Any
 
-from src.agents.prompt.tool_summary_prompts import (
-    NETCHOP_PROMPT,
-    NETMHCPAN_PROMPT,
-    BIGMHC_EL_PROMPT,
-    BIGMHC_IM_PROMPT,
-    RNAFOLD_PROMPT,
-    PMTNET_PROMPT
-)
 from config import CONFIG_YAML
 from src.agents.tools.utils.step1_protein_cleavage import step1_protein_cleavage
 from src.agents.tools.utils.step2_pmhc_binding_affinity import step2_pmhc_binding_affinity
@@ -33,26 +22,15 @@ from src.agents.tools.utils.step3_pmhc_immunogenicity import step3_pmhc_immunoge
 from src.agents.tools.utils.step4_pmhc_tcr_interaction import step4_pmhc_tcr_interaction
 from src.agents.tools.utils.step6_tap_transportation_prediction import step6_tap_transportation_prediction
 from src.utils.minio_utils import upload_file_to_minio,download_from_minio_uri
+
 load_dotenv()
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
-MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = os.getenv("ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("SECRET_KEY")
 MOLLY_BUCKET = MINIO_CONFIG["molly_bucket"]
-MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
 RNAFOLD_ENERGY_THRESHOLD = NEOANTIGEN_CONFIG["rnafold_energy_threshold"]
 OUTPUT_TMP = CONFIG_YAML["TOOL"]["RNAFOLD"]["output_tmp_dir"]
-
-# 初始化 MinIO 客户端
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
 
 async def wrap_summary_llm_model_async_stream(
     model: BaseChatModel, 
@@ -94,7 +72,6 @@ def filter_rnafold(input_file_path: str, rnafold_energy_threshold: float) -> tup
         
         # 2. 下载文件到临时本地路径
         local_temp_path = f"{OUTPUT_TMP}/{uuid.uuid4().hex}.xlsx"
-        # minio_client.fget_object(bucket_name, object_name, local_temp_path)
         local_temp_path=download_from_minio_uri(input_file_path,local_temp_path)
         # 3. 读取Excel并过滤MFE结构
         df = pd.read_excel(local_temp_path)
@@ -157,12 +134,7 @@ def normalize_hla_alleles(allele_list):
     
     return normalized
 
-
-
-
-
-
-async def run_neoanigenselection(
+async def run_neoantigenselection(
     input_file: str,
     mhc_allele: Optional[List[str]] = None,
     cdr3_sequence: Optional[List[str]] = None
@@ -190,25 +162,37 @@ async def run_neoanigenselection(
     writer = get_stream_writer()
     mhc_allele=normalize_hla_alleles(mhc_allele)
 
-
     try:
 
         # 第一步：蛋白切割位点预测
         cleavage_result_file_path, netchop_final_result_str,cleavage_m = await step1_protein_cleavage(
-            input_file, writer, mrna_design_process_result,minio_client,neoantigen_message
+            input_file, 
+            writer, 
+            mrna_design_process_result,
+            neoantigen_message
         )
         neoantigen_message[0] = f"{cleavage_m}/{cleavage_m}"
         neoantigen_message[1] = cleavage_result_file_path
 
         # 第二步：TAP转运预测
         netctlpan_file_path,netctlpan_fasta_str,tap_m,netctlpan_tool_url= await step6_tap_transportation_prediction(
-            cleavage_result_file_path, netchop_final_result_str,mhc_allele, writer, mrna_design_process_result,minio_client,neoantigen_message,cleavage_m
+            cleavage_result_file_path, 
+            mhc_allele, 
+            writer, 
+            mrna_design_process_result,
+            neoantigen_message,
+            cleavage_m
         )
         neoantigen_message[2]=f"{tap_m}/{cleavage_m}"
         neoantigen_message[3]=netctlpan_tool_url
         # 第三步：pMHC结合亲和力预测
         netmhcpan_result_file_path, mhcpan_count = await step2_pmhc_binding_affinity(
-            netctlpan_file_path, netctlpan_fasta_str,mhc_allele, writer, mrna_design_process_result,minio_client,neoantigen_message,tap_m
+            netctlpan_file_path, 
+            mhc_allele, 
+            writer, 
+            mrna_design_process_result,
+            neoantigen_message,
+            tap_m
         )
         # 暂时这一步只需要netmhcpan
         # bigmhc_el_result_file_path, bigmhc_el_fasta_str,pmhc_binding_ratio,pmhc_binding_m,bigmhc_el_tool_url
@@ -216,10 +200,12 @@ async def run_neoanigenselection(
         # neoantigen_message[7]=bigmhc_el_tool_url
         # 第四步：pMHC免疫原性预测
         bigmhc_im_result_file_path, bigmhc_im_fasta_str,pmhc_immunogenicity_m, bigmhc_im_tool_url, bigmhc_im_content= await step3_pmhc_immunogenicity(
-            netmhcpan_result_file_path, writer, mrna_design_process_result,minio_client,neoantigen_message,pmhc_binding_m
+            netmhcpan_result_file_path, 
+            writer, 
+            mrna_design_process_result,
+            neoantigen_message,
+            pmhc_binding_m
         )
-
-
         neoantigen_message[6]=f"{pmhc_immunogenicity_m}/{mhcpan_count}"
         neoantigen_message[7]=bigmhc_im_tool_url
         neoantigen_message[8]=bigmhc_im_content
@@ -273,7 +259,7 @@ def NeoantigenSelection(
         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """
     try:
-        result = asyncio.run(run_neoanigenselection(input_file, mhc_allele, cdr3_sequence))
+        result = asyncio.run(run_neoantigenselection(input_file, mhc_allele, cdr3_sequence))
         return result
     except Exception as e:
         result = {

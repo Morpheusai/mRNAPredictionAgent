@@ -2,13 +2,18 @@ import json
 import pandas as pd
 
 from io import BytesIO
-from minio import Minio
 from minio.error import S3Error
 
 from src.agents.tools.NetChop.netchop import NetChop
 from src.agents.tools.CleavagePeptide.cleavage_peptide import NetChop_Cleavage
+from src.utils.minio_utils import MINIO_CLIENT
 
-async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_result: list, minio_client: Minio,neoantigen_message) -> tuple:
+async def step1_protein_cleavage(
+        input_file: str, 
+        writer, 
+        mrna_design_process_result: list, 
+        neoantigen_message
+    ) -> tuple:
     """
     第一步：蛋白切割位点预测
     
@@ -84,7 +89,7 @@ async def step1_protein_cleavage(input_file: str, writer, mrna_design_process_re
     try:
         path_without_prefix = cleavage_result_file_path[len("minio://"):]
         bucket_name, object_name = path_without_prefix.split("/", 1)
-        response = minio_client.get_object(bucket_name, object_name)
+        response = MINIO_CLIENT.get_object(bucket_name, object_name)
         bytes_io = BytesIO(response.read())
         netchop_final_result_str = bytes_io.getvalue().decode('utf-8')
         

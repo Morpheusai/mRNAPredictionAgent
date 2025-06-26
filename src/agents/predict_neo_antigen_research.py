@@ -16,14 +16,9 @@ from config import CONFIG_YAML
 from src.agents.tools import (
     NeoantigenSelection
 )
-from src.core import get_model, settings
+
 from src.utils.pdf_generator import neo_md2pdf
 from src.utils.valid_fasta import validate_minio_fasta
-
-from .prompt.neoantigen_research_prompt import (
-    PLATFORM_INTRO,
-    NEOANTIGEN_CHAT_PROMPT,
-)
 
 from .prompt.neoantigen_report_template import PRIDICT_PATIENT_REPORT_ONE
 
@@ -77,7 +72,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         # INSERT_SPACER=""
         STEP1_DESC3 = f"""
     \n ### ⚠️未检测到您发送的fasta文件，请仔细检查您的肽段文件是否符合国际标准的fasta文件格式要求
-    """
+    """改
         # WRITER(INSERT_SPACER)
         WRITER(STEP1_DESC3)
         return Command(

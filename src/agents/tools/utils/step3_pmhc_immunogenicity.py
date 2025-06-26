@@ -11,6 +11,7 @@ from minio import Minio
 from minio.error import S3Error
 
 from config import CONFIG_YAML
+from src.utils.minio_utils import MINIO_CLIENT
 from src.agents.tools.BigMHC.bigmhc import BigMHC_IM
 from src.utils.minio_utils import download_from_minio_uri
 
@@ -59,7 +60,6 @@ async def step3_pmhc_immunogenicity(
     bigmhc_el_result_file_path: str,
     writer,
     mrna_design_process_result: list,
-    minio_client: Minio,
     neoantigen_message,
     pmhc_binding_m
 ) -> tuple:
@@ -130,7 +130,7 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
     try:
         path_without_prefix = bigmhc_im_result_file_path[len("minio://"):]
         bucket_name, object_name = path_without_prefix.split("/", 1)
-        response = minio_client.get_object(bucket_name, object_name)
+        response = MINIO_CLIENT.get_object(bucket_name, object_name)
         excel_data = BytesIO(response.read())
         df = pd.read_excel(excel_data)
     except S3Error as e:
@@ -178,7 +178,7 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
     try:
         fasta_bytes = bigmhc_im_fasta_str.encode('utf-8')
         fasta_stream = BytesIO(fasta_bytes)
-        minio_client.put_object(
+        MINIO_CLIENT.put_object(
             MOLLY_BUCKET,
             bigmhc_im_result_fasta_filename,
             data=fasta_stream,

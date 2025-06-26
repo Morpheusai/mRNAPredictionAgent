@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, SerializeAsAny
+from pydantic import BaseModel, Field
 from typing import Any, Literal,List, NotRequired,Union
 from typing_extensions import TypedDict
 
@@ -14,24 +14,6 @@ class AgentInfo(BaseModel):
         description="Description of the agent.",
         examples=["A research assistant for generating research papers."],
     )
-
-
-# class ServiceMetadata(BaseModel):
-#     """Metadata about the service including available agents and models."""
-
-#     agents: list[AgentInfo] = Field(
-#         description="List of available agents.",
-#     )
-#     models: list[AllModelEnum] = Field(
-#         description="List of available LLMs.",
-#     )
-#     default_agent: str = Field(
-#         description="Default agent used when none is specified.",
-#         examples=["research-assistant"],
-#     )
-#     default_model: AllModelEnum = Field(
-#         description="Default model used when none is specified.",
-#     )
 
 class FileInfo(BaseModel):
     file_name: str = Field(description="文件名")
@@ -89,6 +71,40 @@ class PredictUserInput(BaseModel):
         examples=[["CASSIRSSYEQYF", "CASSLGQGAEAFF"]],
         default=[],
     )
+    parameters: dict[str, Any] = Field(
+        description="预测参数",
+        default={},
+        examples=[
+            {
+                "netchop": {
+                    "threshold": 0.5,
+                    "model": 0,
+                    "format": 0,
+                    "strict": 0
+                },
+                "netctlpan": {
+                    "length": -1 ,
+                    "wt": 0.025,
+                    "wc": 0.225,
+                    "ethr": 1.0,
+                    "ot": -99.9,
+                    "os": -1
+                },
+                "netmhcpan": {
+                    {
+                        "input_filename": "testA.fsa",
+                        "hla": "HLA-A02:01",    
+                        "length": -1 ,
+                        "rth": 0.025,
+                        "rlt": 0.225,
+                        "ot": -99.9,
+                    }    
+                },
+                "bigmhc_im": {
+                }
+            }
+        ]
+    )
     agent_config: dict[str, Any] = Field(
         description="Additional configuration to pass through to the agent",
         default={},
@@ -98,47 +114,6 @@ class PredictUserInput(BaseModel):
         description="Whether to stream LLM tokens to the client.",
         default=True,
     )
-# class UserInput(BaseModel):
-#     """Basic user input for the agent."""
-
-#     prompt: str = Field(
-#         description="User input to the agent.",
-#         examples=["What is the weather in Tokyo?"],
-#     )
-#     system_token: str =Field(
-#         description="传入系统token，验证有效性",
-#     )
-#     conversation_id: str =Field(
-#         description="传入会话id，存入数据库",
-#     )    
-    # model: SerializeAsAny[AllModelEnum] | None = Field(
-    #     title="Model",
-    #     description="LLM Model to use for the agent.",
-    #     default=OpenAIModelName.GPT_4O,
-    #     examples=[OpenAIModelName.GPT_4O_MINI],
-    # )
-    # thread_id: str | None = Field(
-    #     description="Thread ID to persist and continue a multi-turn conversation.",
-    #     default=None,
-    #     examples=["847c6285-8fc9-4560-a83f-4e6285809254"],
-    # )
-
-
-
-# class StreamInput(UserInput):
-#     """User input for streaming the agent's response."""
-
-#     stream_tokens: bool = Field(
-#         description="Whether to stream LLM tokens to the client.",
-#         default=True,
-#     )
-#     system_token: str =Field(
-#         description="传入系统token，验证有效性",
-#     )
-#     conversation_id: str =Field(
-#         description="传入会话id，存入数据库",
-#     )
-
 
 class ToolCall(TypedDict):
     """Represents a request to call a tool."""

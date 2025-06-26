@@ -4,11 +4,11 @@ import uuid
 import pandas as pd
 
 from io import BytesIO
-from minio import Minio
 from minio.error import S3Error
 from typing import  List
 
 from config import CONFIG_YAML
+from src.utils.minio_utils import MINIO_CLIENT
 from src.agents.tools.NetCTLPan.netctlpan import NetCTLpan
 
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
@@ -16,11 +16,9 @@ NETCTLPAN_THRESHOLD = NEOANTIGEN_CONFIG["netctlpan_threshold"]
 
 async def step6_tap_transportation_prediction(
     cleavage_result_file_path: str, 
-    netchop_final_result_str:str,
     mhc_allele: List[str],
     writer,
     mrna_design_process_result: list,
-    minio_client: Minio,
     neoantigen_message,
     cleavage_m
 ) -> tuple:
@@ -79,7 +77,7 @@ async def step6_tap_transportation_prediction(
     try:
         path_without_prefix = netctlpan_result_file_path[len("minio://"):]
         bucket_name, object_name = path_without_prefix.split("/", 1)
-        response = minio_client.get_object(bucket_name, object_name)
+        response = MINIO_CLIENT.get_object(bucket_name, object_name)
         excel_data = BytesIO(response.read())
         df = pd.read_excel(excel_data)
     except S3Error as e:
@@ -134,7 +132,7 @@ async def step6_tap_transportation_prediction(
     try:
         fasta_bytes = netctlpan_fasta_str.encode('utf-8')
         fasta_stream = BytesIO(fasta_bytes)
-        minio_client.put_object(
+        MINIO_CLIENT.put_object(
             "molly",
             netctlpan_result_fasta_filename,
             data=fasta_stream,
@@ -146,10 +144,6 @@ async def step6_tap_transportation_prediction(
         neoantigen_message[3]=f"上传FASTA文件失败: {str(e)}"
         raise Exception(f"上传FASTA文件失败: {str(e)}")
     
-    # 步骤完成描述
-    INSERT_SPLIT = \
-    f"""
-    """   
     # writer(INSERT_SPLIT)    
     STEP2_DESC7 = f"""
 ### 第2部分-TAP转运预测阶段结束并完成筛选
@@ -172,4 +166,4 @@ async def step6_tap_transportation_prediction(
 ✅ 已完成转运评估，剔除部分效率较低肽段，保留**{count}个有效候选肽段**
 """    
     writer(STEP2_DESC7)
-    return f"minio://molly/{netctlpan_result_fasta_filename}", netctlpan_fasta_str,count,netctlpan_result_file_path
+    return f"minio://molly/{netctlpan_result_fasta_filename}", netctlpan_fasta_str, count, netctlpan_result_file_path

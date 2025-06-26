@@ -5,13 +5,12 @@ import re
 import pandas as pd
 
 from io import BytesIO
-from minio import Minio
 from minio.error import S3Error
 from typing import Tuple,List
 
 from config import CONFIG_YAML
+from src.utils.minio_utils import MINIO_CLIENT
 from src.agents.tools.NetMHCPan.netmhcpan import NetMHCpan
-from src.agents.tools.BigMHC.bigmhc import BigMHC_EL
 from src.utils.minio_utils import download_from_minio_uri
 
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
@@ -55,11 +54,9 @@ def extract_hla_and_peptides_from_fasta(
 
 async def step2_pmhc_binding_affinity(
     cleavage_result_file_path: str, 
-    netchop_final_result_str:str,
     mhc_allele: List[str],
     writer,
     mrna_design_process_result: list,
-    minio_client: Minio,
     neoantigen_message,
     tap_m
 ) -> tuple:
@@ -128,7 +125,7 @@ async def step2_pmhc_binding_affinity(
     try:
         path_without_prefix = netmhcpan_result_file_path[len("minio://"):]
         bucket_name, object_name = path_without_prefix.split("/", 1)
-        response = minio_client.get_object(bucket_name, object_name)
+        response = MINIO_CLIENT.get_object(bucket_name, object_name)
         excel_data = BytesIO(response.read())
         df = pd.read_excel(excel_data)
         df['BindLevel'] = df['BindLevel'].astype(str).replace('nan', '')
@@ -185,7 +182,7 @@ pMHC结合亲和力预测结果已获取，结果如下：\n
     try:
         fasta_bytes = netmhcpan_fasta_str.encode('utf-8')
         fasta_stream = BytesIO(fasta_bytes)
-        minio_client.put_object(
+        MINIO_CLIENT.put_object(
             "molly",
             netmhcpan_result_fasta_filename,
             data=fasta_stream,
@@ -203,151 +200,3 @@ pMHC结合亲和力预测结果已获取，结果如下：\n
     writer(STEP2_DESC7)
     
     return f"minio://molly/{netmhcpan_result_fasta_filename}", mhcpan_count
-
-#     STEP2_DESC4 = \
-# f"""
-# ### 第2部分-pMHC结合亲和力预测并筛选结束
-# 已完成筛选符合要求的高亲和力的肽段，结果如下：
-# ```
-# {netmhcpan_fasta_str}
-# ```
-# 接下来利用BigMHC_EL工具将对这些高亲和力肽段进行细胞内的抗原呈递概率预测
-
-# \n参数设置说明：
-# - MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
-
-# 当前使用配置：
-# - 选用MHC allele: {mhc_allele}
-# """   
-#     # writer(STEP2_DESC4)
-#     mrna_design_process_result.append(STEP2_DESC4)
-
-#     # 运行BigMHC_EL工具
-#     netmhcpan_result_filter_file_path = f"minio://molly/{netmhcpan_result_fasta_filename}"
-#     input_file,mhc_alleles = extract_hla_and_peptides_from_fasta(netmhcpan_result_filter_file_path)
-#     bigmhc_el_result = await BigMHC_EL.arun({
-#         "input_file": input_file,
-#         "mhc_alleles": mhc_alleles
-#     })
-    
-#     try:
-#         bigmhc_el_result_dict = json.loads(bigmhc_el_result)
-#     except json.JSONDecodeError:
-#         neoantigen_message[6]=f"0/{mhcpan_count}"
-#         neoantigen_message[7]=f"结合亲和力预测阶段BigMHC_el工具执行失败"
-#         raise Exception("结合亲和力预测阶段BigMHC_el工具执行失败")
-    
-#     if bigmhc_el_result_dict.get("type") != "link":
-#         neoantigen_message[6]=f"0/{mhcpan_count}"
-#         neoantigen_message[7]="pMHC结合亲和力预测阶段BigMHC_el工具执行失败"
-#         raise Exception(bigmhc_el_result_dict.get("content", "pMHC结合亲和力预测阶段BigMHC_el工具执行失败"))
-    
-#     bigmhc_el_result_file_path = bigmhc_el_result_dict["url"]
-    
-#     # 读取BigMHC_EL结果文件
-#     try:
-#         path_without_prefix = bigmhc_el_result_file_path[len("minio://"):]
-#         bucket_name, object_name = path_without_prefix.split("/", 1)
-#         response = minio_client.get_object(bucket_name, object_name)
-#         excel_data = BytesIO(response.read())
-#         df = pd.read_excel(excel_data)
-#     except S3Error as e:
-#         neoantigen_message[6]=f"0/{mhcpan_count}"
-#         neoantigen_message[7]=f"无法从MinIO读取BigMHC_EL结果文件: {str(e)}"
-#         raise Exception(f"无法从MinIO读取BigMHC_EL结果文件: {str(e)}")
-    
-#     # 步骤中间描述2
-#     INSERT_SPLIT = \
-#     f"""
-#     """   
-#     # writer(INSERT_SPLIT)    
-#     STEP2_DESC5 = f"""
-# ### 第2部分-pMHC细胞内抗原呈递概率预测结束\n
-# 已完成细胞内的抗原呈递概率预测，结果如下：\n
-# {bigmhc_el_result_dict['content']}
-
-# 接下来为您筛选为BigMHC_EL >= {BIGMHC_EL_THRESHOLD}的抗原呈递概率的肽段
-# """
-#     # writer(STEP2_DESC5)
-#     mrna_design_process_result.append(STEP2_DESC5)
-    
-#     # 筛选高抗原呈递概率肽段
-#     high_affinity_peptides = df[df['BigMHC_EL'] >= BIGMHC_EL_THRESHOLD]
-    
-#     if high_affinity_peptides.empty:
-#         STEP2_DESC6 = f"""
-# 未筛选到符合BigMHC_EL >= {BIGMHC_EL_THRESHOLD}要求的高抗原呈递概率的肽段，筛选流程结束
-# """
-#         writer(STEP2_DESC6)
-#         mrna_design_process_result.append(STEP2_DESC6)
-#         neoantigen_message[6]=f"0/{mhcpan_count}"
-#         neoantigen_message[7]=bigmhc_el_result_file_path
-#         raise Exception(f"未找到高亲和力肽段(BigMHC_EL ≥ {BIGMHC_EL_THRESHOLD})")
-    
-#     # 构建FASTA文件内容
-#     fasta_content = []
-#     count=0
-#     for idx, row in high_affinity_peptides.iterrows():
-#         peptide = row['pep']
-#         mhc_allele = row['mhc']
-        
-#         # 标准化MHC等位基因格式
-#         if 'HLA-' in mhc_allele and '*' not in mhc_allele.split('HLA-')[1][:2]:
-#             parts = mhc_allele.split('HLA-')
-#             if len(parts) > 1:
-#                 allele_part = parts[1]
-#                 if len(allele_part) > 1 and allele_part[1].isdigit():
-#                     mhc_allele = f"HLA-{allele_part[0]}*{allele_part[1:]}"
-        
-#         fasta_content.append(f">{peptide}|{mhc_allele}")
-#         fasta_content.append(peptide)
-#         count+=1
-    
-#     bigmhc_el_fasta_str = "\n".join(fasta_content)
-    
-#     # 上传FASTA文件到MinIO
-#     uuid_name = str(uuid.uuid4())
-#     bigmhc_el_result_fasta_filename = f"{uuid_name}_bigmhc_el.fasta"
-    
-#     try:
-#         fasta_bytes = bigmhc_el_fasta_str.encode('utf-8')
-#         fasta_stream = BytesIO(fasta_bytes)
-#         minio_client.put_object(
-#             "molly",
-#             bigmhc_el_result_fasta_filename,
-#             data=fasta_stream,
-#             length=len(fasta_bytes),
-#             content_type='text/plain'
-#         )
-#     except Exception as e:
-#         neoantigen_message[6]=f"0/{mhcpan_count}"
-#         neoantigen_message[7]=f"上传FASTA文件失败: {str(e)}"
-#         raise Exception(f"上传FASTA文件失败: {str(e)}")
-    
-#     # 步骤完成描述
-#     INSERT_SPLIT = \
-#     f"""
-#     """   
-#     # writer(INSERT_SPLIT)    
-#     STEP2_DESC7 = f"""
-# ### 第2部分-pMHC细胞内抗原呈递概率预测结束并完成筛选
-# 已完成细胞内的抗原呈递概率筛选，结果如下：
-# ```fasta
-# {bigmhc_el_fasta_str}
-# ```
-# """
-#     # writer(STEP2_DESC7)
-#     mrna_design_process_result.append(STEP2_DESC7)
-# #    model_runnable = await wrap_summary_llm_model_async_stream(summary_llm, NETMHCPAN_PROMPT)
-# #    # 模拟输入
-# #    inputs = {"user_input": netmhcpan_result_dict["content"]}
-# #    # 流式获取输出
-# #    async for chunk in model_runnable.astream(inputs):
-# #        # print(chunk)
-# #        # writer(chunk.content) 
-# #        continue
-#     STEP2_DESC7 = f"""
-# ✅ 已识别出**{count}个亲和力较强的候选肽段**，符合进一步免疫原性筛选条件
-# """
-#     writer(STEP2_DESC7)
-#     return f"minio://molly/{bigmhc_el_result_fasta_filename}", bigmhc_el_fasta_str,f"{count}/{mhcpan_count}",count,bigmhc_el_result_file_path
