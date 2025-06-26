@@ -102,7 +102,16 @@ def filter_rnafold(input_file_path: str, rnafold_energy_threshold: float) -> tup
     except Exception as e:
         raise Exception(f"处理失败: {e}")
 
-def normalize_hla_alleles(allele_list):
+def normalize_hla_alleles(allele_str):
+    """
+    标准化 HLA 等位基因名称。
+    输入: 字符串，多个等位基因用逗号分隔，如 "A0201,HLA-A02:01,B*07:02"
+    输出: 标准化后的等位基因字符串，如 "HLA-A02:01,HLA-B07:02"
+    """
+    # 将输入字符串按逗号分割成列表
+    allele_list = [a.strip() for a in allele_str.split(',') if a.strip()]
+    
+    print(allele_list)
     normalized = []
     for allele in allele_list:
         # 去除所有空格和可能的*
@@ -132,11 +141,12 @@ def normalize_hla_alleles(allele_list):
         
         normalized.append(allele)
     
-    return normalized
+    # 将标准化后的列表用逗号连接成字符串返回
+    return ','.join(normalized)
 
 async def run_neoantigenselection(
     input_file: str,
-    mhc_allele: Optional[List[str]] = None,
+    mhc_allele: Optional[str] = None,
     cdr3_sequence: Optional[List[str]] = None
 ) -> str:
     """
@@ -160,8 +170,8 @@ async def run_neoantigenselection(
     tcr_m=0
 
     writer = get_stream_writer()
+    
     mhc_allele=normalize_hla_alleles(mhc_allele)
-
     try:
 
         # 第一步：蛋白切割位点预测
@@ -246,7 +256,7 @@ async def run_neoantigenselection(
 @tool
 def NeoantigenSelection(
     input_file: str,
-    mhc_allele: Optional[List[str]] = None, 
+    mhc_allele: Optional[str] = None, 
     cdr3_sequence: Optional[List[str]] = None
 ) -> str:
     """                                    

@@ -30,7 +30,7 @@ class AgentState(MessagesState, total=False):
     """`total=False` is PEP589 specs.
     documentation: https://typing.readthedocs.io/en/latest/spec/typeddict.html#totality
     """
-    mhc_allele: Optional[List[str]]
+    mhc_allele: Optional[str]
     cdr3: Optional[List[str]] 
     input_fsa_filepath: Optional[str]
     mode: int #0-user, 1-demo

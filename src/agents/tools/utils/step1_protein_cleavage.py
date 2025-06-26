@@ -48,8 +48,11 @@ async def step1_protein_cleavage(
     
     # 运行NetChop工具
     netchop_result = await NetChop.arun({
-        "input_file": input_file,
-        "cleavage_site_threshold": cleavage_site_threshold
+        "input_filename": input_file,
+        "cleavage_site_threshold": cleavage_site_threshold,
+        "model": 0,
+        "format": 0, 
+        "strict": 0
     })
     
     try:

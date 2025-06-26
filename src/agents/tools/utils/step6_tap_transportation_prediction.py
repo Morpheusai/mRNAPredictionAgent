@@ -16,7 +16,7 @@ NETCTLPAN_THRESHOLD = NEOANTIGEN_CONFIG["netctlpan_threshold"]
 
 async def step6_tap_transportation_prediction(
     cleavage_result_file_path: str, 
-    mhc_allele: List[str],
+    mhc_allele: str,
     writer,
     mrna_design_process_result: list,
     neoantigen_message,
@@ -35,8 +35,8 @@ async def step6_tap_transportation_prediction(
     Returns:
         tuple: (netctlpan_result_file_path, netctlpan_fasta_str) 结果文件路径和FASTA内容
     """
-    mhc_allele_str = ",".join(mhc_allele)
-    mhc_allele_str = mhc_allele[0]
+    # mhc_allele_str = ",".join(mhc_allele)
+    # mhc_allele_str = mhc_allele[0]
     
     # 步骤开始描述
 #     STEP2_DESC1 = f"""
@@ -58,9 +58,14 @@ async def step6_tap_transportation_prediction(
     
     # 运行NetCTLpan工具
     netctlpan_result = await NetCTLpan.arun({
-        "input_file": cleavage_result_file_path,
-        "mhc_allele": mhc_allele_str,
-        "peptide_length": "9"
+        "input_filename": cleavage_result_file_path,
+        "mhc_allele": mhc_allele,
+        "peptide_length": 9,
+        "weight_of_tap": 0.025,
+        "weight_of_clevage": 0.225,
+        "epi_threshold": 1.0,
+        "output_threshold": -99.9,
+        "sort_by": -1
     })
     
     try:

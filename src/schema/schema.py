@@ -62,9 +62,9 @@ class PredictUserInput(BaseModel):
         description="测序文件minio路径",
         examples=["minio://molly/6e461c0b-876c-4a98-9e7e-a743ec71c7b0_bigmhc_el.fasta"],
     )
-    mhc_allele: List[str] = Field(
+    mhc_allele: str = Field(
         description="HLA分型",
-        examples=[["HLA-A*0201", "HLA-B*0702"]],
+        examples=["HLA-A*0201，HLA-B*0702"],
     )
     cdr3: List[str] = Field(
         description="cdr3序列",

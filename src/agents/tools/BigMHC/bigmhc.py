@@ -22,205 +22,198 @@ MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MINIO_BUCKET = MINIO_CONFIG["bigmhc_bucket"]
 
 
-def parse_fasta(filepath: str) -> List[str]:
-    peptides = []
-    with open(filepath, "r") as f:
-        current = []
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith(">"):
-                if current:
-                    peptides.append("".join(current))
-                    current = []
-            else:
-                current.append(line)
-        if current:
-            peptides.append("".join(current))
-    return peptides
-
-#  下载并解析 MinIO 文件
-def resolve_minio_to_list(minio_path: str, is_peptide: bool = False) -> List[str]:
-
-    path = minio_path[len("minio://"):]
-    bucket, object_path = path.split("/", 1)
-
-    ext = os.path.splitext(object_path)[1].lower()
-
-    with tempfile.NamedTemporaryFile(delete=True) as tmp:
-        download_from_minio_uri(minio_path,tmp.name)
-
-        if is_peptide and ext in [".fa", ".fasta", ".fas"]:
-            return parse_fasta(tmp.name)
-        else:
-            return [line.strip() for line in open(tmp.name) if line.strip()]
-
-
-#  支持 list[str] 或 minio:// 路径
-def resolve_input(input_val: Union[str, List[str]], is_peptide: bool = False) -> List[str]:
-    if isinstance(input_val, list):
-        return [line.strip() for line in input_val if line.strip()]
-    elif isinstance(input_val, str) and input_val.startswith("minio://"):
-        return resolve_minio_to_list(input_val, is_peptide=is_peptide)
-    else:
-        raise ValueError("必须是列表或以 minio:// 开头的字符串")
-
-#  前处理 + 上传 MinIO，返回 minio 路径
-def generate_bigmhc_input_file(
-    input_file: Union[List[str], str],
-    mhc_alleles: List[str],
-    default_tgt: int = 1
-) -> str:
-    
-    peptides = resolve_input(input_file, is_peptide=True)
-    hlas = resolve_input(mhc_alleles)
-
-    if not peptides or not hlas:
-        raise ValueError("肽段或 HLA 输入不能为空")
-
-    if len(peptides) == len(hlas):
-        data = [{"mhc": hla.strip(), "pep": pep.strip(), "tgt": default_tgt}
-                for pep, hla in zip(peptides, hlas)]
-    else:
-        data = [{"mhc": hla.strip(), "pep": pep.strip(), "tgt": default_tgt}
-                for hla in hlas for pep in peptides]
-
-    df = pd.DataFrame(data, columns=["mhc", "pep", "tgt"])
-
-    # 创建临时文件
-    with tempfile.NamedTemporaryFile(delete=True, suffix=".csv") as tmp:
-        df.to_csv(tmp.name, index=False)
-        unique_name = f"{uuid.uuid4().hex}_bigmhc_el_input.csv"
-        minio_upload_path = upload_file_to_minio(tmp.name,MINIO_BUCKET,unique_name)
-    return minio_upload_path
-
-# def generate_bigmhc_im_input_from_fasta(
-#     fasta_minio_path: str,
-#     default_tgt: int = 1
-# ) -> str:
-#     """
-#     解析 >peptide|HLA 格式的 FASTA 文件，并生成符合 BigMHC-IM 的 CSV（自动补全 HLA- 前缀）。
-
-#     参数:
-#     - fasta_minio_path: MinIO 路径，例如 minio://bucket/file.fasta
-#     - default_tgt: 默认标签，通常为 1
-
-#     返回:
-#     - minio:// 路径的 CSV 文件
-#     """
-#     local_path = tempfile.NamedTemporaryFile(delete=True).name
-#     download_from_minio_uri(fasta_minio_path,local_path)
-
-#     records = []
-#     HLA_REGEX = re.compile(r"^(HLA-)?[ABC]\*\d{2}:\d{2}$")
-
-#     with open(local_path, "r") as f:
-#         current_hla = ""
+# def parse_fasta(filepath: str) -> List[str]:
+#     peptides = []
+#     with open(filepath, "r") as f:
+#         current = []
 #         for line in f:
 #             line = line.strip()
-#             if line.startswith(">") and "|" in line:
-#                 parts = line[1:].split("|", 1)
-#                 if len(parts) == 2 and HLA_REGEX.fullmatch(parts[1].strip()):
-#                     hla = parts[1].strip()
-#                     if not hla.startswith("HLA-"):
-#                         hla = "HLA-" + hla
-#                     current_hla = hla
-#             elif line and current_hla:
-#                 pep_seq = line.strip()
-#                 records.append({
-#                     "mhc": current_hla,
-#                     "pep": pep_seq,
-#                     "tgt": default_tgt
-#                 })
-#                 current_hla = ""  # reset for next
+#             if not line:
+#                 continue
+#             if line.startswith(">"):
+#                 if current:
+#                     peptides.append("".join(current))
+#                     current = []
+#             else:
+#                 current.append(line)
+#         if current:
+#             peptides.append("".join(current))
+#     return peptides
 
-#     if not records:
-#         raise ValueError("未能从 FASTA 中解析出合法的 >peptide|HLA 项")
+# #  下载并解析 MinIO 文件
+# def resolve_minio_to_list(minio_path: str, is_peptide: bool = False) -> List[str]:
 
-#     df = pd.DataFrame(records, columns=["mhc", "pep", "tgt"])
+#     path = minio_path[len("minio://"):]
+#     bucket, object_path = path.split("/", 1)
+
+#     ext = os.path.splitext(object_path)[1].lower()
+
+#     with tempfile.NamedTemporaryFile(delete=True) as tmp:
+#         download_from_minio_uri(minio_path,tmp.name)
+
+#         if is_peptide and ext in [".fa", ".fasta", ".fas"]:
+#             return parse_fasta(tmp.name)
+#         else:
+#             return [line.strip() for line in open(tmp.name) if line.strip()]
+
+
+# #  支持 list[str] 或 minio:// 路径
+# def resolve_input(input_val: Union[str, List[str]], is_peptide: bool = False) -> List[str]:
+#     if isinstance(input_val, list):
+#         return [line.strip() for line in input_val if line.strip()]
+#     elif isinstance(input_val, str) and input_val.startswith("minio://"):
+#         return resolve_minio_to_list(input_val, is_peptide=is_peptide)
+#     else:
+#         raise ValueError("必须是列表或以 minio:// 开头的字符串")
+
+# #  前处理 + 上传 MinIO，返回 minio 路径
+# def generate_bigmhc_input_file(
+#     input_file: Union[List[str], str],
+#     mhc_alleles: List[str],
+#     default_tgt: int = 1
+# ) -> str:
+    
+#     peptides = resolve_input(input_file, is_peptide=True)
+#     hlas = resolve_input(mhc_alleles)
+
+#     if not peptides or not hlas:
+#         raise ValueError("肽段或 HLA 输入不能为空")
+
+#     if len(peptides) == len(hlas):
+#         data = [{"mhc": hla.strip(), "pep": pep.strip(), "tgt": default_tgt}
+#                 for pep, hla in zip(peptides, hlas)]
+#     else:
+#         data = [{"mhc": hla.strip(), "pep": pep.strip(), "tgt": default_tgt}
+#                 for hla in hlas for pep in peptides]
+
+#     df = pd.DataFrame(data, columns=["mhc", "pep", "tgt"])
+
+#     # 创建临时文件
 #     with tempfile.NamedTemporaryFile(delete=True, suffix=".csv") as tmp:
 #         df.to_csv(tmp.name, index=False)
-#         unique_name = f"{uuid.uuid4().hex}_bigmhc_im_input.csv"
+#         unique_name = f"{uuid.uuid4().hex}_bigmhc_el_input.csv"
 #         minio_upload_path = upload_file_to_minio(tmp.name,MINIO_BUCKET,unique_name)
 #     return minio_upload_path
 
-# def prepare_bigmhc_input_file(
-#     input_file: Optional[str],
-#     peptide_input: Optional[Union[List[str], str]],
-#     hla_input: Optional[Union[List[str], str]]
-# ) -> str:
-#     if input_file:
-#         if peptide_input or hla_input:
-#             raise ValueError("不允许同时提供 input_file 和 peptide/hla 参数")
-#         return input_file
+# # def generate_bigmhc_im_input_from_fasta(
+# #     fasta_minio_path: str,
+# #     default_tgt: int = 1
+# # ) -> str:
+# #     """
+# #     解析 >peptide|HLA 格式的 FASTA 文件，并生成符合 BigMHC-IM 的 CSV（自动补全 HLA- 前缀）。
 
-#     if peptide_input and hla_input:
-#         return generate_bigmhc_input_file(peptide_input, hla_input)
+# #     参数:
+# #     - fasta_minio_path: MinIO 路径，例如 minio://bucket/file.fasta
+# #     - default_tgt: 默认标签，通常为 1
+
+# #     返回:
+# #     - minio:// 路径的 CSV 文件
+# #     """
+# #     local_path = tempfile.NamedTemporaryFile(delete=True).name
+# #     download_from_minio_uri(fasta_minio_path,local_path)
+
+# #     records = []
+# #     HLA_REGEX = re.compile(r"^(HLA-)?[ABC]\*\d{2}:\d{2}$")
+
+# #     with open(local_path, "r") as f:
+# #         current_hla = ""
+# #         for line in f:
+# #             line = line.strip()
+# #             if line.startswith(">") and "|" in line:
+# #                 parts = line[1:].split("|", 1)
+# #                 if len(parts) == 2 and HLA_REGEX.fullmatch(parts[1].strip()):
+# #                     hla = parts[1].strip()
+# #                     if not hla.startswith("HLA-"):
+# #                         hla = "HLA-" + hla
+# #                     current_hla = hla
+# #             elif line and current_hla:
+# #                 pep_seq = line.strip()
+# #                 records.append({
+# #                     "mhc": current_hla,
+# #                     "pep": pep_seq,
+# #                     "tgt": default_tgt
+# #                 })
+# #                 current_hla = ""  # reset for next
+
+# #     if not records:
+# #         raise ValueError("未能从 FASTA 中解析出合法的 >peptide|HLA 项")
+
+# #     df = pd.DataFrame(records, columns=["mhc", "pep", "tgt"])
+# #     with tempfile.NamedTemporaryFile(delete=True, suffix=".csv") as tmp:
+# #         df.to_csv(tmp.name, index=False)
+# #         unique_name = f"{uuid.uuid4().hex}_bigmhc_im_input.csv"
+# #         minio_upload_path = upload_file_to_minio(tmp.name,MINIO_BUCKET,unique_name)
+# #     return minio_upload_path
+
+# # def prepare_bigmhc_input_file(
+# #     input_file: Optional[str],
+# #     peptide_input: Optional[Union[List[str], str]],
+# #     hla_input: Optional[Union[List[str], str]]
+# # ) -> str:
+# #     if input_file:
+# #         if peptide_input or hla_input:
+# #             raise ValueError("不允许同时提供 input_file 和 peptide/hla 参数")
+# #         return input_file
+
+# #     if peptide_input and hla_input:
+# #         return generate_bigmhc_input_file(peptide_input, hla_input)
+
+# #     raise ValueError("请提供 input_file，或同时提供 peptide_input 和 hla_input")
+
+# def prepare_bigmhc_input_file(
+#     input_file: str,
+#     mhc_alleles: List[str],
+# ) -> str:
+#     # if input_file:
+#     #     if peptide_input or hla_input:
+#     #         raise ValueError("不允许同时提供 input_file 和 peptide/hla 参数")
+
+#     #     # 判断是否是 fasta 文件（用于 BigMHC_IM 特殊格式）
+#     #     if input_file.startswith("minio://") and input_file.lower().endswith((".fa", ".fasta", ".fsa")):
+#     #         from tempfile import NamedTemporaryFile
+#     #         import re
+
+#     #         # 支持 HLA-A*02:01 和 A*02:01 等形式
+#     #         HLA_REGEX = re.compile(r"^(HLA-)?[ABC]\*\d{2}:\d{2}$")
+
+
+#     #         with NamedTemporaryFile(delete=True) as tmp:
+#     #             download_from_minio_uri(input_file,tmp.name)
+
+#     #             with open(tmp.name, "r") as f:
+#     #                 for line in f:
+#     #                     if line.startswith(">") and "|" in line:
+#     #                         parts = line[1:].split("|", 1)
+#     #                         if len(parts) == 2 and HLA_REGEX.fullmatch(parts[1].strip()):
+#     #                             return generate_bigmhc_im_input_from_fasta(input_file)
+
+#     #     return input_file  # 普通 .csv 文件
+
+#     if input_file and mhc_alleles:
+#         return generate_bigmhc_input_file(input_file, mhc_alleles)
 
 #     raise ValueError("请提供 input_file，或同时提供 peptide_input 和 hla_input")
-
-def prepare_bigmhc_input_file(
-    input_file: str,
-    mhc_alleles: List[str],
-) -> str:
-    # if input_file:
-    #     if peptide_input or hla_input:
-    #         raise ValueError("不允许同时提供 input_file 和 peptide/hla 参数")
-
-    #     # 判断是否是 fasta 文件（用于 BigMHC_IM 特殊格式）
-    #     if input_file.startswith("minio://") and input_file.lower().endswith((".fa", ".fasta", ".fsa")):
-    #         from tempfile import NamedTemporaryFile
-    #         import re
-
-    #         # 支持 HLA-A*02:01 和 A*02:01 等形式
-    #         HLA_REGEX = re.compile(r"^(HLA-)?[ABC]\*\d{2}:\d{2}$")
-
-
-    #         with NamedTemporaryFile(delete=True) as tmp:
-    #             download_from_minio_uri(input_file,tmp.name)
-
-    #             with open(tmp.name, "r") as f:
-    #                 for line in f:
-    #                     if line.startswith(">") and "|" in line:
-    #                         parts = line[1:].split("|", 1)
-    #                         if len(parts) == 2 and HLA_REGEX.fullmatch(parts[1].strip()):
-    #                             return generate_bigmhc_im_input_from_fasta(input_file)
-
-    #     return input_file  # 普通 .csv 文件
-
-    if input_file and mhc_alleles:
-        return generate_bigmhc_input_file(input_file, mhc_alleles)
-
-    raise ValueError("请提供 input_file，或同时提供 peptide_input 和 hla_input")
 
 
 @tool
 async def BigMHC_EL(
-    input_file: str,
-    mhc_alleles: Optional[List[str]] = None,
+    input_filename: str,
+    mhc_allele: str = None,
     ) -> str:
     """
         BigMHC-EL：用于 MHC-I 表位肽段的抗原递呈预测。
         参数说明：
-        - input_file：提供fasta文件的肽段。
-        - mhc_alleles：对应的 HLA 类型，字符串列表。
+        - input_filename：提供fasta文件的肽段。
+        - mhc_allele：对应的 HLA 类型，字符串类型。
 
 
         返回值：
         - JSON 字符串，包含预测结果或错误信息。
     """
     try:
-        try:
-            input_file = prepare_bigmhc_input_file(input_file,  mhc_alleles)
-        except ValueError as ve:
-            return json.dumps({
-                "type": "text",
-                "content": f" 参数错误: {str(ve)}"
-            }, ensure_ascii=False)
-
         payload = {
-            "input_file": input_file,
+            "input_filename": input_filename,
+            "mhc_allele": mhc_allele,
             "model_type": "el"
         }
 
@@ -242,31 +235,24 @@ async def BigMHC_EL(
 
 @tool
 async def BigMHC_IM(
-    input_file: str,
-    mhc_alleles: Optional[List[str]] = None,
+    input_filename: str,
+    mhc_allele: Optional[str] = None,
 ) -> str:
     """
         BigMHC-IM：用于 MHC-I 肽段的免疫原性（Immunogenicity）预测。
 
         参数说明：
-        - input_file：提供fasta文件的肽段。
-        - mhc_alleles：对应的 HLA 类型，字符串列表。
+        - input_filename：提供fasta文件的肽段。
+        - mhc_allele：对应的 HLA 类型，字符串列表。
 
         返回值：
         - JSON 字符串，包含模型预测结果或错误信息。
     """
     try:
-        try:
-            input_file = prepare_bigmhc_input_file(input_file, mhc_alleles)
-        except ValueError as ve:
-            return json.dumps({
-                "type": "text",
-                "content": f" 参数错误: {str(ve)}"
-            }, ensure_ascii=False)
-
         payload = {
-            "input_file": input_file,
-            "model_type": "im" 
+            "input_filename": input_filename,
+            "mhc_allele": mhc_allele,
+            "model_type": "im"
         }
 
         timeout = aiohttp.ClientTimeout(total=30)

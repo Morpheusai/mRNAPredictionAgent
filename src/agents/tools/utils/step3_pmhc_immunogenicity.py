@@ -94,9 +94,11 @@ async def step3_pmhc_immunogenicity(
     mrna_design_process_result.append(STEP3_DESC1)
 
     input_file,mhc_alleles = extract_hla_and_peptides_from_fasta(bigmhc_el_result_file_path)
+    mhc_allele = ",".join(mhc_alleles)
+    
     # 运行BigMHC_IM工具
     bigmhc_im_result = await BigMHC_IM.arun({
-        "input_file": input_file,"mhc_alleles":mhc_alleles
+        "input_filename": input_file,"mhc_allele":mhc_allele
     })
     try:
         bigmhc_im_result_dict = json.loads(bigmhc_im_result)

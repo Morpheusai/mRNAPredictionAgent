@@ -11,23 +11,32 @@ from config import CONFIG_YAML
 netchop_url = CONFIG_YAML["TOOL"]["NETCHOP"]["url"]
 @tool
 async def NetChop(
-    input_file: str,
-    cleavage_site_threshold: Optional[float] = 0.5
+    input_filename: str,
+    cleavage_site_threshold: Optional[float] = 0.5,
+    model: Optional[int] = 0,
+    format: Optional[int] = 0,
+    strict: Optional[int] = 0
 ) -> str:
     """
     自动调用远程 NetChop 工具进行蛋白质切割位点预测。
 
     参数说明：
-    - input_file: MinIO 路径，例如 minio://bucket/path.fasta
+    - input_filename: MinIO 路径，例如 minio://bucket/path.fasta
     - cleavage_site_threshold: 切割阈值（默认 0.5，范围 0~1）
+    - model: 预测模型版本 (默认 0): 0=Cterm3.0, 1=20S-3.0
+    - format: 输出格式 (默认 0): 0=长格式, 1=短格式
+    - strict: 关闭严格模式 (默认 0): 0=开启严格模式
 
     返回：
     - str：NetChop 服务返回的 JSON 结果
     """
     
     payload = {
-        "input_file": input_file,
-        "cleavage_site_threshold": cleavage_site_threshold
+        "input_filename": input_filename,
+        "cleavage_site_threshold": cleavage_site_threshold,
+        "model": model,
+        "format": format,
+        "strict": strict
     }
 
     timeout = aiohttp.ClientTimeout(total=30)
@@ -53,8 +62,11 @@ if __name__ == "__main__":
     import asyncio
     async def test():
         result = await NetChop.ainvoke({
-            "input_file": test_input,
-            "cleavage_site_threshold": 0.6
+            "input_filename": test_input,
+            "cleavage_site_threshold": 0.6,
+            "model": 0,
+            "format": 0,
+            "strict": 0
         })
         print("异步调用结果：")
         print(result)

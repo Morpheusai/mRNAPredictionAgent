@@ -4,6 +4,7 @@ import json
 import traceback
 
 from langchain_core.tools import tool
+from typing import Optional
 
 from config import CONFIG_YAML
 
@@ -11,32 +12,35 @@ netmhcpan_url = CONFIG_YAML["TOOL"]["NETMHCPAN"]["url"]
 
 @tool
 async def NetMHCpan(
-    input_file: str,
+    input_filename: str,
     mhc_allele: str = "HLA-A02:01",
+    peptide_length: int = -1,
     high_threshold_of_bp: float = 0.5,
     low_threshold_of_bp: float = 2.0,
-    peptide_length: str = "8,9,10,11"
+    rank_cutoff: float = -99.9
 ) -> str:
     """
     NetMHCpan 用于预测肽段序列与指定 MHC 分子的结合能力。
 
-    参数:
-    - input_file: MinIO 路径，例如 minio://bucket/path.fasta
-    - mhc_allele: MHC 等位基因
-    - high_threshold_of_bp: 高亲和力阈值
-    - low_threshold_of_bp: 低亲和力阈值
-    - peptide_length: 肽段长度，逗号分隔
+    参数说明:
+    - input_filename: 输入文件路径，例如 minio://bucket/path.fasta
+    - mhc_allele: MHC等位基因，默认"HLA-A02:01"，多个用逗号分隔
+    - peptide_length: 肽段长度，默认-1（表示8-11），范围8-11
+    - high_threshold_of_bp: 高亲和力阈值，默认0.5，越低筛选越严格
+    - low_threshold_of_bp: 低亲和力阈值，默认2.0，越高筛选越宽松
+    - rank_cutoff: %Rank截断值，默认-99.9，正数时仅输出小于等于该值的结果
 
     返回:
     - str: JSON 格式的预测结果
     """
     
     payload = {
-        "input_file": input_file,
+        "input_filename": input_filename,  # 注意：保持 input_file 因为远程服务接口可能还在用这个名字
         "mhc_allele": mhc_allele,
         "high_threshold_of_bp": high_threshold_of_bp,
         "low_threshold_of_bp": low_threshold_of_bp,
-        "peptide_length": peptide_length
+        "peptide_length": peptide_length,
+        "rank_cutoff": rank_cutoff
     }
 
     timeout = aiohttp.ClientTimeout(total=30)
@@ -54,16 +58,17 @@ async def NetMHCpan(
             "type": "text",
             "content": f"调用 NetMHCpan 服务失败: {type(e).__name__} - {str(e)}"
         }, ensure_ascii=False)
+
 if __name__ == "__main__":
-    # test_input = "minio://molly/8e2d5554-cd03-4088-98f4-1766952b4171_B0702.fsa"
     test_input = "minio://netchop-cleavage-results/c8a29857-345d-49cc-bce5-71a5a9fe4864_cleavage_result.fasta"
     async def test():
         result = await NetMHCpan.ainvoke({
-            "input_file": test_input,
+            "input_filename": test_input,
             "mhc_allele": "HLA-A02:01,HLA-A24:02,HLA-A26:01",
+            "peptide_length": -1,
             "high_threshold_of_bp": 0.5,
             "low_threshold_of_bp": 2.0,
-            "peptide_length": "8,9,10,11"
+            "rank_cutoff": -99.9
         })
         print("NetMHCpan 异步调用结果：")
         print(result)

@@ -73,7 +73,7 @@ async def step2_pmhc_binding_affinity(
     Returns:
         tuple: (bigmhc_el_result_file_path, fasta_str) 结果文件路径和FASTA内容
     """
-    mhc_allele_str = ",".join(mhc_allele)
+    # mhc_allele_str = ",".join(mhc_allele)
     
     # 步骤开始描述
 #     STEP2_DESC1 = f"""
@@ -104,8 +104,12 @@ async def step2_pmhc_binding_affinity(
     
     # 运行NetMHCpan工具
     netmhcpan_result = await NetMHCpan.arun({
-        "input_file": cleavage_result_file_path,
-        "mhc_allele": mhc_allele_str
+        "input_filename": cleavage_result_file_path,
+        "mhc_allele": mhc_allele,
+        "peptide_length ": -1 ,
+        "high_threshold_of_bp ": 0.5,
+        "low_threshold_of_bp ": 2.0,
+        "rank_cutoff ": -99.9,
     })
     try:
         netmhcpan_result_dict = json.loads(netmhcpan_result)
