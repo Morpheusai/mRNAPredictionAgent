@@ -91,14 +91,12 @@ class PredictUserInput(BaseModel):
                     "os": -1
                 },
                 "netmhcpan": {
-                    {
-                        "input_filename": "testA.fsa",
-                        "hla": "HLA-A02:01",    
-                        "length": -1 ,
-                        "rth": 0.025,
-                        "rlt": 0.225,
-                        "ot": -99.9,
-                    }    
+                    "input_filename": "testA.fsa",
+                    "hla": "HLA-A02:01",    
+                    "length": -1 ,
+                    "rth": 0.025,
+                    "rlt": 0.225,
+                    "ot": -99.9,
                 },
                 "bigmhc_im": {
                 }
