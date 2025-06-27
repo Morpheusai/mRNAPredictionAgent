@@ -1,4 +1,5 @@
 import json
+import requests
 
 from io import BytesIO
 from minio.error import S3Error
@@ -7,11 +8,17 @@ from src.agents.tools.NetChop.netchop import NetChop
 from src.agents.tools.parameters import NetchopParameters
 from src.agents.tools.CleavagePeptide.cleavage_peptide import NetChop_Cleavage
 from src.utils.minio_utils import MINIO_CLIENT
+from config import CONFIG_YAML
+from src.utils.tool_input_output_api import send_tool_input_output_api
+
+handle_url = CONFIG_YAML["TOOL"]["COMMON"]["handle_tool_input_output_url"]
 
 async def step1_protein_cleavage(
         input_parameters: NetchopParameters, 
         writer, 
-        neoantigen_message
+        neoantigen_message,
+        patient_id,
+        predict_id,
     ) -> tuple:
     """
     第一步：蛋白切割位点预测
@@ -40,6 +47,12 @@ async def step1_protein_cleavage(
 # """
     writer(STEP1_DESC1)
     
+    # 调用前置接口
+    try:
+        send_tool_input_output_api(patient_id, predict_id, 0, "NetChop", input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters))
+    except Exception as e:
+        print(f"工具前置接口调用失败: {e}")
+    
     # 运行NetChop工具
     netchop_result = await NetChop.arun({
         "input_filename": input_parameters.input_filename,
@@ -49,13 +62,23 @@ async def step1_protein_cleavage(
         "strict": input_parameters.strict
     })
     
+
+    
+
+
     try:
         netchop_result_dict = json.loads(netchop_result)
     except json.JSONDecodeError:
         neoantigen_message[0] = f"0/0"
         neoantigen_message[1] =  "蛋白切割位点阶段NetChop工具执行失败"   
         raise Exception("蛋白切割位点阶段NetChop工具执行失败")
+        # 调用后置接口
+    try:
+        send_tool_input_output_api(patient_id, predict_id, 1, "NetChop", netchop_result_dict)
+    except Exception as e:
+        print(f"工具后置接口调用失败: {e}")
     
+
     if netchop_result_dict.get("type") != "link":
         neoantigen_message[0] = f"0/0"
         neoantigen_message[1] =  "蛋白切割位点阶段NetChop工具执行失败"   

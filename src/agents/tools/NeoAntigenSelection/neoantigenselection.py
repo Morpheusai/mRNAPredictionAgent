@@ -149,7 +149,9 @@ async def run_neoantigenselection(
     input_file: str,
     mhc_allele: Optional[str] = None,
     cdr3_sequence: Optional[List[str]] = None,
-    tool_parameters: Optional[ToolParameters] = None
+    tool_parameters: Optional[ToolParameters] = None,
+    patient_id: Optional[str] = None, 
+    predict_id: Optional[int] = None
 ) -> str:
     """
     运行新抗原筛选流程
@@ -162,6 +164,9 @@ async def run_neoantigenselection(
     Returns:
         str: JSON格式的结果字符串
     """
+    # 新增：如果tool_parameters为None，自动用默认值创建
+    if tool_parameters is None:
+        tool_parameters = ToolParameters()
     # 初始化变量
     neoantigen_message = ["--"] * 9
     cleavage_m=0
@@ -180,7 +185,9 @@ async def run_neoantigenselection(
         cleavage_result_file_path, netchop_final_result_str,cleavage_m = await step1_protein_cleavage(
             netchop_parameters, 
             writer, 
-            neoantigen_message
+            neoantigen_message,
+            patient_id,
+            predict_id,
         )
         neoantigen_message[0] = f"{cleavage_m}/{cleavage_m}"
         neoantigen_message[1] = cleavage_result_file_path
@@ -190,10 +197,12 @@ async def run_neoantigenselection(
         netctlpan_parameters.input_filename = cleavage_result_file_path
         netctlpan_parameters.mhc_allele = mhc_allele
         netctlpan_file_path, netctlpan_fasta_str, tap_m,netctlpan_tool_url = await step6_tap_transportation_prediction(
-            netctlpan_parameters
+            netctlpan_parameters,
             writer, 
             neoantigen_message,
-            cleavage_m
+            cleavage_m,
+            patient_id,
+            predict_id,
         )
         neoantigen_message[2]=f"{tap_m}/{cleavage_m}"
         neoantigen_message[3]=netctlpan_tool_url
@@ -203,20 +212,24 @@ async def run_neoantigenselection(
         netmhcpan_parameters.input_filename = netctlpan_file_path
         netmhcpan_parameters.mhc_allele = mhc_allele
         netmhcpan_result_file_path, mhcpan_count = await step2_pmhc_binding_affinity(
-            netmhcpan_parameters
+            netmhcpan_parameters,
             writer, 
             neoantigen_message,
-            tap_m
+            tap_m,
+            patient_id,
+            predict_id,
         )
 
         # 第四步：pMHC免疫原性预测
-        bigmhc_parameters = ToolParameters.get_bigmhc_im_parameters()
+        bigmhc_parameters = tool_parameters.get_bigmhc_im_parameters()
         bigmhc_parameters.input_filename = netmhcpan_result_file_path 
         bigmhc_im_result_file_path, bigmhc_im_fasta_str,pmhc_immunogenicity_m, bigmhc_im_tool_url, bigmhc_im_content= await step3_pmhc_immunogenicity(
             bigmhc_parameters, 
             writer, 
             neoantigen_message,
-            pmhc_binding_m
+            pmhc_binding_m,
+            patient_id,
+            predict_id,
         )
         neoantigen_message[6]=f"{pmhc_immunogenicity_m}/{mhcpan_count}"
         neoantigen_message[7]=bigmhc_im_tool_url
@@ -248,20 +261,25 @@ async def run_neoantigenselection(
         error_traceback = traceback.format_exc()
         print(f"流程执行失败，完整异常栈:\n{error_traceback}")
         print(f"流程执行失败: {str(e)}")
-        return json.dumps({
-            "type": "text",
-            "content": f"流程执行失败: {str(e)}"
-        }, ensure_ascii=False)
-    
+        # 写入日志
+        try:
+            from src.utils.log import logger
+            logger.error(f"流程执行失败，完整异常栈:\n{error_traceback}")
+            logger.error(f"流程执行失败: {str(e)}")
+        except Exception:
+            pass
     finally:
         # 返回最终结果
-        return "#NEO#".join(neoantigen_message)
+        return neoantigen_message
+
 @tool
 def NeoantigenSelection(
     input_file: str,
     mhc_allele: Optional[str] = None, 
     cdr3_sequence: Optional[List[str]] = None,
-    tool_parameters: Optional[ToolParameters] = None
+    tool_parameters: Optional[ToolParameters] = None,
+    patient_id: Optional[str] = None, 
+    predict_id: Optional[int] = None
 ) -> str:
     """                                    
     NeoantigenSelection是基于用户输入的患者信息，结合已有的工具库，完成个体化neo-antigen筛选。
@@ -279,7 +297,9 @@ def NeoantigenSelection(
                 input_file, 
                 mhc_allele, 
                 cdr3_sequence,
-                tool_parameters
+                tool_parameters,
+                patient_id,
+                predict_id
             )
         )
         return result

@@ -30,6 +30,7 @@ class NetchopParameters(BaseModel):
 class NetctlpanParameters(BaseModel):
     input_filename: str = Field(
         description = "指定输入的fasta文件名",
+        default="",  # 加上默认值
         examples=["testA.fsa"],
     )
     mhc_allele: str = Field(
@@ -79,6 +80,7 @@ f"""
 class NetmhcpanParameters(BaseModel):
     input_filename: str = Field(
         description = "指定输入的fasta文件名",
+        default="",  # 加上默认值
         examples=["testA.fsa"],
     )
     mhc_allele: str = Field(
@@ -118,6 +120,7 @@ class BigmhcIMParameters(BaseModel):
     """Parameters for BigMHC-IM."""
     input_filename: str = Field(
         description = "指定输入的fasta文件名",
+        default="",  # 加上默认值
         examples=["testA.fsa"],
     )
     mhc_allele: str = Field(
@@ -129,19 +132,17 @@ class BigmhcIMParameters(BaseModel):
 class ToolOutput(BaseModel):
     """
     工具输出模型
-    - name: 工具名称
     - output: 工具输出内容（字典）
     """
-    tool_name: str = Field(description="工具名称")
     tool_output: dict = Field(description="工具输出内容")
 
 class ToolParameters:
     """Parameters for a tool."""
     def __init__(self, **kwargs):
-        self.netchop_parameters = NetchopParameters(**kwargs.get("netchop"))
-        self.netctlpan_parameters = NetctlpanParameters(**kwargs.get("netctlpan"))
-        self.netmhcpan_parameters = NetmhcpanParameters(**kwargs.get("netmhcpan"))
-        self.bigmhc_im_parameters = BigmhcIMParameters(**kwargs.get("bigmhc_im"))
+        self.netchop_parameters = NetchopParameters(**(kwargs.get("netchop") or {}))
+        self.netctlpan_parameters = NetctlpanParameters(**(kwargs.get("netctlpan") or {}))
+        self.netmhcpan_parameters = NetmhcpanParameters(**(kwargs.get("netmhcpan") or {}))
+        self.bigmhc_im_parameters = BigmhcIMParameters(**(kwargs.get("bigmhc_im") or {}))
 
     def get_netchop_parameters(self) -> NetchopParameters:
         return self.netchop_parameters

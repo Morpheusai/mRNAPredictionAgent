@@ -1,5 +1,6 @@
 import json
 import uuid
+import requests
 
 import pandas as pd
 
@@ -11,15 +12,20 @@ from config import CONFIG_YAML
 from src.utils.minio_utils import MINIO_CLIENT
 from src.agents.tools.parameters import NetctlpanParameters
 from src.agents.tools.NetCTLPan.netctlpan import NetCTLpan
+from src.utils.tool_input_output_api import send_tool_input_output_api
 
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
 NETCTLPAN_THRESHOLD = NEOANTIGEN_CONFIG["netctlpan_threshold"]
+
+handle_url = CONFIG_YAML["TOOL"]["COMMON"]["handle_tool_input_output_url"]
 
 async def step6_tap_transportation_prediction(
     input_parameters: NetctlpanParameters, 
     writer,
     neoantigen_message,
-    cleavage_m
+    cleavage_m,
+    patient_id,
+    predict_id,
 ) -> tuple:
     """
     第二步：TAP转运预测阶段
@@ -51,6 +57,12 @@ async def step6_tap_transportation_prediction(
 """
     writer(STEP2_DESC1)
     
+    # 调用前置接口
+    try:
+        send_tool_input_output_api(patient_id, predict_id, 0, "NetCTLpan", input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters))
+    except Exception as e:
+        print(f"前置接口调用失败: {e}")
+    
     # 运行NetCTLpan工具
     netctlpan_result = await NetCTLpan.arun({
         "input_filename": input_parameters.input_filename,
@@ -68,6 +80,13 @@ async def step6_tap_transportation_prediction(
     except json.JSONDecodeError:
         raise Exception("TAP转运预测阶段NetCTLpan工具执行失败")
     
+
+    # 调用后置接口
+    try:
+        send_tool_input_output_api(patient_id, predict_id, 1, "NetCTLpan", netctlpan_result_dict)
+    except Exception as e:
+        print(f"后置接口调用失败: {e}")
+        
     if netctlpan_result_dict.get("type") != "link":
         raise Exception(netctlpan_result_dict.get("content", "TAP转运预测阶段NetCTLpan工具执行失败"))
     
@@ -163,4 +182,6 @@ async def step6_tap_transportation_prediction(
 ✅ 已完成转运评估，剔除部分效率较低肽段，保留**{count}个有效候选肽段**
 """    
     writer(STEP2_DESC7)
+
+
     return f"minio://molly/{netctlpan_result_fasta_filename}", netctlpan_fasta_str, count, netctlpan_result_file_path

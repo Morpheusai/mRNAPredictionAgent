@@ -42,7 +42,7 @@ class AgentState(MessagesState, total=False):
     cdr3: Optional[List[str]] 
     input_fsa_filepath: Optional[str]
     mode: int #0-user, 1-demo
-    neoantigen_message: str
+    neoantigen_message: Optional[List[str]] 
     patient_neoantigen_report: str
 
 # Data model
@@ -410,8 +410,8 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     writer("\n ✅ 病例数据分析完成，结合筛选过程生成病例报告...\n")
     patient_case_analysis_summary = response.content
 
-    neoantigen_message_str = state.get("neoantigen_message", "")
-    neoantigen_array = neoantigen_message_str.split("#NEO#") if neoantigen_message_str else []
+    neoantigen_array = state.get("neoantigen_message", "")
+    # neoantigen_array = neoantigen_message_str.split("#NEO#") if neoantigen_message_str else []
     report_data = {
         'patient_case_report': patient_case_analysis_summary,
         'cleavage_count':  neoantigen_array[0],

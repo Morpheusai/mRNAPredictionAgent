@@ -34,7 +34,7 @@ class AgentState(MessagesState, total=False):
     cdr3: Optional[List[str]] 
     input_fsa_filepath: Optional[str]
     mode: int #0-user, 1-demo
-    neoantigen_message: str
+    neoantigen_message: Optional[List[str]] 
     patient_neoantigen_report: str
 
 
@@ -60,6 +60,9 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     mhc_allele = config["configurable"].get("mhc_allele", None)
     cdr3 = config["configurable"].get("cdr3", None)
     tool_parameters = config["configurable"].get("tool_parameters", None)
+    patient_id = config["configurable"].get("patient_id", None)
+    predict_id = config["configurable"].get("predict_id", None)
+
     # 处理文件列表
     WRITER = get_stream_writer()
     if mhc_allele ==None:
@@ -95,7 +98,9 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
                 "input_file": file_path,
                 "mhc_allele": mhc_allele,
                 "cdr3_sequence": cdr3 if cdr3 is not None else cdr3,
-                "tool_parameters": tool_parameters
+                "tool_parameters": tool_parameters,
+                "patient_id":patient_id,
+                "predict_id":predict_id,
             }
         )
         return Command(
@@ -112,13 +117,20 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
 async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
 
     writer = get_stream_writer()
-#writer("\n```\n ✅ 病例数据分析完成，结合筛选过程生成病例报告...\n")
+#writer("\n``\n ✅ 病例数据分析完成，结合筛选过程生成报告...\n")
     writer('\n')
     writer("\n ✅ 肽段数据分析完成，结合筛选过程生成报告...\n")
 
-
-    neoantigen_message_str = state.get("neoantigen_message", "")
-    neoantigen_array = neoantigen_message_str.split("#NEO#") if neoantigen_message_str else []
+    neoantigen_array = state.get("neoantigen_message", "")
+    # # 安全赋值，防止未赋值报错
+    # if neoantigen_message_str and "#NEO#" in neoantigen_message_str:
+    #     neoantigen_array = neoantigen_message_str.split("#NEO#")
+    # else:
+    #     neoantigen_array = ["--"] * 9
+    # print("22222222222222222222")
+    # print(neoantigen_message_str)
+    print("111111111111111111")
+    print(neoantigen_array)
     report_data = {
         'cleavage_count':  neoantigen_array[0],
         'cleavage_link': f"[肽段切割]({DOWNLOADER_URL_PREFIX}{neoantigen_array[1]})" if neoantigen_array[1].startswith("minio://") else f"{neoantigen_array[1]}",

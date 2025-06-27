@@ -3,6 +3,7 @@ import uuid
 import tempfile
 import re
 import pandas as pd
+import requests
 
 from io import BytesIO
 from minio.error import S3Error
@@ -13,10 +14,13 @@ from src.utils.minio_utils import MINIO_CLIENT
 from src.agents.tools.parameters import NetmhcpanParameters
 from src.agents.tools.NetMHCPan.netmhcpan import NetMHCpan
 from src.utils.minio_utils import download_from_minio_uri
+from src.utils.tool_input_output_api import send_tool_input_output_api
 
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
 BIND_LEVEL_ALTERNATIVE = NEOANTIGEN_CONFIG["bind_level_alternative"]  
 BIGMHC_EL_THRESHOLD = NEOANTIGEN_CONFIG["bigmhc_el_threshold"]
+
+handle_url = CONFIG_YAML["TOOL"]["COMMON"]["handle_tool_input_output_url"]
 
 def extract_hla_and_peptides_from_fasta(
     fasta_minio_path: str
@@ -57,7 +61,9 @@ async def step2_pmhc_binding_affinity(
     input_parameters: NetmhcpanParameters, 
     writer,
     neoantigen_message,
-    tap_m
+    tap_m,
+    patient_id,
+    predict_id,
 ) -> tuple:
     """
     第二步：pMHC结合亲和力预测
@@ -96,6 +102,12 @@ async def step2_pmhc_binding_affinity(
 """
     writer(STEP2_DESC1)
     
+    # 调用前置接口
+    try:
+        send_tool_input_output_api(patient_id, predict_id, 0, "NetMHCPan", input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters))
+    except Exception as e:
+        print(f"前置接口调用失败: {e}")
+    
     # 运行NetMHCpan工具
     netmhcpan_result = await NetMHCpan.arun({
         "input_filename": input_parameters.input_filename,
@@ -111,6 +123,12 @@ async def step2_pmhc_binding_affinity(
         neoantigen_message[4]=f"0/{tap_m}"
         neoantigen_message[5]="pMHC结合亲和力预测阶段NetMHCpan工具执行失败"
         raise Exception("pMHC结合亲和力预测阶段NetMHCpan工具执行失败")
+    
+    # 调用后置接口
+    try:
+        send_tool_input_output_api(patient_id, predict_id, 1, "NetMHCPan", netmhcpan_result_dict)
+    except Exception as e:
+        print(f"后置接口调用失败: {e}")
     
     if netmhcpan_result_dict.get("type") != "link":
         neoantigen_message[4]=f"0/{tap_m}"

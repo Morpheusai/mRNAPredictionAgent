@@ -55,6 +55,11 @@ class PredictUserInput(BaseModel):
         description="User input to the agent.",
         examples=["_______________________________DQATSLRILNNGHAFNVEFDDSQDKAVLK"or"What is the weather in Tokyo?"],
     )
+
+    patient_id: str = Field(description="病人id")
+
+    predict_id: int = Field(description="预测表id")
+    
     conversation_id: str = Field(
         description="传入会话id，存入数据库",
     )

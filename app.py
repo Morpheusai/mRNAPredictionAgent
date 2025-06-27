@@ -109,6 +109,8 @@ def _parse_input(user_input: Union[UserInput, PredictUserInput]) -> tuple[dict[s
                 "file_path": user_input.file_path,
                 "mhc_allele": user_input.mhc_allele,
                 "cdr3": user_input.cdr3,
+                "patient_id": user_input.patient_id,
+                "predict_id": user_input.predict_id,
             }
         )
         if user_input.parameters:

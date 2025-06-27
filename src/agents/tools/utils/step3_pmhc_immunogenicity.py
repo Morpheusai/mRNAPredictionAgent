@@ -2,6 +2,7 @@ import json
 import re
 import uuid
 import tempfile
+import requests
 
 import pandas as pd
 
@@ -14,11 +15,13 @@ from src.utils.minio_utils import MINIO_CLIENT
 from src.agents.tools.BigMHC.bigmhc import BigMHC_IM
 from src.agents.tools.parameters import BigmhcIMParameters
 from src.utils.minio_utils import download_from_minio_uri
+from src.utils.tool_input_output_api import send_tool_input_output_api
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MOLLY_BUCKET = MINIO_CONFIG["molly_bucket"]
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
 BIGMHC_IM_THRESHOLD = NEOANTIGEN_CONFIG["bigmhc_im_threshold"]
+handle_url = CONFIG_YAML["TOOL"]["COMMON"]["handle_tool_input_output_url"]
 
 
 def extract_hla_and_peptides_from_fasta(
@@ -60,7 +63,9 @@ async def step3_pmhc_immunogenicity(
     input_parameters: BigmhcIMParameters,
     writer,
     neoantigen_message,
-    pmhc_binding_m
+    pmhc_binding_m,
+    patient_id,
+    predict_id,
 ) -> tuple:
     """
     第三步：pMHC免疫原性预测
@@ -93,6 +98,12 @@ async def step3_pmhc_immunogenicity(
     input_file, mhc_alleles = extract_hla_and_peptides_from_fasta(input_parameters.input_filename)
     mhc_allele = ",".join(mhc_alleles)
     
+    # 调用前置接口
+    try:
+        send_tool_input_output_api(patient_id, predict_id, 0, "BigMHC_IM", input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters))
+    except Exception as e:
+        print(f"前置接口调用失败: {e}")
+    
     # 运行BigMHC_IM工具
     bigmhc_im_result = await BigMHC_IM.arun({
         "input_filename": input_file,
@@ -104,7 +115,12 @@ async def step3_pmhc_immunogenicity(
         neoantigen_message[8]=f"0/{pmhc_binding_m}"
         neoantigen_message[9]="pMHC免疫原性预测阶段BigMHC_im工具执行失败"
         raise Exception("pMHC免疫原性预测阶段BigMHC_im工具执行失败")
-    
+    # 调用后置接口
+    try:
+        send_tool_input_output_api(patient_id, predict_id, 1, "BigMHC_IM", bigmhc_im_result_dict)
+    except Exception as e:
+        print(f"后置接口调用失败: {e}")
+
     if bigmhc_im_result_dict.get("type") != "link":
         neoantigen_message[8]=f"0/{pmhc_binding_m}"
         neoantigen_message[9]="pMHC免疫原性预测阶段BigMHC_im工具执行失败"
@@ -200,5 +216,7 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
 ✅ 在候选肽段中，系统筛选出**{count}个具有较高免疫原性评分的肽段**
 """
     writer(STEP3_DESC5)
+    
+
     
     return f"minio://molly/{bigmhc_im_result_fasta_filename}", bigmhc_im_fasta_str,count,bigmhc_im_result_file_path,bigmhc_im_result_dict["content"]

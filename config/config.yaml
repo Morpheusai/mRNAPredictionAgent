@@ -7,6 +7,7 @@ TOOL:
   COMMON:
     output_download_url_prefix: "https://mollyseek.com/downloads/"
     markdown_download_url_prefix: "https://try.mollyseek.cn/backend/markdown_download?file_path="
+    handle_tool_input_output_url: "http://120.79.142.227:60718/backend/handle_tool_input_output"
   NETMHCPAN:   
     url: "http://3.34.237.164:60823/netmhcpan"
     netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
@@ -202,8 +203,6 @@ TOOL:
           TCTCTTTACTGCGTTGATAATAGGCTGGAGCCTCGGTGGCCATG
           CTTCTTGCCCCTTGGGCCTCCCCCCAGCCCCTCCTCCCCTTCCTG
           CACCCGTACCCCCGTGGTCTTTGAATAAAGTCTGAGTGGGCGGC"
-
-
 
 MINIO:
   endpoint: "47.237.170.62:18080"
