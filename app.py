@@ -26,6 +26,8 @@ from src.agents.agents import (
 )
 from src.agents.files.file_description import fileDescriptionAgent
 from src.agents.files.patient_info_formatter import patient_info_structured
+from src.agents.tools.parameters import ToolParameters
+
 from src.memory import initialize_store, initialize_database
 from src.schema.schema import (
     UserInput, 
@@ -107,10 +109,16 @@ def _parse_input(user_input: Union[UserInput, PredictUserInput]) -> tuple[dict[s
                 "file_path": user_input.file_path,
                 "mhc_allele": user_input.mhc_allele,
                 "cdr3": user_input.cdr3,
-                "parameters": user_input.parameters
             }
         )
-    
+        if user_input.parameters:
+            tool_parameters = ToolParameters(**user_input.parameters)
+            configurable.update(
+                {
+                    "tool_parameters": tool_parameters,
+                }
+            )
+
     # if user_input.agent_config:
     #     if overlap := configurable.keys() & user_input.agent_config.keys():
     #         raise HTTPException(

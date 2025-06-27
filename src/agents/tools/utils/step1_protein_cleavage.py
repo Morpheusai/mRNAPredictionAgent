@@ -1,33 +1,28 @@
 import json
-import pandas as pd
 
 from io import BytesIO
 from minio.error import S3Error
 
 from src.agents.tools.NetChop.netchop import NetChop
+from src.agents.tools.parameters import NetchopParameters
 from src.agents.tools.CleavagePeptide.cleavage_peptide import NetChop_Cleavage
 from src.utils.minio_utils import MINIO_CLIENT
 
 async def step1_protein_cleavage(
-        input_file: str, 
+        input_parameters: NetchopParameters, 
         writer, 
-        mrna_design_process_result: list, 
         neoantigen_message
     ) -> tuple:
     """
     第一步：蛋白切割位点预测
     
     Args:
-        input_file: 输入文件路径
+        input_parameters: netchop输入参数
         writer: 流式输出写入器
-        mrna_design_process_result: 过程结果记录列表
-    
     Returns:
         tuple: (cleavage_result_file_path, fasta_str) 切割结果文件路径和FASTA内容
     """
-    cleavage_site_threshold = 0.5
-    
-    # 步骤描述
+    # 步骤描
     STEP1_DESC1 = f"""
 ## 🔍 步骤 1：突变肽段生成与切割
 目标：识别可能作为抗原呈递单位的8–11mer短肽段
@@ -41,18 +36,17 @@ async def step1_protein_cleavage(
 # - 蛋白质切割位点的置信度阈值(cleavage_site_threshold): 留预测分值高于该阈值的可信切割位点
 
 # 当前使用配置：
-# - 选用cleavage_site_threshold: {cleavage_site_threshold}
+# - 选用cleavage_site_threshold: {input_parameters.cleavage_site_threshold}
 # """
     writer(STEP1_DESC1)
-    mrna_design_process_result.append(STEP1_DESC1)
     
     # 运行NetChop工具
     netchop_result = await NetChop.arun({
-        "input_filename": input_file,
-        "cleavage_site_threshold": cleavage_site_threshold,
-        "model": 0,
-        "format": 0, 
-        "strict": 0
+        "input_filename": input_parameters.input_filename,
+        "cleavage_site_threshold": input_parameters.cleavage_site_threshold,
+        "model": input_parameters.model,
+        "format": input_parameters.format, 
+        "strict": input_parameters.strict
     })
     
     try:
@@ -108,16 +102,6 @@ async def step1_protein_cleavage(
         raise Exception(f"蛋白切割位点阶段NetChop_Cleavage工具执行失败: {str(e)}")
     
     # 步骤完成描述
-    INSERT_SPLIT = \
-    f"""
-    """   
-    # writer(INSERT_SPLIT)    
-    STEP1_DESC2 = """
-### 第1部分-NetChop工具完成\n
-已经将您输入的肽段序列切割成一些有效的肽段。\n
-"""
-    # writer(STEP1_DESC2)
-    mrna_design_process_result.append(STEP1_DESC2)
 #model_runnable = await wrap_summary_llm_model_async_stream(
 #        summary_llm, 
 #        NETCHOP_PROMPT.format(cleavage_site_threshold = cleavage_site_threshold)

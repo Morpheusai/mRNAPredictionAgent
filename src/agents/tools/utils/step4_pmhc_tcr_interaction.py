@@ -11,6 +11,7 @@ from typing import List, Tuple
 
 from config import CONFIG_YAML
 from src.agents.tools.PMTNet.pMTnet import pMTnet
+from src.utils.minio_utils import MINIO_CLIENT
 from src.utils.minio_utils import download_from_minio_uri
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
@@ -71,8 +72,6 @@ async def step4_pmhc_tcr_interaction(
     bigmhc_im_result_file_path: str,
     cdr3_sequence: List[str],
     writer,
-    mrna_design_process_result: list,
-    minio_client: Minio,
     neoantigen_message,
     pmhc_immunogenicity_m
 ) -> str:
@@ -83,7 +82,6 @@ async def step4_pmhc_tcr_interaction(
         bigmhc_im_result_file_path: BigMHC_IM结果文件路径
         cdr3_sequence: CDR3序列列表
         writer: 流式输出写入器
-        mrna_design_process_result: 过程结果记录列表
     
     Returns:
         str: mRNA输入文件路径
@@ -99,15 +97,7 @@ f"""
 **未在病历中检测到CDR3序列，不能进行pMHC-TCR相互作用预测，筛选流程结束**
 """   
         writer(STEP4_DESC1)
-        mrna_design_process_result.append(STEP4_DESC1)
-        return json.dumps(
-            {
-                "type": "text",
-                "content": "\n".join(mrna_design_process_result)
-            },
-            ensure_ascii=False,
-        )           
-    
+
     # 步骤开始描述
     STEP4_DESC2 = f"""
 ## 第4部分-pMHC-TCR相互作用预测
@@ -115,8 +105,6 @@ f"""
 设置参数,  cdr3序列：{cdr3_sequence}
 """
     # writer(STEP4_DESC2)
-    mrna_design_process_result.append(STEP4_DESC2)
-
     input_file,mhc_alleles=extract_hla_from_fasta(bigmhc_im_result_file_path)
     # 运行pMTnet工具
     pmtnet_result = await pMTnet.arun({
@@ -150,13 +138,12 @@ f"""
 {pmtnet_result_dict['content']}\n
 """
     # writer(STEP4_DESC3)
-    mrna_design_process_result.append(STEP4_DESC3)
     
     # 读取pMTnet结果文件
     try:
         path_without_prefix = pmtnet_result_file_path[len("minio://"):]
         bucket_name, object_name = path_without_prefix.split("/", 1)
-        response = minio_client.get_object(bucket_name, object_name)
+        response = MINIO_CLIENT.get_object(bucket_name, object_name)
         csv_data = BytesIO(response.read())
         df = pd.read_csv(csv_data)
     except Exception as e:
@@ -170,7 +157,6 @@ f"""
 接下来为您筛选符合PMTNET_Rank >={PMTNET_RANK}要求的的肽段，请稍后。\n
 """
     # writer(STEP4_DESC4)
-    mrna_design_process_result.append(STEP4_DESC4)
     
     # 筛选高Rank肽段
     high_rank_peptides = df[df['Rank'] >= PMTNET_RANK]
@@ -180,7 +166,6 @@ f"""
 未找到Rank ≥ {PMTNET_RANK}的高亲和力肽段，筛选流程结束。
 """
         writer(STEP4_DESC5)
-        mrna_design_process_result.append(STEP4_DESC5)
         neoantigen_message[10]=f"0/{pmhc_immunogenicity_m}"
         neoantigen_message[11]=pmtnet_result_file_path
         raise Exception(f"未找到Rank ≥ {PMTNET_RANK}的高亲和力肽段")
@@ -204,7 +189,7 @@ f"""
     try:
         fasta_bytes = pmtnet_fasta_str.encode('utf-8')
         fasta_stream = BytesIO(fasta_bytes)
-        minio_client.put_object(
+        MINIO_CLIENT.put_object(
             MOLLY_BUCKET,
             pmtnet_filtered_fasta_filename,
             data=fasta_stream,
@@ -225,7 +210,6 @@ f"""
 ```\n
 """
     # writer(STEP4_DESC6)
-    mrna_design_process_result.append(STEP4_DESC6)
     STEP4_DESC6 = f"""
 ✅ 已识别出**{count}条与患者TCR具有较高匹配可能性的肽段**，作为优选候选
 """

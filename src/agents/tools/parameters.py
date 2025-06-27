@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 class NetchopParameters(BaseModel):
     input_filename: str = Field(
         description = "指定输入的fasta文件名",
+        default="",
         examples = ["testA.fsa"],
     )
     cleavage_site_threshold: float = Field(
@@ -125,23 +126,31 @@ class BigmhcIMParameters(BaseModel):
         examples=["HLA-A02:01"],
     )
 
+class ToolOutput(BaseModel):
+    """
+    工具输出模型
+    - name: 工具名称
+    - output: 工具输出内容（字典）
+    """
+    tool_name: str = Field(description="工具名称")
+    tool_output: dict = Field(description="工具输出内容")
+
 class ToolParameters:
     """Parameters for a tool."""
     def __init__(self, **kwargs):
-        # netchop parameters
-        self.netchop_parameters = kwargs.get("netchop")
-        self.netctlpan_parameters = kwargs.get("netctlpan")
-        self.netmhcpan_parameters = kwargs.get("netmhcpan")
-        self.bigmhc_im_parameters = kwargs.get("bigmhc_im")
+        self.netchop_parameters = NetchopParameters(**kwargs.get("netchop"))
+        self.netctlpan_parameters = NetctlpanParameters(**kwargs.get("netctlpan"))
+        self.netmhcpan_parameters = NetmhcpanParameters(**kwargs.get("netmhcpan"))
+        self.bigmhc_im_parameters = BigmhcIMParameters(**kwargs.get("bigmhc_im"))
 
-    def get_netchop_parameters(self):
+    def get_netchop_parameters(self) -> NetchopParameters:
         return self.netchop_parameters
     
-    def get_netctlpan_parameters(self):
+    def get_netctlpan_parameters(self) -> NetctlpanParameters:
         return self.netctlpan_parameters
 
-    def get_netmhcpan_parameters(self):
+    def get_netmhcpan_parameters(self) -> NetmhcpanParameters:
         return self.netmhcpan_parameters
     
-    def get_bigmhc_im_parameters(self):
+    def get_bigmhc_im_parameters(self) -> BigmhcIMParameters:
         return self.bigmhc_im_parameters

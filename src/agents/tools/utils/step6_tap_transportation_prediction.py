@@ -9,16 +9,15 @@ from typing import  List
 
 from config import CONFIG_YAML
 from src.utils.minio_utils import MINIO_CLIENT
+from src.agents.tools.parameters import NetctlpanParameters
 from src.agents.tools.NetCTLPan.netctlpan import NetCTLpan
 
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
 NETCTLPAN_THRESHOLD = NEOANTIGEN_CONFIG["netctlpan_threshold"]
 
 async def step6_tap_transportation_prediction(
-    cleavage_result_file_path: str, 
-    mhc_allele: str,
+    input_parameters: NetctlpanParameters, 
     writer,
-    mrna_design_process_result: list,
     neoantigen_message,
     cleavage_m
 ) -> tuple:
@@ -26,11 +25,9 @@ async def step6_tap_transportation_prediction(
     第二步：TAP转运预测阶段
     
     Args:
-        cleavage_result_file_path: 切割结果文件路径
+        input_parameters: netctlpan输入参数
         netchop_final_result_str: 切割结果内容的字符串
-        mhc_allele: MHC等位基因列表
         writer: 流式输出写入器
-        mrna_design_process_result: 过程结果记录列表
     
     Returns:
         tuple: (netctlpan_result_file_path, netctlpan_fasta_str) 结果文件路径和FASTA内容
@@ -48,24 +45,22 @@ async def step6_tap_transportation_prediction(
 # ```
 # """
 #     writer(STEP2_DESC1)
-#     mrna_design_process_result.append(STEP2_DESC1)
     STEP2_DESC1 = f"""
 ## 🚚 步骤 2：TAP转运效率预测
 目标：排除难以通过抗原加工通路的低效率肽段
 """
     writer(STEP2_DESC1)
-    mrna_design_process_result.append(STEP2_DESC1)
     
     # 运行NetCTLpan工具
     netctlpan_result = await NetCTLpan.arun({
-        "input_filename": cleavage_result_file_path,
-        "mhc_allele": mhc_allele,
-        "peptide_length": 9,
-        "weight_of_tap": 0.025,
-        "weight_of_clevage": 0.225,
-        "epi_threshold": 1.0,
-        "output_threshold": -99.9,
-        "sort_by": -1
+        "input_filename": input_parameters.input_filename,
+        "mhc_allele": input_parameters.mhc_allele,
+        "peptide_length": input_parameters.peptide_length,
+        "weight_of_tap": input_parameters.weight_of_tap,
+        "weight_of_clevage": input_parameters.weight_of_clevage,
+        "epi_threshold": input_parameters.epi_threshold,
+        "output_threshold": input_parameters.output_threshold,
+        "sort_by": input_parameters.sort_by
     })
     
     try:
@@ -101,8 +96,7 @@ async def step6_tap_transportation_prediction(
 接下来为您筛选为TAP >= {NETCTLPAN_THRESHOLD}的转运效率的肽段
 """
     # writer(STEP2_DESC5)
-    mrna_design_process_result.append(STEP2_DESC5)
-    
+
     # 筛选高转运效率肽段
     high_affinity_peptides = df[df['TAP'] >= NETCTLPAN_THRESHOLD]
     
@@ -112,7 +106,6 @@ async def step6_tap_transportation_prediction(
 未筛选到符合TAP >= {NETCTLPAN_THRESHOLD}要求的高转运效率概率的肽段，筛选流程结束。
 """
         writer(STEP2_DESC6)
-        mrna_design_process_result.append(STEP2_DESC6)
         neoantigen_message[2]=f"0/{cleavage_m}"
         neoantigen_message[3]=netctlpan_result_file_path
         raise Exception(f"未找到高亲和力肽段(TAP ≥ {NETCTLPAN_THRESHOLD})")
@@ -157,8 +150,7 @@ async def step6_tap_transportation_prediction(
 {netctlpan_fasta_str}
 ```
 """
-    # writer(STEP2_DESC7)
-    mrna_design_process_result.append(STEP2_DESC7)
+#    writer(STEP2_DESC7)
 #    model_runnable = await wrap_summary_llm_model_async_stream(summary_llm, NETMHCPAN_PROMPT)
 #    # 模拟输入
 #    inputs = {"user_input": netmhcpan_result_dict["content"]}

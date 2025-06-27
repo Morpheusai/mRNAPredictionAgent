@@ -10,6 +10,7 @@ from typing import Tuple,List
 
 from config import CONFIG_YAML
 from src.utils.minio_utils import MINIO_CLIENT
+from src.agents.tools.parameters import NetmhcpanParameters
 from src.agents.tools.NetMHCPan.netmhcpan import NetMHCpan
 from src.utils.minio_utils import download_from_minio_uri
 
@@ -53,10 +54,8 @@ def extract_hla_and_peptides_from_fasta(
 
 
 async def step2_pmhc_binding_affinity(
-    cleavage_result_file_path: str, 
-    mhc_allele: List[str],
+    input_parameters: NetmhcpanParameters, 
     writer,
-    mrna_design_process_result: list,
     neoantigen_message,
     tap_m
 ) -> tuple:
@@ -64,17 +63,13 @@ async def step2_pmhc_binding_affinity(
     第二步：pMHC结合亲和力预测
     
     Args:
-        cleavage_result_file_path: 切割结果文件路径
+        input_parameters: netmhcpan输入参数
         netchop_final_result_str: 切割结果内容的字符串
-        mhc_allele: MHC等位基因列表
         writer: 流式输出写入器
-        mrna_design_process_result: 过程结果记录列表
     
     Returns:
         tuple: (bigmhc_el_result_file_path, fasta_str) 结果文件路径和FASTA内容
     """
-    # mhc_allele_str = ",".join(mhc_allele)
-    
     # 步骤开始描述
 #     STEP2_DESC1 = f"""
 # ## 第2部分-pMHC结合亲和力预测
@@ -97,19 +92,18 @@ async def step2_pmhc_binding_affinity(
 # """
     STEP2_DESC1 = f"""
 ## 🎯 步骤 3：pMHC结合亲和力预测
-目标：筛选与患者MHC分型{mhc_allele}具有良好结合能力的肽段
+目标：筛选与患者MHC分型{input_parameters.mhc_allele}具有良好结合能力的肽段
 """
     writer(STEP2_DESC1)
-    mrna_design_process_result.append(STEP2_DESC1)
     
     # 运行NetMHCpan工具
     netmhcpan_result = await NetMHCpan.arun({
-        "input_filename": cleavage_result_file_path,
-        "mhc_allele": mhc_allele,
-        "peptide_length ": -1 ,
-        "high_threshold_of_bp ": 0.5,
-        "low_threshold_of_bp ": 2.0,
-        "rank_cutoff ": -99.9,
+        "input_filename": input_parameters.input_filename,
+        "mhc_allele": input_parameters.mhc_allele,
+        "peptide_length ": input_parameters.peptide_length,
+        "high_threshold_of_bp ": input_parameters.high_threshold_of_bp,
+        "low_threshold_of_bp ": input_parameters.low_threshold_of_bp,
+        "rank_cutoff ": input_parameters.rank_cutoff
     })
     try:
         netmhcpan_result_dict = json.loads(netmhcpan_result)
@@ -143,25 +137,11 @@ async def step2_pmhc_binding_affinity(
     sb_peptides = df[df['BindLevel'].str.strip().isin(BIND_LEVEL_ALTERNATIVE)]
 
     # 步骤中间描述
-    INSERT_SPLIT = \
-    f"""
-    """   
-    # writer(INSERT_SPLIT)        
-    STEP2_DESC2 = f"""
-### 第2部分-pMHC结合亲和力预测结束\n
-pMHC结合亲和力预测结果已获取，结果如下：\n
-{netmhcpan_result_dict['content']}\n
-\n接下来筛选符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，请稍后\n
-"""
-    # writer(STEP2_DESC2)
-    mrna_design_process_result.append(STEP2_DESC2)
-    
     if sb_peptides.empty:
         STEP2_DESC3 = f"""
 未筛选到符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，筛选流程结束
 """
         writer(STEP2_DESC3)
-        mrna_design_process_result.append(STEP2_DESC3)
         neoantigen_message[4]=f"0/{tap_m}"
         neoantigen_message[5]=netmhcpan_result_file_path
         raise Exception("pMHC结合亲和力预测阶段结束，NetMHCpan工具未找到高亲和力肽段")

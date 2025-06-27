@@ -7,12 +7,12 @@ import pandas as pd
 
 from io import BytesIO
 from typing import Tuple, List
-from minio import Minio
 from minio.error import S3Error
 
 from config import CONFIG_YAML
 from src.utils.minio_utils import MINIO_CLIENT
 from src.agents.tools.BigMHC.bigmhc import BigMHC_IM
+from src.agents.tools.parameters import BigmhcIMParameters
 from src.utils.minio_utils import download_from_minio_uri
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
@@ -57,9 +57,8 @@ def extract_hla_and_peptides_from_fasta(
 
 
 async def step3_pmhc_immunogenicity(
-    bigmhc_el_result_file_path: str,
+    input_parameters: BigmhcIMParameters,
     writer,
-    mrna_design_process_result: list,
     neoantigen_message,
     pmhc_binding_m
 ) -> tuple:
@@ -67,9 +66,8 @@ async def step3_pmhc_immunogenicity(
     第三步：pMHC免疫原性预测
     
     Args:
-        bigmhc_el_result_file_path: BigMHC_EL结果文件路径
+        input_parameters: BigMHC_IM输入参数
         writer: 流式输出写入器
-        mrna_design_process_result: 过程结果记录列表
     
     Returns:
         tuple: (bigmhc_im_result_file_path, fasta_str) 结果文件路径和FASTA内容
@@ -91,14 +89,14 @@ async def step3_pmhc_immunogenicity(
 """
 
     writer(STEP3_DESC1)
-    mrna_design_process_result.append(STEP3_DESC1)
 
-    input_file,mhc_alleles = extract_hla_and_peptides_from_fasta(bigmhc_el_result_file_path)
+    input_file, mhc_alleles = extract_hla_and_peptides_from_fasta(input_parameters.input_filename)
     mhc_allele = ",".join(mhc_alleles)
     
     # 运行BigMHC_IM工具
     bigmhc_im_result = await BigMHC_IM.arun({
-        "input_filename": input_file,"mhc_allele":mhc_allele
+        "input_filename": input_file,
+        "mhc_allele":mhc_allele
     })
     try:
         bigmhc_im_result_dict = json.loads(bigmhc_im_result)
@@ -126,7 +124,6 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
 {bigmhc_im_result_dict['content']}。
 """
     # writer(STEP3_DESC2)
-    mrna_design_process_result.append(STEP3_DESC2)
     
     # 读取BigMHC_IM结果文件
     try:
@@ -146,7 +143,6 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
 接下来为您筛选符合BigMHC_IM >={BIGMHC_IM_THRESHOLD}要求的高免疫原性的肽段
 """
     # writer(STEP3_DESC3)
-    mrna_design_process_result.append(STEP3_DESC3)
     
     # 筛选高免疫原性肽段
     high_affinity_peptides = df[df['BigMHC_IM'] >= BIGMHC_IM_THRESHOLD]
@@ -156,7 +152,6 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
 未筛选到符合BigMHC_IM >= {BIGMHC_IM_THRESHOLD}要求的高免疫原性的肽段，筛选流程结束。
 """
         writer(STEP3_DESC4)
-        mrna_design_process_result.append(STEP3_DESC4)
         neoantigen_message[8]=f"0/{pmhc_binding_m}"
         neoantigen_message[9]=bigmhc_im_result_file_path
         raise Exception(f"未找到高免疫原性肽段(BigMHC_IM ≥ {BIGMHC_IM_THRESHOLD})")
@@ -201,7 +196,6 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
 ```\n
 """
     # writer(STEP3_DESC5)
-    mrna_design_process_result.append(STEP3_DESC5)
     STEP3_DESC5 = f"""
 ✅ 在候选肽段中，系统筛选出**{count}个具有较高免疫原性评分的肽段**
 """

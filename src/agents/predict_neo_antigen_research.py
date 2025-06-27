@@ -59,6 +59,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
     file_path = config["configurable"].get("file_path", None)
     mhc_allele = config["configurable"].get("mhc_allele", None)
     cdr3 = config["configurable"].get("cdr3", None)
+    tool_parameters = config["configurable"].get("tool_parameters", None)
     # 处理文件列表
     WRITER = get_stream_writer()
     if mhc_allele ==None:
@@ -93,7 +94,8 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
             {
                 "input_file": file_path,
                 "mhc_allele": mhc_allele,
-                "cdr3_sequence": cdr3 if cdr3 is not None else cdr3
+                "cdr3_sequence": cdr3 if cdr3 is not None else cdr3,
+                "tool_parameters": tool_parameters
             }
         )
         return Command(

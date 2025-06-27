@@ -16,6 +16,7 @@ import pandas as pd
 from typing import List, Dict, Optional, AsyncIterator,Any
 
 from config import CONFIG_YAML
+from src.agents.tools.parameters import ToolParameters
 from src.agents.tools.utils.step1_protein_cleavage import step1_protein_cleavage
 from src.agents.tools.utils.step2_pmhc_binding_affinity import step2_pmhc_binding_affinity
 from src.agents.tools.utils.step3_pmhc_immunogenicity import step3_pmhc_immunogenicity
@@ -147,7 +148,8 @@ def normalize_hla_alleles(allele_str):
 async def run_neoantigenselection(
     input_file: str,
     mhc_allele: Optional[str] = None,
-    cdr3_sequence: Optional[List[str]] = None
+    cdr3_sequence: Optional[List[str]] = None,
+    tool_parameters: Optional[ToolParameters] = None
 ) -> str:
     """
     运行新抗原筛选流程
@@ -161,7 +163,6 @@ async def run_neoantigenselection(
         str: JSON格式的结果字符串
     """
     # 初始化变量
-    mrna_design_process_result = []
     neoantigen_message = ["--"] * 9
     cleavage_m=0
     tap_m=0
@@ -173,46 +174,47 @@ async def run_neoantigenselection(
     
     mhc_allele=normalize_hla_alleles(mhc_allele)
     try:
-
         # 第一步：蛋白切割位点预测
+        netchop_parameters = tool_parameters.get_netchop_parameters()
+        netchop_parameters.input_filename = input_file
         cleavage_result_file_path, netchop_final_result_str,cleavage_m = await step1_protein_cleavage(
-            input_file, 
+            netchop_parameters, 
             writer, 
-            mrna_design_process_result,
             neoantigen_message
         )
         neoantigen_message[0] = f"{cleavage_m}/{cleavage_m}"
         neoantigen_message[1] = cleavage_result_file_path
 
         # 第二步：TAP转运预测
-        netctlpan_file_path,netctlpan_fasta_str,tap_m,netctlpan_tool_url= await step6_tap_transportation_prediction(
-            cleavage_result_file_path, 
-            mhc_allele, 
+        netctlpan_parameters = tool_parameters.get_netctlpan_parameters()
+        netctlpan_parameters.input_filename = cleavage_result_file_path
+        netctlpan_parameters.mhc_allele = mhc_allele
+        netctlpan_file_path, netctlpan_fasta_str, tap_m,netctlpan_tool_url = await step6_tap_transportation_prediction(
+            netctlpan_parameters
             writer, 
-            mrna_design_process_result,
             neoantigen_message,
             cleavage_m
         )
         neoantigen_message[2]=f"{tap_m}/{cleavage_m}"
         neoantigen_message[3]=netctlpan_tool_url
+
         # 第三步：pMHC结合亲和力预测
+        netmhcpan_parameters = tool_parameters.get_netmhcpan_parameters()
+        netmhcpan_parameters.input_filename = netctlpan_file_path
+        netmhcpan_parameters.mhc_allele = mhc_allele
         netmhcpan_result_file_path, mhcpan_count = await step2_pmhc_binding_affinity(
-            netctlpan_file_path, 
-            mhc_allele, 
+            netmhcpan_parameters
             writer, 
-            mrna_design_process_result,
             neoantigen_message,
             tap_m
         )
-        # 暂时这一步只需要netmhcpan
-        # bigmhc_el_result_file_path, bigmhc_el_fasta_str,pmhc_binding_ratio,pmhc_binding_m,bigmhc_el_tool_url
-        # neoantigen_message[6]=pmhc_binding_ratio
-        # neoantigen_message[7]=bigmhc_el_tool_url
+
         # 第四步：pMHC免疫原性预测
+        bigmhc_parameters = ToolParameters.get_bigmhc_im_parameters()
+        bigmhc_parameters.input_filename = netmhcpan_result_file_path 
         bigmhc_im_result_file_path, bigmhc_im_fasta_str,pmhc_immunogenicity_m, bigmhc_im_tool_url, bigmhc_im_content= await step3_pmhc_immunogenicity(
-            netmhcpan_result_file_path, 
+            bigmhc_parameters, 
             writer, 
-            mrna_design_process_result,
             neoantigen_message,
             pmhc_binding_m
         )
@@ -229,16 +231,17 @@ async def run_neoantigenselection(
 #目前不需要cdr3序列的预测
         # # 第五步：pMHC-TCR相互作用预测
         # mrna_input_file_path,tcr_m,tcr_content,pmtnet_result_tool_url= await step4_pmhc_tcr_interaction(
-        #     bigmhc_im_result_file_path, cdr3_sequence, writer, mrna_design_process_result,minio_client,neoantigen_message,pmhc_immunogenicity_m
-        
+        #     bigmhc_im_result_file_path, 
+        #     cdr3_sequence, 
+        #     writer, 
+        #     neoantigen_message,
+        #     pmhc_immunogenicity_m
         # )
 
         # if cdr3_sequence is not None:
         #     neoantigen_message[10] = f"{tcr_m}/{pmhc_immunogenicity_m * len(cdr3_sequence)}"
         #     neoantigen_message[11]=pmtnet_result_tool_url
         #     neoantigen_message[12]=tcr_content
-
-        
         
     except Exception as e:
         import traceback
@@ -257,7 +260,8 @@ async def run_neoantigenselection(
 def NeoantigenSelection(
     input_file: str,
     mhc_allele: Optional[str] = None, 
-    cdr3_sequence: Optional[List[str]] = None
+    cdr3_sequence: Optional[List[str]] = None,
+    tool_parameters: Optional[ToolParameters] = None
 ) -> str:
     """                                    
     NeoantigenSelection是基于用户输入的患者信息，结合已有的工具库，完成个体化neo-antigen筛选。
@@ -265,11 +269,19 @@ def NeoantigenSelection(
         input_file (str): 输入的肽段序例fasta文件路径           
         mhc_allele (Optional[List[str]]): MHC比对的等位基因。
         cdr3_sequence (Optional[List[str]]): cdr3序列。
+        tool_parameters (Optional[Dict[str, Any]]): 工具参数
     Returns:                               
         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """
     try:
-        result = asyncio.run(run_neoantigenselection(input_file, mhc_allele, cdr3_sequence))
+        result = asyncio.run(
+            run_neoantigenselection(
+                input_file, 
+                mhc_allele, 
+                cdr3_sequence,
+                tool_parameters
+            )
+        )
         return result
     except Exception as e:
         result = {
