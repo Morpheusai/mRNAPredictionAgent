@@ -49,22 +49,26 @@ async def step1_protein_cleavage(
     
     # 调用前置接口
     try:
-        send_tool_input_output_api(patient_id, predict_id, 0, "NetChop", input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters))
+        send_tool_input_output_api(
+            patient_id, 
+            predict_id, 
+            0, 
+            "NetChop", 
+            input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters)
+        )
     except Exception as e:
         print(f"工具前置接口调用失败: {e}")
     
     # 运行NetChop工具
-    netchop_result = await NetChop.arun({
-        "input_filename": input_parameters.input_filename,
-        "cleavage_site_threshold": input_parameters.cleavage_site_threshold,
-        "model": input_parameters.model,
-        "format": input_parameters.format, 
-        "strict": input_parameters.strict
-    })
-    
-
-    
-
+    netchop_result = await NetChop.arun(
+        {
+            "input_filename": input_parameters.input_filename,
+            "cleavage_site_threshold": input_parameters.cleavage_site_threshold,
+            "model": input_parameters.model,
+            "format": input_parameters.format, 
+            "strict": input_parameters.strict
+        }
+    )
 
     try:
         netchop_result_dict = json.loads(netchop_result)
@@ -74,11 +78,16 @@ async def step1_protein_cleavage(
         raise Exception("蛋白切割位点阶段NetChop工具执行失败")
         # 调用后置接口
     try:
-        send_tool_input_output_api(patient_id, predict_id, 1, "NetChop", netchop_result_dict)
+        send_tool_input_output_api(
+            patient_id, 
+            predict_id, 
+            1, 
+            "NetChop", 
+            netchop_result_dict
+        )
     except Exception as e:
         print(f"工具后置接口调用失败: {e}")
     
-
     if netchop_result_dict.get("type") != "link":
         neoantigen_message[0] = f"0/0"
         neoantigen_message[1] =  "蛋白切割位点阶段NetChop工具执行失败"   
@@ -87,9 +96,11 @@ async def step1_protein_cleavage(
     netchop_result_file_path = netchop_result_dict["url"]
     
     # 对netchop结果获取肽段fasta文件
-    netchop_cleavage_result = await NetChop_Cleavage.arun({
-        "input_file": netchop_result_file_path
-    })
+    netchop_cleavage_result = await NetChop_Cleavage.arun(
+        {
+            "input_file": netchop_result_file_path
+        }
+    )
     
     try:
         cleavage_result_dict = json.loads(netchop_cleavage_result)

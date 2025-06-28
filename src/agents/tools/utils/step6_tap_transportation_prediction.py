@@ -59,7 +59,13 @@ async def step6_tap_transportation_prediction(
     
     # 调用前置接口
     try:
-        send_tool_input_output_api(patient_id, predict_id, 0, "NetCTLpan", input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters))
+        send_tool_input_output_api(
+            patient_id, 
+            predict_id, 
+            0, 
+            "NetCTLpan", 
+            input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters)
+        )
     except Exception as e:
         print(f"前置接口调用失败: {e}")
     
@@ -83,7 +89,13 @@ async def step6_tap_transportation_prediction(
 
     # 调用后置接口
     try:
-        send_tool_input_output_api(patient_id, predict_id, 1, "NetCTLpan", netctlpan_result_dict)
+        send_tool_input_output_api(
+            patient_id, 
+            predict_id, 
+            1, 
+            "NetCTLpan", 
+            netctlpan_result_dict
+        )
     except Exception as e:
         print(f"后置接口调用失败: {e}")
         

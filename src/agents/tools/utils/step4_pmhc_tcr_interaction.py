@@ -6,7 +6,6 @@ import os
 import pandas as pd
 
 from io import BytesIO
-from minio import Minio
 from typing import List, Tuple
 
 from config import CONFIG_YAML

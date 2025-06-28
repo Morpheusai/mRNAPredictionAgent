@@ -2,7 +2,6 @@ import json
 import re
 import uuid
 import tempfile
-import requests
 
 import pandas as pd
 
@@ -100,7 +99,13 @@ async def step3_pmhc_immunogenicity(
     
     # 调用前置接口
     try:
-        send_tool_input_output_api(patient_id, predict_id, 0, "BigMHC_IM", input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters))
+        send_tool_input_output_api(
+            patient_id, 
+            predict_id, 
+            0, 
+            "BigMHC_IM", 
+            input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters)
+        )
     except Exception as e:
         print(f"前置接口调用失败: {e}")
     
@@ -117,7 +122,13 @@ async def step3_pmhc_immunogenicity(
         raise Exception("pMHC免疫原性预测阶段BigMHC_im工具执行失败")
     # 调用后置接口
     try:
-        send_tool_input_output_api(patient_id, predict_id, 1, "BigMHC_IM", bigmhc_im_result_dict)
+        send_tool_input_output_api(
+            patient_id, 
+            predict_id, 
+            1, 
+            "BigMHC_IM", 
+            bigmhc_im_result_dict
+        )
     except Exception as e:
         print(f"后置接口调用失败: {e}")
 
