@@ -217,7 +217,7 @@ async def BigMHC_EL(
             "model_type": "el"
         }
 
-        timeout = aiohttp.ClientTimeout(total=60)
+        timeout = aiohttp.ClientTimeout(total=1800)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(bigmhc_url, json=payload) as response:

@@ -113,13 +113,13 @@ def _parse_input(user_input: Union[UserInput, PredictUserInput]) -> tuple[dict[s
                 "predict_id": user_input.predict_id,
             }
         )
-        if user_input.parameters:
-            tool_parameters = ToolParameters(**user_input.parameters)
-            configurable.update(
-                {
-                    "tool_parameters": tool_parameters,
-                }
-            )
+        # if user_input.parameters:
+        tool_parameters = ToolParameters(**user_input.parameters)
+        configurable.update(
+            {
+                "tool_parameters": tool_parameters,
+            }
+        )
 
     # if user_input.agent_config:
     #     if overlap := configurable.keys() & user_input.agent_config.keys():

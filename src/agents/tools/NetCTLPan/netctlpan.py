@@ -51,7 +51,7 @@ async def NetCTLpan(
         "sort_by": sort_by
     }
 
-    timeout = aiohttp.ClientTimeout(total=300)
+    timeout = aiohttp.ClientTimeout(total=1800)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(netctlpan_url, json=payload) as response:

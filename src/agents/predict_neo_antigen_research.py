@@ -55,113 +55,99 @@ def wrap_model(
 
 
 async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
+    try:
+        file_path = config["configurable"].get("file_path", None)
+        mhc_allele = config["configurable"].get("mhc_allele", None)
+        cdr3 = config["configurable"].get("cdr3", None)
+        tool_parameters = config["configurable"].get("tool_parameters", None)
+        patient_id = config["configurable"].get("patient_id", None)
+        predict_id = config["configurable"].get("predict_id", None)
 
-    file_path = config["configurable"].get("file_path", None)
-    mhc_allele = config["configurable"].get("mhc_allele", None)
-    cdr3 = config["configurable"].get("cdr3", None)
-    tool_parameters = config["configurable"].get("tool_parameters", None)
-    patient_id = config["configurable"].get("patient_id", None)
-    predict_id = config["configurable"].get("predict_id", None)
-
-    # 处理文件列表
-    WRITER = get_stream_writer()
-    if mhc_allele ==None:
-        # INSERT_SPACER=""
-        STEP1_DESC2 = f"""
-    \n ### ⚠️未能在病例中发现病人的HLA分型，请您在病历中提供病人的HLA分型
-    """
-        # WRITER(INSERT_SPACER)
-        WRITER(STEP1_DESC2)
-    elif file_path ==None:
-        # INSERT_SPACER=""
-        STEP1_DESC3 = f"""
-    \n ### ⚠️未检测到您发送的fasta文件，请仔细检查您的肽段文件是否符合国际标准的fasta文件格式要求
-    """
-        # WRITER(INSERT_SPACER)
-        WRITER(STEP1_DESC3)
-        return Command(
-            goto = END
-        )
-    elif (is_valid := validate_minio_fasta(file_path)) and not is_valid[0]:
-        STEP1_DESC4 = f"""
-    \n ### ⚠️请您仔细核对您上传的fasta文件是否符合格式要求，我们为您检测到的是:{is_valid[1]}
-    """
-        WRITER(STEP1_DESC4)
-        return Command(
-            goto = END
-        )
-    else:    
-        WRITER("\n关键信息分析完毕，我们即将开始Neoantigen筛选过程⏳，我们会尽快完成这项精准医疗方案✨。\n")
-        # 1. 通过state参数构建NeoantigenResearch工具输入参数
-        neoantigen_message= await NeoantigenSelection.ainvoke(
-            {
-                "input_file": file_path,
-                "mhc_allele": mhc_allele,
-                "cdr3_sequence": cdr3 if cdr3 is not None else cdr3,
-                "tool_parameters": tool_parameters,
-                "patient_id":patient_id,
-                "predict_id":predict_id,
-            }
-        )
-        return Command(
-            update = {
-                "mhc_allele": mhc_allele,
-                "cdr3": cdr3,
-                "input_fsa_filepath": file_path,
-                "neoantigen_message": neoantigen_message
-
-            },
-            goto = "patient_case_report"
-        )
+        # 处理文件列表
+        WRITER = get_stream_writer()
+        if mhc_allele == None:
+            STEP1_DESC2 = f"""
+        \n ### ⚠️未能在病例中发现病人的HLA分型，请您在病历中提供病人的HLA分型
+        """
+            WRITER(STEP1_DESC2)
+            return Command(goto=END)
+        elif file_path == None:
+            STEP1_DESC3 = f"""
+        \n ### ⚠️未检测到您发送的fasta文件，请仔细检查您的肽段文件是否符合国际标准的fasta文件格式要求
+        """
+            WRITER(STEP1_DESC3)
+            return Command(goto=END)
+        elif (is_valid := validate_minio_fasta(file_path)) and not is_valid[0]:
+            STEP1_DESC4 = f"""
+        \n ### ⚠️请您仔细核对您上传的fasta文件是否符合格式要求，我们为您检测到的是:{is_valid[1]}
+        """
+            WRITER(STEP1_DESC4)
+            return Command(goto=END)
+        else:    
+            WRITER("\n关键信息分析完毕，我们即将开始Neoantigen筛选过程⏳，我们会尽快完成这项精准医疗方案✨。\n")
+            # 1. 通过state参数构建NeoantigenResearch工具输入参数
+            neoantigen_message = await NeoantigenSelection.ainvoke(
+                {
+                    "input_file": file_path,
+                    "mhc_allele": mhc_allele,
+                    "cdr3_sequence": cdr3 if cdr3 is not None else cdr3,
+                    "tool_parameters": tool_parameters,
+                    "patient_id": patient_id,
+                    "predict_id": predict_id,
+                }
+            )
+            
+            if not isinstance(neoantigen_message, list) or len(neoantigen_message) < 9:
+                WRITER("\n⚠️ Neo-antigen筛选过程出现异常，请检查输入数据。\n")
+                return Command(goto=END)
+                
+            return Command(
+                update={
+                    "mhc_allele": mhc_allele,
+                    "cdr3": cdr3,
+                    "input_fsa_filepath": file_path,
+                    "neoantigen_message": neoantigen_message
+                },
+                goto="patient_case_report"
+            )
+    except Exception as e:
+        WRITER(f"\n⚠️ 处理过程中出现错误: {str(e)}\n")
+        return Command(goto=END)
 
 async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
+    try:
+        writer = get_stream_writer()
+        writer('\n')
+        writer("\n ✅ 肽段数据分析完成，结合筛选过程生成报告...\n")
 
-    writer = get_stream_writer()
-#writer("\n``\n ✅ 病例数据分析完成，结合筛选过程生成报告...\n")
-    writer('\n')
-    writer("\n ✅ 肽段数据分析完成，结合筛选过程生成报告...\n")
+        neoantigen_array = state.get("neoantigen_message", [])
+        if not isinstance(neoantigen_array, list) or len(neoantigen_array) < 9:
+            writer("\n⚠️ 无法生成报告：数据格式不正确\n")
+            return Command(goto=END)
 
-    neoantigen_array = state.get("neoantigen_message", "")
-    # # 安全赋值，防止未赋值报错
-    # if neoantigen_message_str and "#NEO#" in neoantigen_message_str:
-    #     neoantigen_array = neoantigen_message_str.split("#NEO#")
-    # else:
-    #     neoantigen_array = ["--"] * 9
-    # print("22222222222222222222")
-    # print(neoantigen_message_str)
-    print("111111111111111111")
-    print(neoantigen_array)
-    report_data = {
-        'cleavage_count':  neoantigen_array[0],
-        'cleavage_link': f"[肽段切割]({DOWNLOADER_URL_PREFIX}{neoantigen_array[1]})" if neoantigen_array[1].startswith("minio://") else f"{neoantigen_array[1]}",
-        'tap_count':  neoantigen_array[2],
-        'tap_link': f"[TAP 转运预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[3]})" if neoantigen_array[3].startswith("minio://") else f"{neoantigen_array[3]}",
-        'affinity_count':  neoantigen_array[4],
-        'affinity_link': f"[亲和力预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[5]})" if neoantigen_array[5].startswith("minio://") else f"{neoantigen_array[5]}",
-        # 'binding_count':  neoantigen_array[6],
-        # 'binding_link': f"[抗原呈递预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[7]})" if neoantigen_array[7].startswith("minio://") else f"{neoantigen_array[7]}",
-        'immunogenicity_count':  neoantigen_array[6],
-        'immunogenicity_link': f"[免疫原性预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[7]})" if neoantigen_array[7].startswith("minio://") else f"{neoantigen_array[7]}",
-        'bigmhc_im_content': neoantigen_array[8],
-        # 'tcr_count':  neoantigen_array[10],
-        # 'tcr_link':  f"[TCR 识别预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[11]})" if neoantigen_array[11].startswith("minio://") else f"{neoantigen_array[11]}",
-        # 'tcr_content':  neoantigen_array[12] if cdr3 is not None else "\n在病人病例中未提供cdr3序列，不能得到最终的筛选结论"
-    }
-    patient_report_md = PRIDICT_PATIENT_REPORT_ONE.format(**report_data)
-    # if cdr3 is not None:
-    #     patient_report_md = PATIENT_REPORT_ONE.format(**report_data)
-    # else:
-    #     patient_report_md = PATIENT_REPORT_TWO.format(**report_data)
-    #输出为pdf，并提供下载link
-    pdf_download_link = neo_md2pdf(patient_report_md)
-    writer("📄 完整分析细节、候选肽段列表与评分均已整理至报告中，可点击查看：")
-    fdtime = datetime.now().strftime('%Y-%m-%d') 
-    writer("#NEO_RESPONSE#")
-    writer(f"👉 📥 下载报告：[Neoantigen筛选报告-{fdtime}]({pdf_download_link})")
-    writer("#NEO_RESPONSE#\n")
-    return Command(
-        goto = END
-    )
+        report_data = {
+            'cleavage_count': neoantigen_array[0],
+            'cleavage_link': f"[肽段切割]({DOWNLOADER_URL_PREFIX}{neoantigen_array[1]})" if neoantigen_array[1].startswith("minio://") else f"{neoantigen_array[1]}",
+            'tap_count': neoantigen_array[2],
+            'tap_link': f"[TAP 转运预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[3]})" if neoantigen_array[3].startswith("minio://") else f"{neoantigen_array[3]}",
+            'affinity_count': neoantigen_array[4],
+            'affinity_link': f"[亲和力预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[5]})" if neoantigen_array[5].startswith("minio://") else f"{neoantigen_array[5]}",
+            'immunogenicity_count': neoantigen_array[6],
+            'immunogenicity_link': f"[免疫原性预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[7]})" if neoantigen_array[7].startswith("minio://") else f"{neoantigen_array[7]}",
+            'bigmhc_im_content': neoantigen_array[8],
+        }
+
+        patient_report_md = PRIDICT_PATIENT_REPORT_ONE.format(**report_data)
+        pdf_download_link = neo_md2pdf(patient_report_md)
+        writer("📄 完整分析细节、候选肽段列表与评分均已整理至报告中，可点击查看：")
+        fdtime = datetime.now().strftime('%Y-%m-%d') 
+        writer("#NEO_RESPONSE#")
+        writer(f"👉 📥 下载报告：[Neoantigen筛选报告-{fdtime}]({pdf_download_link})")
+        writer("#NEO_RESPONSE#\n")
+        return Command(goto=END)
+    except Exception as e:
+        writer(f"\n⚠️ 生成报告时出现错误: {str(e)}\n")
+        return Command(goto=END)
 
 # 修改图结构
 PredictNeoantigenSelectAgent = StateGraph(AgentState)
@@ -173,6 +159,6 @@ PredictNeoantigenSelectAgent.set_entry_point("neoantigen_select_node")
 PredictNeoantigenSelectAgent.add_edge("patient_case_report", END)
 
 predict_neo_antigen_research = PredictNeoantigenSelectAgent.compile(
-    checkpointer = MemorySaver(), 
-    store = InMemoryStore()
+    checkpointer=MemorySaver(), 
+    store=InMemoryStore()
 )

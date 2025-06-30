@@ -43,7 +43,7 @@ async def NetMHCpan(
         "rank_cutoff": rank_cutoff
     }
 
-    timeout = aiohttp.ClientTimeout(total=30)
+    timeout = aiohttp.ClientTimeout(total=1800)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(netmhcpan_url, json=payload) as response:

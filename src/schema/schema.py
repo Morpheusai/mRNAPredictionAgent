@@ -82,26 +82,24 @@ class PredictUserInput(BaseModel):
         examples=[
             {
                 "netchop": {
-                    "threshold": 0.5,
+                    "cleavage_site_threshold": 0.5,
                     "model": 0,
                     "format": 0,
                     "strict": 0
                 },
                 "netctlpan": {
-                    "length": -1 ,
-                    "wt": 0.025,
-                    "wc": 0.225,
-                    "ethr": 1.0,
-                    "ot": -99.9,
-                    "os": -1
+                    "peptide_length": -1 ,
+                    "weight_of_tap": 0.025,
+                    "weight_of_clevage": 0.225,
+                    "epi_threshold": 1.0,
+                    "output_threshold": -99.9,
+                    "sort_by": -1
                 },
-                "netmhcpan": {
-                    "input_filename": "testA.fsa",
-                    "hla": "HLA-A02:01",    
-                    "length": -1 ,
-                    "rth": 0.025,
-                    "rlt": 0.225,
-                    "ot": -99.9,
+                "netmhcpan": { 
+                    "peptide_length": -1 ,
+                    "high_threshold_of_bp": 0.5,
+                    "low_threshold_of_bp": 2.0,
+                    "rank_cutoff": -99.9,
                 },
                 "bigmhc_im": {
                 }
