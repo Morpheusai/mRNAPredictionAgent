@@ -4,6 +4,7 @@ import tempfile
 import re
 import pandas as pd
 import requests
+import time
 
 from io import BytesIO
 from minio.error import S3Error
@@ -15,6 +16,7 @@ from src.agents.tools.parameters import NetmhcpanParameters
 from src.agents.tools.NetMHCPan.netmhcpan import NetMHCpan
 from src.utils.minio_utils import download_from_minio_uri
 from src.utils.tool_input_output_api import send_tool_input_output_api
+from src.utils.log import logger
 
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
 BIND_LEVEL_ALTERNATIVE = NEOANTIGEN_CONFIG["bind_level_alternative"]  
@@ -112,9 +114,11 @@ async def step2_pmhc_binding_affinity(
             input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters)
         )
     except Exception as e:
-        print(f"前置接口调用失败: {e}")
+        logger.error(f"前置接口调用失败: {e}")
     
     # 运行NetMHCpan工具
+    logger.info("开始执行NetMHCpan工具...")
+    start_time = time.time()
     netmhcpan_result = await NetMHCpan.arun({
         "input_filename": input_parameters.input_filename,
         "mhc_allele": input_parameters.mhc_allele,
@@ -123,9 +127,14 @@ async def step2_pmhc_binding_affinity(
         "low_threshold_of_bp ": input_parameters.low_threshold_of_bp,
         "rank_cutoff ": input_parameters.rank_cutoff
     })
+    end_time = time.time()
+    execution_time = end_time - start_time
+    logger.info(f"NetMHCpan工具执行完成，耗时: {execution_time:.2f}秒")
     try:
         netmhcpan_result_dict = json.loads(netmhcpan_result)
+        logger.info("NetMHCpan工具结果解析成功")
     except json.JSONDecodeError:
+        logger.error("NetMHCpan工具结果JSON解析失败")
         neoantigen_message[4]=f"0/{tap_m}"
         neoantigen_message[5]="pMHC结合亲和力预测阶段NetMHCpan工具执行失败"
         raise Exception("pMHC结合亲和力预测阶段NetMHCpan工具执行失败")
@@ -140,34 +149,41 @@ async def step2_pmhc_binding_affinity(
             netmhcpan_result_dict
         )
     except Exception as e:
-        print(f"后置接口调用失败: {e}")
+        logger.error(f"后置接口调用失败: {e}")
     
     if netmhcpan_result_dict.get("type") != "link":
+        logger.error(f"NetMHCpan工具执行失败: {netmhcpan_result_dict.get('content', '未知错误')}")
         neoantigen_message[4]=f"0/{tap_m}"
         neoantigen_message[5]="pMHC结合亲和力预测阶段NetMHCpan工具执行失败"
         raise Exception(netmhcpan_result_dict.get("content", "pMHC结合亲和力预测阶段NetMHCpan工具执行失败"))
     
     netmhcpan_result_file_path = netmhcpan_result_dict["url"]
+    logger.info(f"NetMHCpan工具结果文件路径: {netmhcpan_result_file_path}")
     
     # 读取NetMHCpan结果文件
     try:
         path_without_prefix = netmhcpan_result_file_path[len("minio://"):]
         bucket_name, object_name = path_without_prefix.split("/", 1)
+        logger.info(f"从MinIO读取NetMHCpan结果文件: bucket={bucket_name}, object={object_name}")
         response = MINIO_CLIENT.get_object(bucket_name, object_name)
         excel_data = BytesIO(response.read())
         df = pd.read_excel(excel_data)
         df['BindLevel'] = df['BindLevel'].astype(str).replace('nan', '')
+        logger.info(f"成功读取NetMHCpan结果文件，共 {len(df)} 条记录")
         
     except S3Error as e:
+        logger.error(f"从MinIO读取NetMHCpan结果文件失败: {str(e)}")
         neoantigen_message[4]=f"0/{tap_m}"
         neoantigen_message[5]=f"无法从MinIO读取NetMHCpan结果文件: {str(e)}"
         raise Exception(f"无法从MinIO读取NetMHCpan结果文件: {str(e)}")
 
     # 筛选高亲和力肽段
     sb_peptides = df[df['BindLevel'].str.strip().isin(BIND_LEVEL_ALTERNATIVE)]
+    logger.info(f"筛选出 {len(sb_peptides)} 条高亲和力肽段 (BindLevel: {BIND_LEVEL_ALTERNATIVE})")
 
     # 步骤中间描述
     if sb_peptides.empty:
+        logger.warning(f"未筛选到符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段")
         STEP2_DESC3 = f"""
 未筛选到符合BindLevel为{BIND_LEVEL_ALTERNATIVE}要求的高亲和力的肽段，筛选流程结束
 """
@@ -196,6 +212,7 @@ async def step2_pmhc_binding_affinity(
     try:
         fasta_bytes = netmhcpan_fasta_str.encode('utf-8')
         fasta_stream = BytesIO(fasta_bytes)
+        logger.info(f"上传FASTA文件到MinIO: {netmhcpan_result_fasta_filename}")
         MINIO_CLIENT.put_object(
             "molly",
             netmhcpan_result_fasta_filename,
@@ -203,7 +220,9 @@ async def step2_pmhc_binding_affinity(
             length=len(fasta_bytes),
             content_type='text/plain'
         )
+        logger.info("FASTA文件上传成功")
     except Exception as e:
+        logger.error(f"上传FASTA文件失败: {str(e)}")
         neoantigen_message[6]=f"0/{mhcpan_count}"
         neoantigen_message[7]=f"上传FASTA文件失败: {str(e)}"
         raise Exception(f"上传FASTA文件失败: {str(e)}")

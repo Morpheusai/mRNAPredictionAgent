@@ -56,11 +56,11 @@ class PredictUserInput(BaseModel):
         examples=["_______________________________DQATSLRILNNGHAFNVEFDDSQDKAVLK"or"What is the weather in Tokyo?"],
     )
 
-    patient_id: str = Field(description="病人id")
+    patient_id: int = Field(description="病人id")
 
     predict_id: int = Field(description="预测表id")
     
-    conversation_id: str = Field(
+    conversation_id: int = Field(
         description="传入会话id，存入数据库",
     )
     file_path: str = Field(

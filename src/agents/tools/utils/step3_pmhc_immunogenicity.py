@@ -2,6 +2,7 @@ import json
 import re
 import uuid
 import tempfile
+import time
 
 import pandas as pd
 
@@ -15,6 +16,7 @@ from src.agents.tools.BigMHC.bigmhc import BigMHC_IM
 from src.agents.tools.parameters import BigmhcIMParameters
 from src.utils.minio_utils import download_from_minio_uri
 from src.utils.tool_input_output_api import send_tool_input_output_api
+from src.utils.log import logger
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MOLLY_BUCKET = MINIO_CONFIG["molly_bucket"]
@@ -107,16 +109,23 @@ async def step3_pmhc_immunogenicity(
             input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters)
         )
     except Exception as e:
-        print(f"前置接口调用失败: {e}")
+        logger.error(f"前置接口调用失败: {e}")
     
     # 运行BigMHC_IM工具
+    logger.info("开始执行BigMHC_IM工具...")
+    start_time = time.time()
     bigmhc_im_result = await BigMHC_IM.arun({
         "input_filename": input_file,
         "mhc_allele":mhc_allele
     })
+    end_time = time.time()
+    execution_time = end_time - start_time
+    logger.info(f"BigMHC_IM工具执行完成，耗时: {execution_time:.2f}秒")
     try:
         bigmhc_im_result_dict = json.loads(bigmhc_im_result)
+        logger.info("BigMHC_IM工具结果解析成功")
     except json.JSONDecodeError:
+        logger.error("BigMHC_IM工具结果JSON解析失败")
         neoantigen_message[8]=f"0/{pmhc_binding_m}"
         neoantigen_message[9]="pMHC免疫原性预测阶段BigMHC_im工具执行失败"
         raise Exception("pMHC免疫原性预测阶段BigMHC_im工具执行失败")
@@ -130,15 +139,17 @@ async def step3_pmhc_immunogenicity(
             bigmhc_im_result_dict
         )
     except Exception as e:
-        print(f"后置接口调用失败: {e}")
+        logger.error(f"后置接口调用失败: {e}")
 
     if bigmhc_im_result_dict.get("type") != "link":
+        logger.error(f"BigMHC_IM工具执行失败: {bigmhc_im_result_dict.get('content', '未知错误')}")
         neoantigen_message[8]=f"0/{pmhc_binding_m}"
         neoantigen_message[9]="pMHC免疫原性预测阶段BigMHC_im工具执行失败"
         raise Exception(bigmhc_im_result_dict.get("content", "pMHC免疫原性预测阶段BigMHC_im工具执行失败"))
     
     # 获取结果文件路径
     bigmhc_im_result_file_path = bigmhc_im_result_dict["url"]
+    logger.info(f"BigMHC_IM工具结果文件路径: {bigmhc_im_result_file_path}")
     
     # 步骤中间描述
     INSERT_SPLIT = \
@@ -156,10 +167,13 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
     try:
         path_without_prefix = bigmhc_im_result_file_path[len("minio://"):]
         bucket_name, object_name = path_without_prefix.split("/", 1)
+        logger.info(f"从MinIO读取BigMHC_IM结果文件: bucket={bucket_name}, object={object_name}")
         response = MINIO_CLIENT.get_object(bucket_name, object_name)
         excel_data = BytesIO(response.read())
         df = pd.read_excel(excel_data)
+        logger.info(f"成功读取BigMHC_IM结果文件，共 {len(df)} 条记录")
     except S3Error as e:
+        logger.error(f"从MinIO读取BigMHC_IM结果文件失败: {str(e)}")
         neoantigen_message[8]=f"0/{pmhc_binding_m}"
         neoantigen_message[9]=f"无法从MinIO读取BigMHC_IM结果文件: {str(e)}"
         raise Exception(f"无法从MinIO读取BigMHC_IM结果文件: {str(e)}")
@@ -173,8 +187,10 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
     
     # 筛选高免疫原性肽段
     high_affinity_peptides = df[df['BigMHC_IM'] >= BIGMHC_IM_THRESHOLD]
+    logger.info(f"筛选出 {len(high_affinity_peptides)} 条高免疫原性肽段 (BigMHC_IM >= {BIGMHC_IM_THRESHOLD})")
     
     if high_affinity_peptides.empty:
+        logger.warning(f"未筛选到符合BigMHC_IM >= {BIGMHC_IM_THRESHOLD}要求的高免疫原性的肽段")
         STEP3_DESC4 = f"""
 未筛选到符合BigMHC_IM >= {BIGMHC_IM_THRESHOLD}要求的高免疫原性的肽段，筛选流程结束。
 """
@@ -202,6 +218,7 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
     try:
         fasta_bytes = bigmhc_im_fasta_str.encode('utf-8')
         fasta_stream = BytesIO(fasta_bytes)
+        logger.info(f"上传FASTA文件到MinIO: {bigmhc_im_result_fasta_filename}")
         MINIO_CLIENT.put_object(
             MOLLY_BUCKET,
             bigmhc_im_result_fasta_filename,
@@ -209,7 +226,9 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
             length=len(fasta_bytes),
             content_type='text/plain'
         )
+        logger.info("FASTA文件上传成功")
     except Exception as e:
+        logger.error(f"上传FASTA文件失败: {str(e)}")
         neoantigen_message[8]=f"0/{pmhc_binding_m}"
         neoantigen_message[9]=f"上传FASTA文件失败: {str(e)}"
         raise Exception(f"上传FASTA文件失败: {str(e)}")

@@ -150,7 +150,7 @@ async def run_neoantigenselection(
     mhc_allele: Optional[str] = None,
     cdr3_sequence: Optional[List[str]] = None,
     tool_parameters: Optional[ToolParameters] = None,
-    patient_id: Optional[str] = None, 
+    patient_id: Optional[int] = None, 
     predict_id: Optional[int] = None
 ) -> str:
     """
@@ -160,7 +160,8 @@ async def run_neoantigenselection(
         input_file: 输入文件路径
         mhc_allele: MHC等位基因列表
         cdr3_sequence: CDR3序列列表
-    
+        patient_id: 病人id（int类型）
+        predict_id: 预测表id
     Returns:
         str: JSON格式的结果字符串
     """
@@ -278,7 +279,7 @@ def NeoantigenSelection(
     mhc_allele: Optional[str] = None, 
     cdr3_sequence: Optional[List[str]] = None,
     tool_parameters: Optional[ToolParameters] = None,
-    patient_id: Optional[str] = None, 
+    patient_id: Optional[int] = None, 
     predict_id: Optional[int] = None
 ) -> str:
     """                                    
@@ -288,6 +289,8 @@ def NeoantigenSelection(
         mhc_allele (Optional[List[str]]): MHC比对的等位基因。
         cdr3_sequence (Optional[List[str]]): cdr3序列。
         tool_parameters (Optional[Dict[str, Any]]): 工具参数
+        patient_id (Optional[int]): 病人id
+        predict_id (Optional[int]): 预测表id
     Returns:                               
         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """

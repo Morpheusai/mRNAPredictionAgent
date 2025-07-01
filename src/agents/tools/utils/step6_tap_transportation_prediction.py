@@ -1,6 +1,7 @@
 import json
 import uuid
 import requests
+import time
 
 import pandas as pd
 
@@ -13,6 +14,7 @@ from src.utils.minio_utils import MINIO_CLIENT
 from src.agents.tools.parameters import NetctlpanParameters
 from src.agents.tools.NetCTLPan.netctlpan import NetCTLpan
 from src.utils.tool_input_output_api import send_tool_input_output_api
+from src.utils.log import logger
 
 NEOANTIGEN_CONFIG = CONFIG_YAML["TOOL"]["NEOANTIGEN_SELECTION"]
 NETCTLPAN_THRESHOLD = NEOANTIGEN_CONFIG["netctlpan_threshold"]
@@ -67,9 +69,11 @@ async def step6_tap_transportation_prediction(
             input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters)
         )
     except Exception as e:
-        print(f"前置接口调用失败: {e}")
+        logger.error(f"前置接口调用失败: {e}")
     
     # 运行NetCTLpan工具
+    logger.info("开始执行NetCTLpan工具...")
+    start_time = time.time()
     netctlpan_result = await NetCTLpan.arun({
         "input_filename": input_parameters.input_filename,
         "mhc_allele": input_parameters.mhc_allele,
@@ -80,10 +84,15 @@ async def step6_tap_transportation_prediction(
         "output_threshold": input_parameters.output_threshold,
         "sort_by": input_parameters.sort_by
     })
+    end_time = time.time()
+    execution_time = end_time - start_time
+    logger.info(f"NetCTLpan工具执行完成，耗时: {execution_time:.2f}秒")
     
     try:
         netctlpan_result_dict = json.loads(netctlpan_result)
+        logger.info("NetCTLpan工具结果解析成功")
     except json.JSONDecodeError:
+        logger.error("NetCTLpan工具结果JSON解析失败")
         raise Exception("TAP转运预测阶段NetCTLpan工具执行失败")
     
 
@@ -97,21 +106,26 @@ async def step6_tap_transportation_prediction(
             netctlpan_result_dict
         )
     except Exception as e:
-        print(f"后置接口调用失败: {e}")
+        logger.error(f"后置接口调用失败: {e}")
         
     if netctlpan_result_dict.get("type") != "link":
+        logger.error(f"NetCTLpan工具执行失败: {netctlpan_result_dict.get('content', '未知错误')}")
         raise Exception(netctlpan_result_dict.get("content", "TAP转运预测阶段NetCTLpan工具执行失败"))
     
     netctlpan_result_file_path = netctlpan_result_dict["url"]
+    logger.info(f"NetCTLpan工具结果文件路径: {netctlpan_result_file_path}")
     
     # 读取NetCTLpan结果文件
     try:
         path_without_prefix = netctlpan_result_file_path[len("minio://"):]
         bucket_name, object_name = path_without_prefix.split("/", 1)
+        logger.info(f"从MinIO读取NetCTLpan结果文件: bucket={bucket_name}, object={object_name}")
         response = MINIO_CLIENT.get_object(bucket_name, object_name)
         excel_data = BytesIO(response.read())
         df = pd.read_excel(excel_data)
+        logger.info(f"成功读取NetCTLpan结果文件，共 {len(df)} 条记录")
     except S3Error as e:
+        logger.error(f"从MinIO读取NetCTLpan结果文件失败: {str(e)}")
         raise Exception(f"无法从MinIO读取NetCTLpan结果文件: {str(e)}")
     
     # 步骤中间描述2
@@ -130,9 +144,10 @@ async def step6_tap_transportation_prediction(
 
     # 筛选高转运效率肽段
     high_affinity_peptides = df[df['TAP'] >= NETCTLPAN_THRESHOLD]
+    logger.info(f"筛选出 {len(high_affinity_peptides)} 条高转运效率肽段 (TAP >= {NETCTLPAN_THRESHOLD})")
     
     if high_affinity_peptides.empty:
-        # print("11111111111111111")
+        logger.warning(f"未筛选到符合TAP >= {NETCTLPAN_THRESHOLD}要求的高转运效率概率的肽段")
         STEP2_DESC6 = f"""
 未筛选到符合TAP >= {NETCTLPAN_THRESHOLD}要求的高转运效率概率的肽段，筛选流程结束。
 """
@@ -161,6 +176,7 @@ async def step6_tap_transportation_prediction(
     try:
         fasta_bytes = netctlpan_fasta_str.encode('utf-8')
         fasta_stream = BytesIO(fasta_bytes)
+        logger.info(f"上传FASTA文件到MinIO: {netctlpan_result_fasta_filename}")
         MINIO_CLIENT.put_object(
             "molly",
             netctlpan_result_fasta_filename,
@@ -168,7 +184,9 @@ async def step6_tap_transportation_prediction(
             length=len(fasta_bytes),
             content_type='text/plain'
         )
+        logger.info("FASTA文件上传成功")
     except Exception as e:
+        logger.error(f"上传FASTA文件失败: {str(e)}")
         neoantigen_message[2]=f"0/{cleavage_m}"
         neoantigen_message[3]=f"上传FASTA文件失败: {str(e)}"
         raise Exception(f"上传FASTA文件失败: {str(e)}")
