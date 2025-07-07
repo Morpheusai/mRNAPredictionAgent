@@ -217,7 +217,7 @@ async def BigMHC_EL(
             "model_type": "el"
         }
 
-        timeout = aiohttp.ClientTimeout(total=1800)
+        timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(bigmhc_url, json=payload) as response:
@@ -255,7 +255,7 @@ async def BigMHC_IM(
             "model_type": "im"
         }
 
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(bigmhc_url, json=payload) as response:
                 response.raise_for_status()

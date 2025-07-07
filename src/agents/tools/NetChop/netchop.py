@@ -39,7 +39,7 @@ async def NetChop(
         "strict": strict
     }
 
-    timeout = aiohttp.ClientTimeout(total=30)
+    timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(netchop_url, json=payload) as response:
