@@ -22,6 +22,25 @@ NETCTLPAN_THRESHOLD = NEOANTIGEN_CONFIG["netctlpan_threshold"]
 
 handle_url = CONFIG_YAML["TOOL"]["COMMON"]["handle_tool_input_output_url"]
 
+# . 去重
+def deduplicate_fasta_by_sequence(fasta_str: str) -> str:
+    lines = fasta_str.strip().split('\n')
+    seen_seq = set()
+    result = []
+    i = 0
+    while i < len(lines):
+        if lines[i].startswith('>'):
+            desc = lines[i]
+            seq = lines[i+1] if i+1 < len(lines) else ''
+            if seq not in seen_seq:
+                seen_seq.add(seq)
+                result.append(desc)
+                result.append(seq)
+            i += 2
+        else:
+            i += 1
+    return '\n'.join(result)
+
 async def step6_tap_transportation_prediction(
     input_parameters: NetctlpanParameters, 
     neoantigen_message,
@@ -119,20 +138,21 @@ async def step6_tap_transportation_prediction(
     
     # 构建FASTA文件内容
     fasta_content = []
-    count=0
     for idx, row in high_affinity_peptides.iterrows():
         peptide = row['Peptide']
         mhc_allele = row['Allele']
         fasta_content.append(f">{peptide}|{mhc_allele}")
         fasta_content.append(peptide)
-        count +=1
     netctlpan_fasta_str = "\n".join(fasta_content)
+    deduped_str = deduplicate_fasta_by_sequence(netctlpan_fasta_str)
+    count = sum(1 for line in deduped_str.splitlines() if line.startswith('>'))
     
     # 上传FASTA文件到MinIO  
     uuid_name = str(uuid.uuid4())
     netctlpan_result_fasta_filename = f"{uuid_name}_netctlpan.fasta"
     try:
-        fasta_bytes = netctlpan_fasta_str.encode('utf-8')
+        fasta_bytes = deduped_str.encode('utf-8')
+        
         fasta_stream = BytesIO(fasta_bytes)
         logger.info(f"上传FASTA文件到MinIO: {netctlpan_result_fasta_filename}")
         MINIO_CLIENT.put_object(

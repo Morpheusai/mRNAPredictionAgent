@@ -33,7 +33,8 @@ async def NetMHCpan(
     返回:
     - str: JSON 格式的预测结果
     """
-    
+    print("8888888888888888888888888")
+    print(peptide_length)
     payload = {
         "input_filename": input_filename,  # 注意：保持 input_file 因为远程服务接口可能还在用这个名字
         "mhc_allele": mhc_allele,
@@ -42,7 +43,8 @@ async def NetMHCpan(
         "peptide_length": peptide_length,
         "rank_cutoff": rank_cutoff
     }
-
+    print("8888888888888888888888888")
+    print(payload)
     timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:

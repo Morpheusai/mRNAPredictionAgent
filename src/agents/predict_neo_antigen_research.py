@@ -21,6 +21,7 @@ from src.utils.valid_fasta import validate_minio_fasta
 
 from .prompt.neoantigen_report_template import PRIDICT_PATIENT_REPORT_ONE
 from src.utils.ai_message_api import send_ai_message_to_server
+from src.utils.log import logger
 
 DOWNLOADER_URL_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["markdown_download_url_prefix"]
 MINIO_BUCKET = CONFIG_YAML["MINIO"]["molly_bucket"]
@@ -111,7 +112,11 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
                 goto="patient_case_report"
             )
     except Exception as e:
-        send_ai_message_to_server(conversation_id, f"\n⚠️ 处理过程中出现错误: {str(e)}\n")
+        logger.error(f"NeoantigenSelectNode异常: {str(e)}", exc_info=True)
+        try:
+            send_ai_message_to_server(conversation_id, f"\n⚠️ 处理过程中出现错误: {str(e)}\n")
+        except Exception as inner_e:
+            logger.error(f"send_ai_message_to_server再次异常: {str(inner_e)}", exc_info=True)
         return Command(goto=END)
 
 async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
@@ -146,7 +151,11 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
         send_ai_message_to_server(conversation_id, "#NEO_RESPONSE#\n")
         return Command(goto=END)
     except Exception as e:
-        send_ai_message_to_server(conversation_id, f"\n⚠️ 生成报告时出现错误: {str(e)}\n")
+        logger.error(f"PatientCaseReportNode异常: {str(e)}", exc_info=True)
+        try:
+            send_ai_message_to_server(conversation_id, f"\n⚠️ 生成报告时出现错误: {str(e)}\n")
+        except Exception as inner_e:
+            logger.error(f"send_ai_message_to_server再次异常: {str(inner_e)}", exc_info=True)
         return Command(goto=END)
 
 # 修改图结构

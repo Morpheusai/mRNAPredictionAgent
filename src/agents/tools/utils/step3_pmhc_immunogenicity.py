@@ -206,6 +206,7 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
     
     try:
         fasta_bytes = bigmhc_im_fasta_str.encode('utf-8')
+
         fasta_stream = BytesIO(fasta_bytes)
         logger.info(f"上传FASTA文件到MinIO: {bigmhc_im_result_fasta_filename}")
         MINIO_CLIENT.put_object(
@@ -235,7 +236,11 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
 ✅ 在候选肽段中，系统筛选出**{count}个具有较高免疫原性评分的肽段**
 """
     send_ai_message_to_server(conversation_id, STEP3_DESC5)
-    
 
-    
-    return f"minio://molly/{bigmhc_im_result_fasta_filename}", bigmhc_im_fasta_str,count,bigmhc_im_result_file_path,bigmhc_im_result_dict["content"]
+    # 新增：将high_affinity_peptides转为markdown表格字符串
+    if not high_affinity_peptides.empty:
+        markdown_table = high_affinity_peptides.to_markdown(index=False)
+    else:
+        markdown_table = "无高免疫原性肽段"
+
+    return f"minio://molly/{bigmhc_im_result_fasta_filename}", bigmhc_im_fasta_str, count, bigmhc_im_result_file_path, markdown_table

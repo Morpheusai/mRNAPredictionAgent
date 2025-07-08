@@ -49,7 +49,7 @@ async def NetCTLpan(
         "epi_threshold": epi_threshold,
         "output_threshold": output_threshold,
         "sort_by": sort_by,
-        "num_workers":2
+        "num_workers":5
     }
 
     timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])

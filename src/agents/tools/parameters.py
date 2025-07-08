@@ -26,6 +26,11 @@ class NetchopParameters(BaseModel):
         default = 0,
         examples=[0],
     )
+    peptide_length: list = Field(
+        description = "是否指定肽段长度, -1: 不指定，默认输出8-11长度的结果",
+        default = [9],
+        examples = [[9]],
+    )
 
 class NetctlpanParameters(BaseModel):
     input_filename: str = Field(
@@ -40,7 +45,7 @@ class NetctlpanParameters(BaseModel):
     )
     peptide_length: int = Field(
         description = "是否指定肽段长度, -1: 不指定，默认输出8-11长度的结果",
-        default = -1,
+        default = 9,
         examples = [8],
     )
     weight_of_tap: float = Field(
@@ -90,7 +95,7 @@ class NetmhcpanParameters(BaseModel):
     )
     peptide_length: int = Field(
         description = "是否指定肽段长度, -1: 不指定，默认输出8-11长度的结果",
-        default = -1,
+        default = 9,
         examples = [8],
     )
     high_threshold_of_bp: float = Field(
