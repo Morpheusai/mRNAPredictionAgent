@@ -25,7 +25,7 @@ from src.agents.agents import (
     get_agent
 )
 from src.agents.files.file_description import fileDescriptionAgent
-from src.agents.files.patient_info_formatter import patient_info_structured
+from src.agents.files.patient_info_formatter import PatientInfoDescriptionAgent
 from src.agents.tools.parameters import ToolParameters
 
 from src.memory import initialize_store, initialize_database
@@ -111,6 +111,7 @@ def _parse_input(user_input: Union[UserInput, PredictUserInput]) -> tuple[dict[s
                 "cdr3": user_input.cdr3,
                 "patient_id": user_input.patient_id,
                 "predict_id": user_input.predict_id,
+                "conversation_id" : user_input.conversation_id,
             }
         )
         # if user_input.parameters:
@@ -577,8 +578,7 @@ async def reset_thread(thread_id: str):
 async def process_patient_info(request: PatientInfoRequest):
     try:
         # 调用结构化处理模型
-        result = patient_info_structured.invoke(request.patient_info)
-        
+        result = PatientInfoDescriptionAgent.invoke({"patient_info":request.patient_info})
         # 返回结构化后的信息
         return PatientInfoResponse(structured_info=result.model_dump())
     except Exception as e:

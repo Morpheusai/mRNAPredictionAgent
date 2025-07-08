@@ -87,7 +87,7 @@ def _parse_df_to_positions(df):
             # 跳过无法解析的行
             continue
 
-    logger.info(f"Parsed {len(positions)} positions for protein '{identifier}'.")
+    # logger.info(f"Parsed {len(positions)} positions for protein '{identifier}'.")
     return positions, identifier
 
 
@@ -143,13 +143,13 @@ def build_sequence(positions):
     for pos in positions:
         sequence[pos - 1] = positions[pos][0]
     full_sequence = ''.join(sequence)
-    logger.info(f"Built full sequence of length {len(full_sequence)}.")
+    # logger.info(f"Built full sequence of length {len(full_sequence)}.")
     return full_sequence
 
 def collect_cut_sites(positions):
     """收集所有剪切位点（C列为S的位置）"""
     cut_sites = [pos for pos in positions if positions[pos][1] == 'S']
-    logger.info(f"Found {len(cut_sites)} cut sites.")
+    # logger.info(f"Found {len(cut_sites)} cut sites.")
     return cut_sites
 
 
@@ -180,7 +180,7 @@ def cleavage_peptides(full_sequence,
                                     lengths=[8, 9, 10], 
                                     max_workers=min(4, os.cpu_count() or 1)):
     """多线程生成肽段，并去重"""
-    logger.info(f"Generating peptides for protein '{identifier}' using multithreading ({max_workers} workers)...")
+    # logger.info(f"Generating peptides for protein '{identifier}' using multithreading ({max_workers} workers)...")
 
     peptides = []
     # 注意：这里的seen_sequences是针对单个蛋白质块内的去重
@@ -201,7 +201,7 @@ def cleavage_peptides(full_sequence,
                     seen_sequences.add(seq)
                     peptides.append(p)
 
-    logger.info(f"Generated {len(peptides)} unique peptides for protein '{identifier}'.")
+    # logger.info(f"Generated {len(peptides)} unique peptides for protein '{identifier}'.")
     return peptides
 
 

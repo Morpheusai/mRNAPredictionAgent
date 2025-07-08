@@ -17,6 +17,7 @@ from src.agents.tools.parameters import BigmhcIMParameters
 from src.utils.minio_utils import download_from_minio_uri
 from src.utils.tool_input_output_api import send_tool_input_output_api
 from src.utils.log import logger
+from src.utils.ai_message_api import send_ai_message_to_server
 
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
 MOLLY_BUCKET = MINIO_CONFIG["molly_bucket"]
@@ -62,39 +63,25 @@ def extract_hla_and_peptides_from_fasta(
 
 async def step3_pmhc_immunogenicity(
     input_parameters: BigmhcIMParameters,
-    writer,
     neoantigen_message,
     pmhc_binding_m,
     patient_id,
     predict_id,
+    conversation_id,
 ) -> tuple:
     """
     第三步：pMHC免疫原性预测
     
     Args:
         input_parameters: BigMHC_IM输入参数
-        writer: 流式输出写入器
-    
     Returns:
         tuple: (bigmhc_im_result_file_path, fasta_str) 结果文件路径和FASTA内容
     """
-    # 步骤开始描述
-#     STEP3_DESC1 = """
-# ## 第3部分-pMHC免疫原性预测
-# 基于BigMHC_IM工具对上述内容进行pMHC免疫原性预测 
-
-# \n参数设置说明：
-# - MHC等位基因(mhc_allele): 指定用于预测的MHC分子类型
-
-# 当前使用配置：
-# - 选用MHC allele: HLA-A02:01
-# """
     STEP3_DESC1 = """
 ## 💥 步骤 4：免疫原性预测
 目标：评估肽段激发免疫反应的潜力
 """
-
-    writer(STEP3_DESC1)
+    send_ai_message_to_server(conversation_id, STEP3_DESC1)
 
     input_file, mhc_alleles = extract_hla_and_peptides_from_fasta(input_parameters.input_filename)
     mhc_allele = ",".join(mhc_alleles)
@@ -106,7 +93,8 @@ async def step3_pmhc_immunogenicity(
             predict_id, 
             0, 
             "BigMHC_IM", 
-            input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters)
+            input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters),
+            flag=0
         )
     except Exception as e:
         logger.error(f"前置接口调用失败: {e}")
@@ -136,7 +124,8 @@ async def step3_pmhc_immunogenicity(
             predict_id, 
             1, 
             "BigMHC_IM", 
-            bigmhc_im_result_dict
+            bigmhc_im_result_dict,
+            flag=1
         )
     except Exception as e:
         logger.error(f"后置接口调用失败: {e}")
@@ -194,7 +183,7 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
         STEP3_DESC4 = f"""
 未筛选到符合BigMHC_IM >= {BIGMHC_IM_THRESHOLD}要求的高免疫原性的肽段，筛选流程结束。
 """
-        writer(STEP3_DESC4)
+        send_ai_message_to_server(conversation_id, STEP3_DESC4)
         neoantigen_message[8]=f"0/{pmhc_binding_m}"
         neoantigen_message[9]=bigmhc_im_result_file_path
         raise Exception(f"未找到高免疫原性肽段(BigMHC_IM ≥ {BIGMHC_IM_THRESHOLD})")
@@ -245,7 +234,7 @@ pMHC免疫原性预测预测结果已获取，结果如下：\n
     STEP3_DESC5 = f"""
 ✅ 在候选肽段中，系统筛选出**{count}个具有较高免疫原性评分的肽段**
 """
-    writer(STEP3_DESC5)
+    send_ai_message_to_server(conversation_id, STEP3_DESC5)
     
 
     

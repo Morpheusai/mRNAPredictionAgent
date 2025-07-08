@@ -23,6 +23,7 @@ from src.agents.tools.utils.step3_pmhc_immunogenicity import step3_pmhc_immunoge
 from src.agents.tools.utils.step4_pmhc_tcr_interaction import step4_pmhc_tcr_interaction
 from src.agents.tools.utils.step6_tap_transportation_prediction import step6_tap_transportation_prediction
 from src.utils.minio_utils import upload_file_to_minio,download_from_minio_uri
+from src.utils.ai_message_api import send_ai_message_to_server
 
 load_dotenv()
 # MinIO 配置:
@@ -151,7 +152,8 @@ async def run_neoantigenselection(
     cdr3_sequence: Optional[List[str]] = None,
     tool_parameters: Optional[ToolParameters] = None,
     patient_id: Optional[int] = None, 
-    predict_id: Optional[int] = None
+    predict_id: Optional[int] = None,
+    conversation_id: Optional[int] = None
 ) -> str:
     """
     运行新抗原筛选流程
@@ -176,8 +178,6 @@ async def run_neoantigenselection(
     pmhc_immunogenicity_m=0
     tcr_m=0
 
-    writer = get_stream_writer()
-    
     mhc_allele=normalize_hla_alleles(mhc_allele)
     try:
         # 第一步：蛋白切割位点预测
@@ -185,10 +185,10 @@ async def run_neoantigenselection(
         netchop_parameters.input_filename = input_file
         cleavage_result_file_path, netchop_final_result_str,cleavage_m = await step1_protein_cleavage(
             netchop_parameters, 
-            writer, 
             neoantigen_message,
             patient_id,
             predict_id,
+            conversation_id,
         )
         neoantigen_message[0] = f"{cleavage_m}/{cleavage_m}"
         neoantigen_message[1] = cleavage_result_file_path
@@ -199,11 +199,11 @@ async def run_neoantigenselection(
         netctlpan_parameters.mhc_allele = mhc_allele
         netctlpan_file_path, netctlpan_fasta_str, tap_m,netctlpan_tool_url = await step6_tap_transportation_prediction(
             netctlpan_parameters,
-            writer, 
             neoantigen_message,
             cleavage_m,
             patient_id,
             predict_id,
+            conversation_id,
         )
         neoantigen_message[2]=f"{tap_m}/{cleavage_m}"
         neoantigen_message[3]=netctlpan_tool_url
@@ -214,11 +214,11 @@ async def run_neoantigenselection(
         netmhcpan_parameters.mhc_allele = mhc_allele
         netmhcpan_result_file_path, mhcpan_count = await step2_pmhc_binding_affinity(
             netmhcpan_parameters,
-            writer, 
             neoantigen_message,
             tap_m,
             patient_id,
             predict_id,
+            conversation_id,
         )
 
         # 第四步：pMHC免疫原性预测
@@ -226,11 +226,11 @@ async def run_neoantigenselection(
         bigmhc_parameters.input_filename = netmhcpan_result_file_path 
         bigmhc_im_result_file_path, bigmhc_im_fasta_str,pmhc_immunogenicity_m, bigmhc_im_tool_url, bigmhc_im_content= await step3_pmhc_immunogenicity(
             bigmhc_parameters, 
-            writer, 
             neoantigen_message,
             pmhc_binding_m,
             patient_id,
             predict_id,
+            conversation_id,
         )
         neoantigen_message[6]=f"{pmhc_immunogenicity_m}/{mhcpan_count}"
         neoantigen_message[7]=bigmhc_im_tool_url
@@ -240,7 +240,7 @@ async def run_neoantigenselection(
 \n## 📄 综合结论：
 \n✅ 本次筛选流程中，系统最终识别出**{pmhc_immunogenicity_m}条在抗原递呈、免疫激活与T细胞识别多个维度均表现优异的个体化 neoantigen 候选肽段**，建议作为后续疫苗设计重点靶点。
     """
-        writer(STEP1_DESC2)
+        send_ai_message_to_server(conversation_id, STEP1_DESC2)
 
 #目前不需要cdr3序列的预测
         # # 第五步：pMHC-TCR相互作用预测
@@ -280,7 +280,8 @@ def NeoantigenSelection(
     cdr3_sequence: Optional[List[str]] = None,
     tool_parameters: Optional[ToolParameters] = None,
     patient_id: Optional[int] = None, 
-    predict_id: Optional[int] = None
+    predict_id: Optional[int] = None,
+    conversation_id: Optional[int] = None
 ) -> str:
     """                                    
     NeoantigenSelection是基于用户输入的患者信息，结合已有的工具库，完成个体化neo-antigen筛选。
@@ -302,7 +303,8 @@ def NeoantigenSelection(
                 cdr3_sequence,
                 tool_parameters,
                 patient_id,
-                predict_id
+                predict_id,
+                conversation_id
             )
         )
         return result

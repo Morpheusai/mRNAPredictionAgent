@@ -48,10 +48,11 @@ async def NetCTLpan(
         "peptide_length": peptide_length,
         "epi_threshold": epi_threshold,
         "output_threshold": output_threshold,
-        "sort_by": sort_by
+        "sort_by": sort_by,
+        "num_workers":2
     }
 
-    timeout = aiohttp.ClientTimeout(total=1800)
+    timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(netctlpan_url, json=payload) as response:

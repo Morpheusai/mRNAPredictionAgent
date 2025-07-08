@@ -5,6 +5,9 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 from src.core import get_model, settings
+from .prompt.patient_info_prompts import PATIENT_INFO_SYSTEM_PROMPT
+
+from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 
 class Gender(str, Enum):
     MALE = '男'
@@ -26,10 +29,10 @@ class StatusType(str, Enum):
 class PatientInfoFormatter(BaseModel):
     """用于格式化病人信息的结构化输出模型"""
     # 基本信息
-    medical_record_number: str = Field(description="病历号", max_length=50)
-    name: str = Field(description="患者姓名", max_length=64)
+    medical_record_number: Optional[str]= Field(description="病历号", max_length=50)
+    name: Optional[str] = Field(description="患者姓名", max_length=64)
     gender: Gender = Field(description="性别：男/女/其他")
-    birth_date: date = Field(description="出生日期")
+    birth_date: Optional[date] = Field(default=None, description="出生日期")
     phone: Optional[str] = Field(description="联系电话", max_length=20)
     email: Optional[str] = Field(description="电子邮箱", max_length=100)
     hospital: str = Field(description="就诊医院", max_length=64)
@@ -46,8 +49,21 @@ class PatientInfoFormatter(BaseModel):
     status: StatusType = Field(description="状态/new/pending/completed，默认是new") 
 
 
+# ----------------- 结构化输出系统提示词与Prompt模板 -----------------
+# 创建系统提示模板
+patient_info_system_prompt = SystemMessagePromptTemplate.from_template(PATIENT_INFO_SYSTEM_PROMPT)
+# 创建用户输入模板
+patient_info_human_template = "收到的病人信息内容:'''{patient_info}'''."
+patient_info_human_prompt = HumanMessagePromptTemplate.from_template(patient_info_human_template)
+# 组合提示模板
+patient_info_chat_prompt = ChatPromptTemplate.from_messages([patient_info_system_prompt, patient_info_human_prompt])
 # 初始化 GPT-4 模型
 patient_info_agent = get_model(settings.DEFAULT_MODEL)
 
+# ----------------------------------------------------------------------
+
 # 创建带结构化输出的模型
 patient_info_structured = patient_info_agent.with_structured_output(PatientInfoFormatter) 
+
+# 创建处理链
+PatientInfoDescriptionAgent = patient_info_chat_prompt | patient_info_structured

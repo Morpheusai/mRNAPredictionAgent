@@ -8,6 +8,8 @@ TOOL:
     output_download_url_prefix: "https://mollyseek.com/downloads/"
     markdown_download_url_prefix: "https://try.mollyseek.cn/backend/markdown_download?file_path="
     handle_tool_input_output_url: "http://120.79.142.227:60718/backend/handle_tool_input_output"
+    handle_ai_message_url: "http://120.79.142.227:60718/backend/handle_ai_message"
+    timeout_seconds: 21600  # 新增：所有工具的统一超时时间（单位：秒，2小时）
   NETMHCPAN:   
     url: "http://3.34.237.164:60823/netmhcpan"
     netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
