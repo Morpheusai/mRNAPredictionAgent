@@ -206,7 +206,6 @@ async def BigMHC_EL(
         - input_filename：提供fasta文件的肽段。
         - mhc_allele：对应的 HLA 类型，字符串类型。
 
-
         返回值：
         - JSON 字符串，包含预测结果或错误信息。
     """
@@ -217,7 +216,7 @@ async def BigMHC_EL(
             "model_type": "el"
         }
 
-        timeout = aiohttp.ClientTimeout(total=1800)
+        timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(bigmhc_url, json=payload) as response:
@@ -255,7 +254,7 @@ async def BigMHC_IM(
             "model_type": "im"
         }
 
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(bigmhc_url, json=payload) as response:
                 response.raise_for_status()
@@ -271,7 +270,7 @@ async def BigMHC_IM(
             "content": f" BigMHC-IM 预测失败: {type(e).__name__} - {str(e)}"
         }, ensure_ascii=False)
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # async def BigMHC_EL_test():
     #     result = await BigMHC_EL.ainvoke({
     #         "input_file": "minio://molly/9e221df5-1b61-40ff-bb00-699e1c7d7dfc_bigmhc_example1.csv",
@@ -297,14 +296,14 @@ if __name__ == "__main__":
     #     print(result)
 
     # asyncio.run(test_bigmhc_el())
-    async def BigMHC_IM_test():
-        result = await BigMHC_IM.ainvoke({
-            # "input_file": "minio://molly/9e221df5-1b61-40ff-bb00-699e1c7d7dfc_bigmhc_example1.csv",
-            "input_file": "minio://molly/da861418-bdac-43b3-8760-853d8140ab37_bigmhc_el.fasta",#特殊形式的fasta文件
+    # async def BigMHC_IM_test():
+    #     result = await BigMHC_IM.ainvoke({
+    #         # "input_file": "minio://molly/9e221df5-1b61-40ff-bb00-699e1c7d7dfc_bigmhc_example1.csv",
+    #         "input_file": "minio://molly/da861418-bdac-43b3-8760-853d8140ab37_bigmhc_el.fasta",#特殊形式的fasta文件
             
-        })
+    #     })
 
-    asyncio.run(BigMHC_IM_test())
+    # asyncio.run(BigMHC_IM_test())
     # async def test_bigmhc_im():
     #     # 传入 FASTA 文件的 MinIO 路径（请替换为你的真实路径）
     #     peptide_fasta_minio_path = "minio://netchop-cleavage-results/d05f77be-a871-4097-bbe3-cf1e1effcec4_cleavage_result.fasta"

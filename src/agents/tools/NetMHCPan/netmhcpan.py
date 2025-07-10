@@ -14,7 +14,7 @@ netmhcpan_url = CONFIG_YAML["TOOL"]["NETMHCPAN"]["url"]
 async def NetMHCpan(
     input_filename: str,
     mhc_allele: str = "HLA-A02:01",
-    peptide_length: int = -1,
+    peptide_length: str = "-1",
     high_threshold_of_bp: float = 0.5,
     low_threshold_of_bp: float = 2.0,
     rank_cutoff: float = -99.9
@@ -33,18 +33,16 @@ async def NetMHCpan(
     返回:
     - str: JSON 格式的预测结果
     """
-    print("8888888888888888888888888")
-    print(peptide_length)
     payload = {
         "input_filename": input_filename,  # 注意：保持 input_file 因为远程服务接口可能还在用这个名字
         "mhc_allele": mhc_allele,
         "high_threshold_of_bp": high_threshold_of_bp,
         "low_threshold_of_bp": low_threshold_of_bp,
         "peptide_length": peptide_length,
-        "rank_cutoff": rank_cutoff
+        "rank_cutoff": rank_cutoff,
+        "num_workers":20,
+        "mode": 1
     }
-    print("8888888888888888888888888")
-    print(payload)
     timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:

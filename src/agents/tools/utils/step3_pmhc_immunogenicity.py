@@ -85,15 +85,20 @@ async def step3_pmhc_immunogenicity(
 
     input_file, mhc_alleles = extract_hla_and_peptides_from_fasta(input_parameters.input_filename)
     mhc_allele = ",".join(mhc_alleles)
+    # 对mhc_alleles数组进行去重处理
+    unique_mhc_alleles = list(dict.fromkeys(mhc_alleles))  # 保持顺序的去重
+    unique_mhc_alleles_str = ",".join(unique_mhc_alleles)
     
     # 调用前置接口
     try:
+        params = input_parameters.__dict__.copy()
+        params["mhc_allele"] = unique_mhc_alleles_str  # 用新值覆盖
         send_tool_input_output_api(
             patient_id, 
             predict_id, 
             0, 
             "BigMHC_IM", 
-            input_parameters.__dict__ if hasattr(input_parameters, '__dict__') else dict(input_parameters),
+            params,
             flag=0
         )
     except Exception as e:

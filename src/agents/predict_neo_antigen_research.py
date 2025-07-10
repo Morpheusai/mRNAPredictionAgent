@@ -1,3 +1,5 @@
+import asyncio
+
 from datetime import datetime
 from pydantic import BaseModel, Field
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -19,7 +21,7 @@ from src.agents.tools import (
 from src.utils.pdf_generator import neo_md2pdf
 from src.utils.valid_fasta import validate_minio_fasta
 
-from .prompt.neoantigen_report_template import PRIDICT_PATIENT_REPORT_ONE
+from src.agents.prompt.neoantigen_report_template import PRIDICT_PATIENT_REPORT_ONE
 from src.utils.ai_message_api import send_ai_message_to_server
 from src.utils.log import logger
 
@@ -64,6 +66,8 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         patient_id = config["configurable"].get("patient_id", None)
         predict_id = config["configurable"].get("predict_id", None)
         conversation_id = config["configurable"].get("conversation_id", None)
+        # file_path="minio://molly/6b731a78-4fb9-4931-9059-a9a978470b98_一个肽段.fasta"
+        # mhc_allele="hla"
 
         if mhc_allele == None:
             STEP1_DESC2 = f"""
@@ -85,6 +89,8 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
             return Command(goto=END)
         else:    
             send_ai_message_to_server(conversation_id, "\n关键信息分析完毕，我们即将开始Neoantigen筛选过程⏳，我们会尽快完成这项精准医疗方案✨。\n")
+
+            
             # 1. 通过state参数构建NeoantigenResearch工具输入参数
             neoantigen_message = await NeoantigenSelection.ainvoke(
                 {
@@ -97,35 +103,32 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
                     "conversation_id": conversation_id,
                 }
             )
-            
             if not isinstance(neoantigen_message, list) or len(neoantigen_message) < 9:
                 send_ai_message_to_server(conversation_id, "\n⚠️ Neo-antigen筛选过程出现异常，请检查输入数据。\n")
                 return Command(goto=END)
-                
-            return Command(
-                update={
-                    "mhc_allele": mhc_allele,
-                    "cdr3": cdr3,
-                    "input_fsa_filepath": file_path,
-                    "neoantigen_message": neoantigen_message
-                },
-                goto="patient_case_report"
-            )
+
+            # return Command(
+            #     update={
+            #         "mhc_allele": mhc_allele,
+            #         "cdr3": cdr3,
+            #         "input_fsa_filepath": file_path,
+            #         "neoantigen_message": neoantigen_message
+            #     },
+            #     goto="patient_case_report"
+            # )
     except Exception as e:
+        import traceback; traceback.print_exc()
         logger.error(f"NeoantigenSelectNode异常: {str(e)}", exc_info=True)
         try:
             send_ai_message_to_server(conversation_id, f"\n⚠️ 处理过程中出现错误: {str(e)}\n")
         except Exception as inner_e:
             logger.error(f"send_ai_message_to_server再次异常: {str(inner_e)}", exc_info=True)
-        return Command(goto=END)
 
-async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
     try:
-        conversation_id = config["configurable"].get("conversation_id", None)
-        # send_ai_message_to_server(conversation_id, '\n')
         send_ai_message_to_server(conversation_id, "\n ✅ 肽段数据分析完成，结合筛选过程生成报告...\n")
 
-        neoantigen_array = state.get("neoantigen_message", [])
+        # neoantigen_array = state.get("neoantigen_message", [])
+        neoantigen_array=neoantigen_message
         if not isinstance(neoantigen_array, list) or len(neoantigen_array) < 9:
             send_ai_message_to_server(conversation_id, "\n⚠️ 无法生成报告：数据格式不正确\n")
             return Command(goto=END)
@@ -141,7 +144,6 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
             'immunogenicity_link': f"[免疫原性预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[7]})" if neoantigen_array[7].startswith("minio://") else f"{neoantigen_array[7]}",
             'bigmhc_im_content': neoantigen_array[8],
         }
-
         patient_report_md = PRIDICT_PATIENT_REPORT_ONE.format(**report_data)
         pdf_download_link = neo_md2pdf(patient_report_md)
         send_ai_message_to_server(conversation_id, "📄 完整分析细节、候选肽段列表与评分均已整理至报告中，可点击查看：")
@@ -151,23 +153,73 @@ async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
         send_ai_message_to_server(conversation_id, "#NEO_RESPONSE#\n")
         return Command(goto=END)
     except Exception as e:
+        import traceback; traceback.print_exc()
         logger.error(f"PatientCaseReportNode异常: {str(e)}", exc_info=True)
         try:
             send_ai_message_to_server(conversation_id, f"\n⚠️ 生成报告时出现错误: {str(e)}\n")
         except Exception as inner_e:
             logger.error(f"send_ai_message_to_server再次异常: {str(inner_e)}", exc_info=True)
-        return Command(goto=END)
+
+    return Command(
+        update={
+            "mhc_allele": mhc_allele,
+            "cdr3": cdr3,
+            "input_fsa_filepath": file_path,
+            "neoantigen_message": neoantigen_message
+        },
+        goto=END
+    )
+
+# async def PatientCaseReportNode(state: AgentState, config: RunnableConfig):
+#     try:
+#         conversation_id = config["configurable"].get("conversation_id", None)
+#         send_ai_message_to_server(conversation_id, "\n ✅ 肽段数据分析完成，结合筛选过程生成报告...\n")
+
+#         neoantigen_array = state.get("neoantigen_message", [])
+#         if not isinstance(neoantigen_array, list) or len(neoantigen_array) < 9:
+#             send_ai_message_to_server(conversation_id, "\n⚠️ 无法生成报告：数据格式不正确\n")
+#             return Command(goto=END)
+
+#         report_data = {
+#             'cleavage_count': neoantigen_array[0],
+#             'cleavage_link': f"[肽段切割]({DOWNLOADER_URL_PREFIX}{neoantigen_array[1]})" if neoantigen_array[1].startswith("minio://") else f"{neoantigen_array[1]}",
+#             'tap_count': neoantigen_array[2],
+#             'tap_link': f"[TAP 转运预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[3]})" if neoantigen_array[3].startswith("minio://") else f"{neoantigen_array[3]}",
+#             'affinity_count': neoantigen_array[4],
+#             'affinity_link': f"[亲和力预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[5]})" if neoantigen_array[5].startswith("minio://") else f"{neoantigen_array[5]}",
+#             'immunogenicity_count': neoantigen_array[6],
+#             'immunogenicity_link': f"[免疫原性预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[7]})" if neoantigen_array[7].startswith("minio://") else f"{neoantigen_array[7]}",
+#             'bigmhc_im_content': neoantigen_array[8],
+#         }
+#         patient_report_md = PRIDICT_PATIENT_REPORT_ONE.format(**report_data)
+#         pdf_download_link = neo_md2pdf(patient_report_md)
+#         send_ai_message_to_server(conversation_id, "📄 完整分析细节、候选肽段列表与评分均已整理至报告中，可点击查看：")
+#         fdtime = datetime.now().strftime('%Y-%m-%d') 
+#         send_ai_message_to_server(conversation_id, "#NEO_RESPONSE#")
+#         send_ai_message_to_server(conversation_id, f"👉 📥 下载报告：[Neoantigen筛选报告-{fdtime}]({pdf_download_link})")
+#         send_ai_message_to_server(conversation_id, "#NEO_RESPONSE#\n")
+#         return Command(goto=END)
+#     except Exception as e:
+#         import traceback; traceback.print_exc()
+#         logger.error(f"PatientCaseReportNode异常: {str(e)}", exc_info=True)
+#         try:
+#             send_ai_message_to_server(conversation_id, f"\n⚠️ 生成报告时出现错误: {str(e)}\n")
+#         except Exception as inner_e:
+#             logger.error(f"send_ai_message_to_server再次异常: {str(inner_e)}", exc_info=True)
+#         return Command(goto=END)
 
 # 修改图结构
 PredictNeoantigenSelectAgent = StateGraph(AgentState)
 PredictNeoantigenSelectAgent.add_node("neoantigen_select_node", NeoantigenSelectNode)
-PredictNeoantigenSelectAgent.add_node("patient_case_report", PatientCaseReportNode)
+# PredictNeoantigenSelectAgent.add_node("patient_case_report", PatientCaseReportNode)
 
 # 设置入口和条件边
 PredictNeoantigenSelectAgent.set_entry_point("neoantigen_select_node")
-PredictNeoantigenSelectAgent.add_edge("patient_case_report", END)
+PredictNeoantigenSelectAgent.add_edge("neoantigen_select_node", END)
+# PredictNeoantigenSelectAgent.add_edge("patient_case_report", END)
 
 predict_neo_antigen_research = PredictNeoantigenSelectAgent.compile(
-    checkpointer=MemorySaver(), 
-    store=InMemoryStore()
+    checkpointer = MemorySaver(), 
+    store = InMemoryStore()
 )
+

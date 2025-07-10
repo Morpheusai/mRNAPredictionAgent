@@ -14,12 +14,13 @@ netctlpan_url = CONFIG_YAML["TOOL"]["NETCTLPAN"]["url"]
 async def NetCTLpan(
     input_filename: str,
     mhc_allele: str = "HLA-A02:01",
-    peptide_length: int = -1,
+    peptide_length: str = "9",
     weight_of_tap: float = 0.025,
     weight_of_clevage: float = 0.225,
     epi_threshold: float = 1.0,
     output_threshold: float = -99.9,
-    sort_by: int = -1
+    sort_by: int = -1,
+    mode: int = 0
 ) -> str:
     """
     使用NetCTLpan工具预测肽段序列与指定MHC分子的结合亲和力，用于筛选潜在的免疫原性肽段。
@@ -27,7 +28,7 @@ async def NetCTLpan(
     参数说明:
     - input_filename: 输入文件路径，例如 minio://bucket/path.fasta
     - mhc_allele: MHC等位基因，默认"HLA-A02:01"，多个用逗号分隔
-    - peptide_length: 肽段长度，默认-1（表示8-11），范围8-11
+    - peptide_length: 肽段长度，字符串格式如"9,10"，默认-1（表示8-11），范围8-11
     - weight_of_tap: TAP转运效率权重，默认0.025，权重越低影响越小
     - weight_of_clevage: 切割效率权重，默认0.225，影响大于TAP权重
     - epi_threshold: 表位阈值，默认1.0，高于此值可能为潜在表位
@@ -49,7 +50,8 @@ async def NetCTLpan(
         "epi_threshold": epi_threshold,
         "output_threshold": output_threshold,
         "sort_by": sort_by,
-        "num_workers":5
+        "num_workers":20,
+        "mode": 1
     }
 
     timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])

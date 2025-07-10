@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import List
 
 class NetchopParameters(BaseModel):
     input_filename: str = Field(
@@ -26,10 +27,10 @@ class NetchopParameters(BaseModel):
         default = 0,
         examples=[0],
     )
-    peptide_length: list = Field(
+    peptide_length: List[int] = Field(
         description = "是否指定肽段长度, -1: 不指定，默认输出8-11长度的结果",
-        default = [9],
-        examples = [[9]],
+        default = [-1],
+        examples = [[8, 9, 10, 11]],
     )
 
 class NetctlpanParameters(BaseModel):
@@ -43,10 +44,10 @@ class NetctlpanParameters(BaseModel):
         default = "HLA-A02:01",
         examples=["HLA-A02:01"],
     )
-    peptide_length: int = Field(
+    peptide_length: List[int] = Field(
         description = "是否指定肽段长度, -1: 不指定，默认输出8-11长度的结果",
-        default = 9,
-        examples = [8],
+        default = [8,9,10,11],
+        examples = [[8, 9, 10, 11]],
     )
     weight_of_tap: float = Field(
         description = "TAP 转运效率的权重(综合得分计算)，权重值越低，TAP 对综合得分的影响越小。调整此参数可优化预测模型。 ",
@@ -93,10 +94,10 @@ class NetmhcpanParameters(BaseModel):
         default = "HLA-A02:01",
         examples=["HLA-A02:01"],
     )
-    peptide_length: int = Field(
+    peptide_length: List[int] = Field(
         description = "是否指定肽段长度, -1: 不指定，默认输出8-11长度的结果",
-        default = 9,
-        examples = [8],
+        default = [8,9,10,11],
+        examples = [[8, 9, 10, 11]],
     )
     high_threshold_of_bp: float = Field(
         description = "设置高亲和力肽段的阈值。阈值越低，筛选出来的高亲和力肽段亲和力越好。",

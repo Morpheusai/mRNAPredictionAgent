@@ -76,10 +76,13 @@ async def step6_tap_transportation_prediction(
     # 运行NetCTLpan工具
     logger.info("开始执行NetCTLpan工具...")
     start_time = time.time()
+    # 将peptide_length数组转换为逗号分隔的字符串
+    peptide_length_str = ",".join(map(str, input_parameters.peptide_length))
+    
     netctlpan_result = await NetCTLpan.arun({
         "input_filename": input_parameters.input_filename,
         "mhc_allele": input_parameters.mhc_allele,
-        "peptide_length": input_parameters.peptide_length,
+        "peptide_length": peptide_length_str,
         "weight_of_tap": input_parameters.weight_of_tap,
         "weight_of_clevage": input_parameters.weight_of_clevage,
         "epi_threshold": input_parameters.epi_threshold,

@@ -11,7 +11,7 @@ TOOL:
     handle_ai_message_url: "http://120.79.142.227:60718/backend/handle_ai_message"
     timeout_seconds: 21600  # 新增：所有工具的统一超时时间（单位：秒，2小时）
   NETMHCPAN:   
-    url: "http://3.34.237.164:60823/netmhcpan"
+    url: "http://15.165.13.221:60823/netmhcpan"
     netmhcpan_dir: "/mnt/softwares/netMHCpan-4.1/Linux_x86_64"
     input_tmp_netmhcpan_dir: "/mnt/tmp/NetMHCpan/input"
     output_tmp_netmhcpan_dir: "/mnt/tmp/NetMHCpan/output"
@@ -34,7 +34,7 @@ TOOL:
   EXTRACT_PEPTIDE:
     tmp_extract_peptide_dir: "/mnt/tmp/ExtractPeptide/output"
   NETCHOP:
-    url: "http://3.34.237.164:60823/netchop"
+    url: "http://15.165.13.221:60823/netchop"
     netchop_dir: "/mnt/softwares/netchop-3.1/Linux_x86_64"
     input_tmp_netchop_dir: "/mnt/tmp/NetChop/input"
     output_tmp_netchop_dir: "/mnt/tmp/NetChop/output"
@@ -48,7 +48,7 @@ TOOL:
     input_tmp_nettcr_dir: "/mnt/tmp/NetTCR/input"
     output_tmp_nettcr_dir: "/mnt/tmp/NetTCR/output"    
   NETCTLPAN:
-    url: "http://3.34.237.164:60823/netctlpan"
+    url: "http://15.165.13.221:60823/netctlpan"
     netctlpan_dir: /mnt/softwares/netCTLpan-1.1
     input_tmp_netctlpan_dir: /mnt/tmp/netctlpan/input
     output_tmp_netctlpan_dir: /mnt/tmp/netctlpan/output
@@ -70,7 +70,7 @@ TOOL:
     input_tmp_dir: /mnt/tmp/immuneapp_neo/input  
     output_tmp_dir: /mnt/tmp/immuneapp_neo/output
   BIGMHC:
-    url: "http://3.34.237.164:60823/bigmhc"
+    url: "http://15.165.13.221:60823/bigmhc"
     bigmhc_dir: "/mnt/softwares/bigmhc/src"  
     input_tmp_bigmhc_dir: "/mnt/tmp/BigMHC/input"
     output_tmp_bigmhc_dir: "/mnt/tmp/BigMHC/output" 

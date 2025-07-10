@@ -274,7 +274,7 @@ async def run_neoantigenselection(
         return neoantigen_message
 
 @tool
-def NeoantigenSelection(
+async def NeoantigenSelection(
     input_file: str,
     mhc_allele: Optional[str] = None, 
     cdr3_sequence: Optional[List[str]] = None,
@@ -295,17 +295,16 @@ def NeoantigenSelection(
     Returns:                               
         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """
+    # neoantigen_message = ["--"] * 9
     try:
-        result = asyncio.run(
-            run_neoantigenselection(
-                input_file, 
-                mhc_allele, 
-                cdr3_sequence,
-                tool_parameters,
-                patient_id,
-                predict_id,
-                conversation_id
-            )
+        result = await run_neoantigenselection(
+            input_file, 
+            mhc_allele, 
+            cdr3_sequence,
+            tool_parameters,
+            patient_id,
+            predict_id,
+            conversation_id
         )
         return result
     except Exception as e:

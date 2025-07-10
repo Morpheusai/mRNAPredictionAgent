@@ -97,18 +97,15 @@ async def step2_pmhc_binding_affinity(
     # 运行NetMHCpan工具
     logger.info("开始执行NetMHCpan工具...")
     start_time = time.time()
+    peptide_length_str = ",".join(map(str, input_parameters.peptide_length))
     netmhcpan_result = await NetMHCpan.arun({
         "input_filename": input_parameters.input_filename,
         "mhc_allele": input_parameters.mhc_allele,
-        "peptide_length": input_parameters.peptide_length,
+        "peptide_length": peptide_length_str,
         "high_threshold_of_bp": input_parameters.high_threshold_of_bp,
         "low_threshold_of_bp": input_parameters.low_threshold_of_bp,
         "rank_cutoff": input_parameters.rank_cutoff
     })
-    print("11111111111111111111111111111111111111")
-    print("11111111111111111111111111111111111111") 
-    print("11111111111111111111111111111111111111")       
-    print(input_parameters.peptide_length)
     end_time = time.time()
     execution_time = end_time - start_time
     logger.info(f"NetMHCpan工具执行完成，耗时: {execution_time:.2f}秒")
@@ -121,8 +118,6 @@ async def step2_pmhc_binding_affinity(
         
         err_msg = f"pMHC结合亲和力预测阶段NetMHCpan工具执行失败，原因: {str(e)}，原始返回: {netmhcpan_result}，{execution_time:.2f}秒"
         neoantigen_message[5]=err_msg
-        print("0000000000000000000000000000000000000000000000000000000000000000")
-        print(err_msg)
         logger.error(err_msg)
         raise Exception(err_msg)
     
@@ -145,8 +140,6 @@ async def step2_pmhc_binding_affinity(
         # neoantigen_message[5]="pMHC结合亲和力预测阶段NetMHCpan工具执行失败"
         err_msg = f"pMHC结合亲和力预测阶段NetMHCpan工具执行失败，原因: {netmhcpan_result_dict.get('content', '未知错误')}"
         neoantigen_message[5]=err_msg
-        print("0000000000000000000000000000000000000000000000000000000000000000")
-        print(err_msg)
         logger.error(err_msg)
         raise Exception(err_msg)
     
@@ -204,10 +197,6 @@ async def step2_pmhc_binding_affinity(
     
     try:
         fasta_bytes = netmhcpan_fasta_str.encode('utf-8')
-        print("1111111111111111111111111111111111111111111111111111")
-        print("1111111111111111111111111111111111111111111111111111")
-        print("11111111111111111111111111111111111111111111111111111")
-        print(fasta_bytes)
         fasta_stream = BytesIO(fasta_bytes)
         logger.info(f"上传FASTA文件到MinIO: {netmhcpan_result_fasta_filename}")
         MINIO_CLIENT.put_object(

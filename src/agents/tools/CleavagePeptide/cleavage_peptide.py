@@ -177,7 +177,7 @@ def _process_single_site(s_start, full_sequence, cut_sites_set, lengths, max_pos
 def cleavage_peptides(full_sequence, 
                                     cut_sites, 
                                     identifier,
-                                    lengths=[8, 9, 10], 
+                                    lengths=[8, 9, 10, 11], 
                                     max_workers=min(4, os.cpu_count() or 1)):
     """多线程生成肽段，并去重"""
     # logger.info(f"Generating peptides for protein '{identifier}' using multithreading ({max_workers} workers)...")
@@ -244,7 +244,7 @@ def write_output(peptides, output_file, output_format='fasta'):
 async def run_NetChop_Cleavage(
     input_file: str,
     output_format: str = "fasta",
-    lengths=[8, 9, 10],
+    lengths=[8, 9, 10, 11],
 ):
     """
     根据NetChop预测结果文件生成肽段，并输出为指定格式。
@@ -323,16 +323,20 @@ async def run_NetChop_Cleavage(
 @tool
 def NetChop_Cleavage(input_file: str,
                      output_format: str = "fasta",
-                     lengths: list = [8, 9, 10]):
+                     lengths: list = [8, 9, 10, 11]):
     """
     使用 NetChop 输出结果文件生成切割肽段，支持多格式输出。
 
     参数：
         input_file (str): MinIO 文件路径，格式如 minio://bucket/file.txt
         output_format (str): 输出格式，支持 fasta, csv, tsv, json
-        lengths (list): 要生成的肽段长度列表，默认 [8, 9, 10]
+        lengths (list): 要生成的肽段长度列表，默认 [8, 9, 10, 11]
     """
     try:
+        # 如果传入的是 [-1]，则使用默认的长度列表
+        if lengths == [-1]:
+            lengths = [8, 9, 10, 11]
+            
         return asyncio.run(run_NetChop_Cleavage(
             input_file=input_file,
             output_format=output_format,
@@ -349,5 +353,5 @@ if __name__ == "__main__":
     print(asyncio.run(run_NetChop_Cleavage(
         input_file="minio://netchop-results/b8bb68b2f0d14d128228e66724f4bf60_NetChop_results.xlsx",
         output_format="fasta",
-        lengths=[8, 9, 10]
+        lengths=[8, 9, 10, 11]
     )))

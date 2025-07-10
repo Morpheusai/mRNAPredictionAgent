@@ -70,7 +70,6 @@ async def step1_protein_cleavage(
         logger.error(f"工具前置接口调用失败: {e}")
     # 运行NetChop工具
     logger.info("开始执行NetChop工具...")
-    print("0000000000000000000000000000000000000000000000000000000000000000")
     start_time = time.time()
     netchop_result = await NetChop.arun(
         {
@@ -113,6 +112,8 @@ async def step1_protein_cleavage(
     # 对netchop结果获取肽段fasta文件
     logger.info("开始执行NetChop_Cleavage工具...")
     start_time = time.time()
+    # 将肽段长度字符串转换为列表
+    # peptide_lengths = [int(length.strip()) for length in input_parameters.peptide_length.split(',')]
     netchop_cleavage_result = await NetChop_Cleavage.arun(
         {
             "input_file": netchop_result_file_path,
