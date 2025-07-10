@@ -103,7 +103,7 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
                     "conversation_id": conversation_id,
                 }
             )
-            if not isinstance(neoantigen_message, list) or len(neoantigen_message) < 9:
+            if not isinstance(neoantigen_message, list):
                 send_ai_message_to_server(conversation_id, "\n⚠️ Neo-antigen筛选过程出现异常，请检查输入数据。\n")
                 return Command(goto=END)
 
@@ -128,22 +128,47 @@ async def NeoantigenSelectNode(state: AgentState, config: RunnableConfig):
         send_ai_message_to_server(conversation_id, "\n ✅ 肽段数据分析完成，结合筛选过程生成报告...\n")
 
         # neoantigen_array = state.get("neoantigen_message", [])
-        neoantigen_array=neoantigen_message
-        if not isinstance(neoantigen_array, list) or len(neoantigen_array) < 9:
+        neoantigen_array = neoantigen_message
+        if not isinstance(neoantigen_array, list):
             send_ai_message_to_server(conversation_id, "\n⚠️ 无法生成报告：数据格式不正确\n")
             return Command(goto=END)
 
+        report_data_keys = [
+            'cleavage_count',
+            'cleavage_link',
+            'tap_count',
+            'tap_link',
+            'affinity_count',
+            'affinity_link',
+            'immunogenicity_count',
+            'immunogenicity_link',
+            'bigmhc_im_content'
+        ]
         report_data = {
-            'cleavage_count': neoantigen_array[0],
-            'cleavage_link': f"[肽段切割]({DOWNLOADER_URL_PREFIX}{neoantigen_array[1]})" if neoantigen_array[1].startswith("minio://") else f"{neoantigen_array[1]}",
-            'tap_count': neoantigen_array[2],
-            'tap_link': f"[TAP 转运预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[3]})" if neoantigen_array[3].startswith("minio://") else f"{neoantigen_array[3]}",
-            'affinity_count': neoantigen_array[4],
-            'affinity_link': f"[亲和力预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[5]})" if neoantigen_array[5].startswith("minio://") else f"{neoantigen_array[5]}",
-            'immunogenicity_count': neoantigen_array[6],
-            'immunogenicity_link': f"[免疫原性预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[7]})" if neoantigen_array[7].startswith("minio://") else f"{neoantigen_array[7]}",
-            'bigmhc_im_content': neoantigen_array[8],
+            report_data_keys[0]: 0,
+            report_data_keys[1]: "未预测",
+            report_data_keys[2]: 0,
+            report_data_keys[3]: "未预测",
+            report_data_keys[4]: 0,
+            report_data_keys[5]: "未预测",
+            report_data_keys[6]: 0,
+            report_data_keys[7]: "未预测",
+            report_data_keys[8]: "未预测"
         }
+        for i in range(len(neoantigen_array)):
+            report_data_key = report_data_keys[i]
+            if i % 2 == 0:
+                content = neoantigen_array[i]
+            elif i == 1:
+                content = f"[肽段切割]({DOWNLOADER_URL_PREFIX}{neoantigen_array[i]})" if neoantigen_array[i].startswith("minio://") else f"{neoantigen_array[i]}"
+            elif i == 3:
+                content = f"[TAP 转运预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[i]})" if neoantigen_array[3].startswith("minio://") else f"{neoantigen_array[i]}" 
+            elif i == 5:
+                content = f"[亲和力预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[i]})" if neoantigen_array[5].startswith("minio://") else f"{neoantigen_array[i]}"
+            elif i == 7:
+                content = f"[免疫原性预测]({DOWNLOADER_URL_PREFIX}{neoantigen_array[i]})" if neoantigen_array[7].startswith("minio://") else f"{neoantigen_array[i]}"
+            report_data[report_data_key] = content
+
         patient_report_md = PRIDICT_PATIENT_REPORT_ONE.format(**report_data)
         pdf_download_link = neo_md2pdf(patient_report_md)
         send_ai_message_to_server(conversation_id, "📄 完整分析细节、候选肽段列表与评分均已整理至报告中，可点击查看：")
