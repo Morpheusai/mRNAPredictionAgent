@@ -55,6 +55,7 @@ async def step1_protein_cleavage(
 ## 🔍 步骤 1：突变肽段生成与切割
 目标：识别可能作为抗原呈递单位的8–11mer短肽段
 """
+    return "123" ,"123",123
     send_ai_message_to_server(conversation_id, STEP1_DESC1)
     # 调用前置接口
     try:
