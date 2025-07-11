@@ -51,7 +51,9 @@ async def NetCTLpan(
         "output_threshold": output_threshold,
         "sort_by": sort_by,
         "num_workers":20,
-        "mode": 1
+        "mode": 1,
+        "hla_mode":1, #等于1表示只取传入的第一个hla分型做检测
+        "peptide_duplication_mode":1 #为一表示肽段去重
     }
 
     timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
