@@ -553,9 +553,14 @@ async def chat(user_input: PredictUserInput, agent_id: str = PREDICT_NEO_ANTIGEN
 async def describe_text(request: MinioRequest):
     try:
         # 调用 LangChain 处理链
-        result = fileDescriptionAgent.invoke({"file_name": request.file_name,"file_content":request.file_content})
+        result = fileDescriptionAgent.invoke(
+            {
+                "file_name": request.file_name,
+                "file_content": request.file_content[0: min(256, len(request.file_content))]
+            }
+        )
         # 返回分析结果
-        return MinioResponse(file_description=result.content)
+        return MinioResponse(file_description = result.content)
     except Exception as e:
         # 捕获异常并返回错误信息
         raise HTTPException(status_code=500, detail=str(e))
