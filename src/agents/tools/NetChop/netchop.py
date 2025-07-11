@@ -36,7 +36,8 @@ async def NetChop(
         "cleavage_site_threshold": cleavage_site_threshold,
         "model": model,
         "format": format,
-        "strict": strict
+        "strict": strict,
+        "num_workers":20,        
     }
 
     timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
