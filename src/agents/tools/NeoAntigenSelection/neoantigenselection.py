@@ -183,7 +183,6 @@ async def run_neoantigenselection(
         # 第一步：蛋白切割位点预测
         netchop_parameters = tool_parameters.get_netchop_parameters()
         netchop_parameters.input_filename = input_file
-        print("11111111111111111111111111111")
         cleavage_result_file_path, netchop_final_result_str,cleavage_m = await step1_protein_cleavage(
             netchop_parameters, 
             neoantigen_message,
@@ -191,7 +190,6 @@ async def run_neoantigenselection(
             predict_id,
             conversation_id,
         )
-        print("11111111111111111111111111111")
         neoantigen_message[0] = f"{cleavage_m}/{cleavage_m}"
         neoantigen_message[1] = cleavage_result_file_path
 

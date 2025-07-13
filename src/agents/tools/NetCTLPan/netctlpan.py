@@ -55,11 +55,23 @@ async def NetCTLpan(
         "hla_mode":1, #等于1表示只取传入的第一个hla分型做检测
         "peptide_duplication_mode":1 #为一表示肽段去重
     }
-
-    timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
+    time_timeout = CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"]
+    # total  整个操作的最大秒数，包括建立连接、发送请求和读取响应。
+    # connect  如果超出池连接限制，则建立新连接或等待池中的空闲连接的最大秒数。
+    # sock_connect  为新连接连接到对等点的最大秒数，不是从池中给出的。
+    # sock_read  从对等点读取新数据部分之间允许的最大秒数。
+    local_addr = ('0.0.0.0', 60380)
+    client_timeout = aiohttp.ClientTimeout(
+        total = time_timeout,
+        sock_read = time_timeout
+    )
+    connector = aiohttp.TCPConnector(
+        local_addr = local_addr,
+        keepalive_timeout = time_timeout
+    )
     try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(netctlpan_url, json=payload) as response:
+        async with aiohttp.ClientSession(connector=connector,timeout=client_timeout) as session:
+            async with session.post(netctlpan_url, timeout=client_timeout, json=payload) as response:
                 response.raise_for_status()
                 return await response.json()
     except Exception as e:
@@ -88,7 +100,3 @@ if __name__ == "__main__":
         print(result)
 
     asyncio.run(test())
-
-
-
-
