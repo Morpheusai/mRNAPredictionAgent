@@ -1,5 +1,6 @@
 import asyncio
 import aiohttp
+import random
 import time
 
 time_timeout = 200
@@ -9,7 +10,6 @@ time_timeout = 200
 # sock_connect  为新连接连接到对等点的最大秒数，不是从池中给出的。
 # sock_read  从对等点读取新数据部分之间允许的最大秒数。
 
-local_addr = ('0.0.0.0', 60380)
 
 client_timeout = aiohttp.ClientTimeout(
     total = time_timeout,
@@ -35,13 +35,9 @@ payload = {
 
 async def call_netctlpan():
 
-#    connector = aiohttp.TCPConnector(
-#        local_addr = local_addr,
-#        keepalive_timeout = time_timeout,
-#        enable_cleanup_closed = True,
-#    )
-
     for retry in range(10):
+        port = random.randint(30000, 65530)
+        local_addr = ('0.0.0.0', port)
         connector = aiohttp.TCPConnector(
             local_addr = local_addr,
             keepalive_timeout = time_timeout,
@@ -57,7 +53,7 @@ async def call_netctlpan():
         except Exception as e:
             print("发生异常类型：", type(e).__name__)
             print("异常信息：", str(e))
-            time.sleep(20)
+            time.sleep(5)
 
 async def main():
 

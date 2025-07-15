@@ -70,27 +70,6 @@ def _parse_df_to_positions(df):
     # logger.info(f"Parsed {len(positions)} positions for protein '{identifier}'.")
     return positions, identifier
 
-def _parse_text(file_path):
-    """解析文本格式文件"""
-    positions = {}
-    with open(file_path, 'r') as f:
-        lines = f.readlines()[1:]  # 跳过第一行表头
-        for line in lines:
-            if line.lower().startswith('pos') or line.startswith('---'):
-                continue
-            parts = line.strip().split()
-            if len(parts) < 5:
-                continue
-            try:
-                pos = int(parts[0])
-                aa = parts[1]
-                c = parts[2]
-                positions[pos] = (aa, c)
-            except ValueError:
-                continue
-    logger.info(f"Found {len(positions)} total positions from text.")
-    return positions
-
 def parse_netchop(input_file):
     """解析 NetChop 输出文件（支持 .txt, .tsv, .xlsx 格式）"""
     logger.info(f"Parsing input file: {input_file}")
@@ -108,7 +87,9 @@ def parse_netchop(input_file):
                     parsed_peptide_data.append((tag, origin_peptide)) # 会重复推入，之后一定要去重
                     # 考虑长片段的切
                     len_diff = len_block_df - window
-                    for i in range(len_diff):
+                    if len_diff == 0:
+                        continue
+                    for i in range(len_diff + 1):
                         start_idx = i
                         end_idx = i + window
                         flag_start = False
@@ -118,7 +99,7 @@ def parse_netchop(input_file):
                         if end_idx == len_block_df or block_df.iloc[end_idx-1]["C"] == "S":
                             flag_end = True
                         if flag_start and flag_end:
-                            tag = ">" + block_df.iloc[0]['Ident'] + "-" + str(window) + "-" + str(start_idx) + "-" + str(end_idx)
+                            tag = ">" + block_df.iloc[0]['Ident'] + "-" + str(window) + "-" + str(start_idx) + "-" + str(end_idx-1)
                             content = origin_peptide[start_idx: end_idx]
                             parsed_peptide_data.append((tag, content))
         return parsed_peptide_data
@@ -133,6 +114,8 @@ def write_fasta(peptides, output_file):
 
 # 解析可能包含多个蛋白质块的文件
 peptide_datas = parse_netchop(INPUT_FILENAME)
+for peptide_data in peptide_datas:
+    print(peptide_data)
 
 # 去重复
 unique_peptides = []  

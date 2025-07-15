@@ -77,7 +77,9 @@ def parse_netchop(input_file, WINDOWS = [8, 9, 10, 11]):
                     parsed_peptide_data.append((tag, origin_peptide)) # 会重复推入，之后一定要去重
                     # 考虑长片段的切
                     len_diff = len_block_df - window
-                    for i in range(len_diff):
+                    if len_diff == 0:
+                        continue
+                    for i in range(len_diff + 1):
                         start_idx = i
                         end_idx = i + window
                         flag_start = False
@@ -87,7 +89,7 @@ def parse_netchop(input_file, WINDOWS = [8, 9, 10, 11]):
                         if end_idx == len_block_df or block_df.iloc[end_idx-1]["C"] == "S":
                             flag_end = True
                         if flag_start and flag_end:
-                            tag = ">" + block_df.iloc[0]['Ident'] + "-" + str(window) + "-" + str(start_idx) + "-" + str(end_idx)
+                            tag = ">" + block_df.iloc[0]['Ident'] + "-" + str(window) + "-" + str(start_idx) + "-" + str(end_idx-1)
                             content = origin_peptide[start_idx: end_idx]
                             parsed_peptide_data.append((tag, content))
         return parsed_peptide_data
