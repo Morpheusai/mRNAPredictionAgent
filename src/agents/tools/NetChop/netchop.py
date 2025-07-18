@@ -1,14 +1,24 @@
-import json
 import aiohttp
-import traceback
+import asyncio
+import json
+import random
+import time
 
 
 from langchain_core.tools import tool
 from typing import Optional
 
 from config import CONFIG_YAML
+from src.utils.log import logger
+
 
 netchop_url = CONFIG_YAML["TOOL"]["NETCHOP"]["url"]
+PORT_START = CONFIG_YAML["TOOL"]["COMMON"]["port_start"]
+PORT_END = CONFIG_YAML["TOOL"]["COMMON"]["port_end"]
+RETRY_TIMES = CONFIG_YAML["TOOL"]["COMMON"]["retry_times"]
+TIME_TIMEOUT = CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"]
+
+
 @tool
 async def NetChop(
     input_filename: str,
@@ -40,21 +50,41 @@ async def NetChop(
         "num_workers":20,        
     }
 
-    timeout = aiohttp.ClientTimeout(total=CONFIG_YAML["TOOL"]["COMMON"]["timeout_seconds"])
-    try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(netchop_url, json=payload) as response:
-                response.raise_for_status()
-                return await response.json()
-    except Exception as e:
-        print("发生异常类型：", type(e).__name__)
-        print("异常信息：", str(e))
-        traceback.print_exc()
+    
+    # total  整个操作的最大秒数，包括建立连接、发送请求和读取响应。
+    # connect  如果超出池连接限制，则建立新连接或等待池中的空闲连接的最大秒数。
+    # sock_connect  为新连接连接到对等点的最大秒数，不是从池中给出的。
+    # sock_read  从对等点读取新数据部分之间允许的最大秒数。
+    client_timeout = aiohttp.ClientTimeout(
+        total = TIME_TIMEOUT,
+        sock_read = TIME_TIMEOUT
+    )
+    for retry in range(RETRY_TIMES):
+        port = random.randint(PORT_START, PORT_END)
+        local_addr = ('0.0.0.0', port)
+        connector = aiohttp.TCPConnector(
+            local_addr = local_addr,
+            keepalive_timeout = TIME_TIMEOUT
+        )
+        try:
+            async with aiohttp.ClientSession(connector=connector,timeout=client_timeout) as session:
+                async with session.post(netchop_url, timeout=client_timeout, json=payload) as response:
+                    response.raise_for_status()
+                    return await response.json()
+        except Exception as e:
+            logger.warning(f"第{retry+1}次调用NetChop服务失败，失败原因：{e}")
+            time.sleep(3.0)
 
-        return json.dumps({
+    logger.error(f"调用NetChop服务失败，请检查网络和工具服务")
+    return json.dumps(
+        {
             "type": "text",
-            "content": f"调用远程 NetChop 服务失败: {type(e).__name__} - {str(e)}"
-        }, ensure_ascii=False)
+            "content": f"调用 NetChop 服务失败: {type(e).__name__} - {str(e)}"
+        }, 
+        ensure_ascii=False
+    )
+
+
 
 
 if __name__ == "__main__":

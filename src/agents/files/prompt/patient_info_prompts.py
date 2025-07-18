@@ -4,7 +4,7 @@ PATIENT_INFO_SYSTEM_PROMPT = """
 - gender（性别）：未知时请赋值为\"其他\"
 - blood_type（血型）：未知时请赋值为\"unknown\"
 - status（状态）：未知时请赋值为\"new\"
-- birth_date（出生日期）：未知时请赋值为\"\"（空字符串），不要用0000-01-01等非法日期
+- birth_date（出生日期）：未知时请赋值为\"None\"，系统要求日期必须符合 YYYY-MM-DD 格式，且年份不能为 0
 - medical_record_number（病历号）：未知时请赋值为\"\"（空字符串）
 - name（患者姓名）：未知时请赋值为\"\"（空字符串）
 - 其他字段：未知时请赋值为\"\"（空字符串）
@@ -13,7 +13,7 @@ PATIENT_INFO_SYSTEM_PROMPT = """
 - medical_record_number: 病历号
 - name: 患者姓名
 - gender: 性别（男/女/其他）
-- birth_date: 出生日期
+- birth_date: 出生日期，（未知时请赋值为\"None\"，系统要求日期必须符合 YYYY-MM-DD 格式，且年份不能为 0）
 - phone: 联系电话
 - email: 电子邮箱
 - hospital: 就诊医院

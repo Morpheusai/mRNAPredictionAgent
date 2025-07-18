@@ -3,6 +3,7 @@ import pandas as pd
 import json
 import uuid
 import asyncio
+import traceback
 
 from dotenv import load_dotenv
 from pathlib import Path  
@@ -23,9 +24,9 @@ MINIO_BUCKET = CONFIG_YAML["MINIO"]["netchop_cleavage_bucket"]
 
 def write_fasta(peptides, output_file):
     with open(output_file, 'w') as f:
-        for tag, peptide in enumerate(peptides):
-            f.write(tag + "\n")
-            f.write(peptide + "\n")
+        for tag, peptide in peptides:
+            f.write(str(tag) + "\n")
+            f.write(str(peptide) + "\n")
 
 def _parse_excel_multiple(file_path):
     """
@@ -114,6 +115,7 @@ async def run_NetChop_Cleavage(
     logger.info(f"Starting peptide generation from {input_file}...")
     local_input = download_from_minio_uri(input_file, input_tmp_dir)
     suffix = Path(local_input).suffix.lower()
+
     if suffix not in [".txt", ".tsv" ,".xlsx"]:
         return json.dumps({"type": "text", 
                             "content": "仅支持 txt 、 tsv 文件 或 excel文件 "
@@ -121,7 +123,6 @@ async def run_NetChop_Cleavage(
     try:
         # 解析可能包含多个蛋白质块的文件
         peptide_datas = parse_netchop(local_input, lengths)
-
         # 去重复
         unique_peptides = []  
         unique_fasta_items = []  
@@ -131,10 +132,11 @@ async def run_NetChop_Cleavage(
                 unique_fasta_items.append((tag, peptide))
 
         # 输出保存
-        result_uuid = str(uuid.uuid4())
+        result_uuid = str(uuid.uuid4().hex)
         object_name = f"{result_uuid}_cleavage_result.{output_format}"
         output_file = Path(output_tmp_dir) / object_name
         if unique_fasta_items:
+
             write_fasta(unique_fasta_items, output_file)
         else:
             logger.warning("No valid peptides generated.")
@@ -150,10 +152,11 @@ async def run_NetChop_Cleavage(
         }, ensure_ascii=False)
 
     except Exception as e:
-        logger.error(f"NetChop 后处理失败: {e}")
+        tb_str = traceback.format_exc()
+        logger.error(f"NetChop 后处理失败: {e}\n{tb_str}")
         return json.dumps({
             "type": "text",
-            "content": f"NetChop_Cleavage 处理失败: {e}"
+            "content": f"NetChop_Cleavage 处理失败: {e}\n{tb_str}"
         }, ensure_ascii=False)
 @tool
 def NetChop_Cleavage(

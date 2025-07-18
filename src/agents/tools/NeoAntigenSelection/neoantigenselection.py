@@ -195,8 +195,8 @@ async def run_neoantigenselection(
 
         # 第二步：TAP转运预测
         netctlpan_parameters = tool_parameters.get_netctlpan_parameters()
-        # netctlpan_parameters.input_filename = cleavage_result_file_path
-        netctlpan_parameters.input_filename = input_file
+        netctlpan_parameters.input_filename = cleavage_result_file_path
+        # netctlpan_parameters.input_filename = input_file
         netctlpan_parameters.mhc_allele = mhc_allele
         netctlpan_file_path, netctlpan_fasta_str, tap_m,netctlpan_tool_url = await step6_tap_transportation_prediction(
             netctlpan_parameters,

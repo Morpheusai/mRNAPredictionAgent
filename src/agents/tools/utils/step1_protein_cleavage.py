@@ -1,5 +1,5 @@
 import json
-import requests
+import uuid
 import time
 import tempfile
 
@@ -55,7 +55,7 @@ async def step1_protein_cleavage(
 ## 🔍 步骤 1：突变肽段生成与切割
 目标：识别可能作为抗原呈递单位的8–11mer短肽段
 """
-    return "123" ,"123",123
+    # return "123" ,"123",123
     send_ai_message_to_server(conversation_id, STEP1_DESC1)
     # 调用前置接口
     try:
@@ -160,7 +160,9 @@ async def step1_protein_cleavage(
         # 需要获取bucket_name
         path_without_prefix = cleavage_result_file_path[len("minio://"):]
         bucket_name, _ = path_without_prefix.split("/", 1)
-        new_minio_path = upload_file_to_minio(tmpf_path, bucket_name=bucket_name)
+        result_uuid = str(uuid.uuid4().hex)
+        object_name = f"{result_uuid}_cleavage_result.fasta"
+        new_minio_path = upload_file_to_minio(tmpf_path, bucket_name=bucket_name, minio_object_name=object_name)
         # 5. 统计去重后数量
         count = sum(1 for line in deduped_str.splitlines() if line.startswith('>'))
         logger.info(f"成功解析到 {count} 条候选短肽段（去重后）")
