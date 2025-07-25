@@ -32,7 +32,7 @@ class UserInput(BaseModel):
         description="User input to the agent.",
         examples=["_______________________________DQATSLRILNNGHAFNVEFDDSQDKAVLK"or"What is the weather in Tokyo?"],
     )
-    conversation_id: str = Field(
+    conversation_id: int = Field(
         description="传入会话id，存入数据库",
     )
     file_list: List[FileGroup] = Field(

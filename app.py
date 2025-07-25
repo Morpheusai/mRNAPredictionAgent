@@ -20,6 +20,7 @@ from src.agents.agents import (
     PATIENT_CASE_MRNA_AGENT,
     NEO_ANTIGEN,
     PREDICT_NEO_ANTIGEN,
+    QA_PREDICT_NEO,
     get_all_agent_info,
     get_all_agents,
     get_agent
@@ -532,6 +533,25 @@ async def chat(user_input: UserInput, agent_id: str = NEO_ANTIGEN) -> StreamingR
 #predict_neo_antigen_stream的接口
 @app.post("/predict_neo_antigen_stream", response_class=StreamingResponse, responses=_sse_response_example())
 async def chat(user_input: PredictUserInput, agent_id: str = PREDICT_NEO_ANTIGEN) -> StreamingResponse:
+    """
+    Stream an agent's response to a user input, including intermediate messages and tokens.
+
+    If agent_id is not provided, the default agent will be used.
+    Use thread_id to persist and continue a multi-turn conversation. run_id kwarg
+    is also attached to all messages for recording feedback.
+
+    Set `stream_tokens=false` to return intermediate messages but not token-by-token.
+    """
+    logger.info(f"Received user_input: {user_input.dict()}")
+    logger.info(f"Agent ID: {agent_id}")
+    return StreamingResponse(
+        message_generator(user_input, agent_id),
+        media_type="text/event-stream",
+    )
+
+#qa_predict_neo_stream的接口
+@app.post("/qa_predict_neo_stream", response_class=StreamingResponse, responses=_sse_response_example())
+async def chat(user_input: UserInput, agent_id: str = QA_PREDICT_NEO) -> StreamingResponse:
     """
     Stream an agent's response to a user input, including intermediate messages and tokens.
 

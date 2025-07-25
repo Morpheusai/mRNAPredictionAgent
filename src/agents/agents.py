@@ -7,12 +7,14 @@ from src.agents.patient_case_mrna_research import patient_case_mRNA_research
 from src.agents.pMHC_affinity_prediction_research import pMHC_affinity_prediction_research
 from src.agents.neo_antigen_research import neo_antigen_research  
 from src.agents.predict_neo_antigen_research import predict_neo_antigen_research
+from src.agents.qa_predict_neo import qa_predict_neo_research
 
 DEFAULT_AGENT = "mRNA_research"
 PMHC_AFFINITY_PREDICTION="pMHC_affinity_prediction"
 PATIENT_CASE_MRNA_AGENT="patient_case_mRNA_research"
 NEO_ANTIGEN="neo_antigen_research"
 PREDICT_NEO_ANTIGEN="predict_neo_antigen_research"
+QA_PREDICT_NEO="qa_predict_neo_research"
 
 @dataclass
 class Agent:
@@ -44,6 +46,11 @@ agents: dict[str, Agent] = {
         description="完成个体化肽段预测predict-neo-antigen筛选的Agent",
         graph=predict_neo_antigen_research
     ),
+
+    "qa_predict_neo_research":Agent(
+        description="neo预测系统问答助手",
+        graph=qa_predict_neo_research
+    )
 }
 
 def get_agent(agent_id: str) -> CompiledStateGraph:
